@@ -1,0 +1,45 @@
+# upstream: pinklab-art/pinky_pro @ 014a09f, mujoco 3.6.0, 2026-11-16T11:56:18Z
+$ python -I probe.py <pinky_pro checkout>
+bodies: ['world', 'base_link', 'l_wheel', 'r_wheel', 'caster_mount_link', 'caster_roate_link', 'caster_wheel', 'robot_lamp', 'rplidar_mount', 'rplidar_link', 'front_camera_mount', 'front_camera_link', 'screen_mount', 'ultrasonic_link', 'ir_mid_link', 'ir_l_link', 'ir_r_link', 'imu_link']
+on-panel IR: [True, True, True] z 0.328
+
+[A] no stop, 0.08 m/s
+   fell: True x at fall 1.224
+
+[B] IR stop: speed, latency -> result, axle-to-edge (mm), front IR overhang (mm)
+   v=0.05 latency=0.03: STOPPED  axle-to-edge=  26.8  ir-over-edge=   2.7
+   v=0.05 latency=0.08: STOPPED  axle-to-edge=  24.3  ir-over-edge=   5.2
+   v=0.05 latency=0.15: STOPPED  axle-to-edge=  20.8  ir-over-edge=   8.7
+   v=0.08 latency=0.03: STOPPED  axle-to-edge=  24.6  ir-over-edge=   4.9
+   v=0.08 latency=0.08: STOPPED  axle-to-edge=  20.6  ir-over-edge=   8.9
+   v=0.08 latency=0.15: STOPPED  axle-to-edge=  15.1  ir-over-edge=  14.4
+   v=0.12 latency=0.03: STOPPED  axle-to-edge=  20.6  ir-over-edge=   8.9
+   v=0.12 latency=0.08: STOPPED  axle-to-edge=  14.7  ir-over-edge=  14.8
+   v=0.12 latency=0.15: STOPPED  axle-to-edge=   6.4  ir-over-edge=  23.1
+   v=0.20 latency=0.03: STOPPED  axle-to-edge=  12.0  ir-over-edge=  17.5
+   v=0.20 latency=0.08: STOPPED  axle-to-edge=   2.1  ir-over-edge=  27.4
+   v=0.20 latency=0.15: FELL     axle-to-edge= -23.5  ir-over-edge=  53.0
+
+[C] lane change after IR stop (v=0.08, latency=0.08): reverse, turn 90, shift 0.08, turn 90, drive back
+   reverse=  0 mm: centre-to-edge before turn= 20.6 mm, min caster-centre-to-edge=  59.4 mm, completed=False, fell=False, end pose=(1.183, 0.000, 54.2 deg)
+   reverse= 30 mm: centre-to-edge before turn= 51.1 mm, min caster-centre-to-edge=  -7.5 mm, completed=False, fell=False, end pose=(1.140, 0.078, -179.9 deg)
+   reverse= 60 mm: centre-to-edge before turn= 81.0 mm, min caster-centre-to-edge=  24.5 mm, completed=True, fell=False, end pose=(0.619, 0.034, -174.6 deg)
+
+[D] oblique approach, v=0.08 latency=0.08: heading -> result
+   15 deg: STOPPED  wheel-axle-to-edge L=  37.8 R=  13.4 mm
+   30 deg: STOPPED  wheel-axle-to-edge L=  49.8 R=   6.4 mm
+   45 deg: STOPPED  wheel-axle-to-edge L=  53.4 R= -13.8 mm
+   60 deg: STOPPED  wheel-axle-to-edge L=  60.2 R= -14.4 mm
+$ python -I sweep.py <pinky_pro checkout> 0.08 0.08 0.06 0.08
+v=0.08 latency=0.08 back=0.06 spacing=0.08: DONE, lanes=15, time=11.8 min, end=(1.119,0.511,-0deg), coverage=91.8% of panel, y-range=(-0.574,0.573), x-range=(-1.180,1.180)
+$ python -I sweep.py <pinky_pro checkout> 0.08 0.15 0.06 0.08
+v=0.08 latency=0.15 back=0.06 spacing=0.08: DONE, lanes=15, time=11.8 min, end=(1.124,0.513,-0deg), coverage=93.0% of panel, y-range=(-0.576,0.576), x-range=(-1.186,1.185)
+$ python -I sweep.py <pinky_pro checkout> 0.08 0.08 0.06 0.06
+v=0.08 latency=0.08 back=0.06 spacing=0.06: DONE, lanes=20, time=15.3 min, end=(-1.119,0.511,-180deg), coverage=93.6% of panel, y-range=(-0.574,0.573), x-range=(-1.180,1.180)
+
+# heading offset without / with IR squaring (sweep2.py <offset_deg> <align> <back_end> <back_side> [ir_period x10ms])
+offset=+1.0deg align=0 back_end=0.06 back_side=0.06 ir_period=20ms: DONE, lanes=15, time=11.9 min, coverage=92.1%, min centre-to-side-edge=26 mm, lane-direction error=+1.00deg, squaring steps=[]
+offset=-1.0deg align=0 back_end=0.06 back_side=0.06 ir_period=20ms: STUCK, lanes=1, time=13.5 min, coverage=9.7%, min centre-to-side-edge=27 mm, lane-direction error=-1.00deg, squaring steps=[]
+offset=+2.0deg align=0 back_end=0.06 back_side=0.06 ir_period=20ms: DONE, lanes=14, time=11.1 min, coverage=85.6%, min centre-to-side-edge=27 mm, lane-direction error=+2.00deg, squaring steps=[]
+offset=-2.0deg align=0 back_end=0.06 back_side=0.06 ir_period=20ms: FELL, lanes=1, time=12.3 min, coverage=7.2%, min centre-to-side-edge=-24 mm, lane-direction error=-2.00deg, squaring steps=[]
+offset=+0.0deg align=1 back_end=0.06 back_side=0.06 ir_period=20ms: DONE, lanes=15, time=12.0 min, coverage=91.2%, min centre-to-side-edge=23 mm, lane-direction error=-0.29deg, squaring steps=[0.0, -0.43, 0.43]

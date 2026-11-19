@@ -1,0 +1,8 @@
+<?xml version='1.0' ?>
+<launch>
+    <arg name="waypoints_file" default="$(find-pkg-share pinky_auto)/config/waypoints.yaml"/>
+
+    <node pkg="pinky_auto" exec="patrol" output="screen">
+        <param name="waypoints_file" value="$(var waypoints_file)"/>
+    </node>
+</launch>

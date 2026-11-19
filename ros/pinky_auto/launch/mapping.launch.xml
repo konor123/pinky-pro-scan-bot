@@ -1,0 +1,4 @@
+<?xml version='1.0' ?>
+<launch>
+    <include file="$(find-pkg-share pinky_navigation)/launch/map_building.launch.xml"/>
+</launch>

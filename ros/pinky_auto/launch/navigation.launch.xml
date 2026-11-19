@@ -1,0 +1,11 @@
+<?xml version='1.0' ?>
+<launch>
+    <arg name="map"/>
+    <arg name="params_file" default="$(find-pkg-share pinky_navigation)/params/nav2_params.yaml"/>
+
+    <include file="$(find-pkg-share pinky_navigation)/launch/bringup_launch.xml">
+        <arg name="map" value="$(var map)"/>
+        <arg name="params_file" value="$(var params_file)"/>
+        <arg name="use_sim_time" value="False"/>
+    </include>
+</launch>
