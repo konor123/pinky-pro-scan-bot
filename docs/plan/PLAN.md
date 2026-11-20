@@ -2,7 +2,7 @@
 
 - 과제: Pinky Pro 2대에 RealSense D455를 서로 다른 높이로 달고, 두 대가 동시에 물체 주위를 돌며 촬영해 물체의 3D 메시를 만든다.
 - 시연: 2026-11-28(토)
-- 장비: Pinky Pro 2대(Raspberry Pi 5 2 GB, Ubuntu 24.04, ROS 2 Jazzy), D455 2대, 스캔 PC(academypc, Ubuntu 노트북), 시뮬레이션 PC(officepc WSL, Gazebo)
+- 장비: Pinky Pro 2대(Raspberry Pi 5 2 GB, Ubuntu 24.04, ROS 2 Jazzy), D455 2대, 개발 PC, 스캔 PC(Ubuntu 노트북), 시뮬레이션 PC(Ubuntu 24.04 + ROS 2 Jazzy + Gazebo)
 - 할 일 목록(온라인·현장): `docs/plan/TODOs.md`
 - 작성: 2026-11-19
 
@@ -24,11 +24,11 @@
 - **영상은 스트림 없이 스냅샷만 받는다.** 스캔 PC가 요청할 때만 로봇이 카메라를 켜서 몇 장 찍고 끈다. ROS 영상 토픽은 쓰지 않는다. odom과 LiDAR는 크기가 작아(로봇당 초당 수십 KB) 계속 보낸다.
 - **온라인에서 다 만들고 현장에서는 한 번에 맞춘다.** 현장 작업은 장착, 확인 스크립트 실행, 녹화, 시연으로 한정한다.
 - **SDD(명세 먼저)**: 코드를 쓰기 전에 모듈마다 1쪽짜리 명세(`docs/specs/`: 입력·출력·동작·완료 테스트)를 쓴다. 모듈 사이 접점(4장)은 이 문서에서 확정한다.
-- **TDD(테스트 먼저)**: 명세의 완료 테스트를 먼저 쓰고 통과시킨다. 로봇 쪽은 가짜 에이전트로 바꿔 끼워 GCE에서 전체 흐름을 통과시킨 뒤 Gazebo, 실물 순서로 진행한다.
+- **TDD(테스트 먼저)**: 명세의 완료 테스트를 먼저 쓰고 통과시킨다. 로봇 쪽은 가짜 에이전트로 바꿔 끼워 개발 PC에서 전체 흐름을 통과시킨 뒤 Gazebo, 실물 순서로 진행한다.
 - **제조사·공개 예제를 출발점으로 쓴다**(아래 표). 새로 짜는 것은 로봇 에이전트, 표식 자세, 주행 판단, 두 대 맞춤 진행, 데이터 저장, 재구성 묶음뿐이다.
 - **성공 경로 우선**: 정상 흐름과 3.3의 주행 규칙만 구현한다. 그 밖의 오류가 나면 두 로봇을 멈추고 메시지를 출력한 뒤 처음부터 다시 실행한다. 현장에서 실제로 난 문제만 고친다.
 - **현장에서 바꾸는 값은 `config/scan.yaml` 하나에 모은다.** 현장에서 코드를 고치지 않는다.
-- **받은 데이터는 그대로 남긴다.** 스캔 PC는 로봇에서 받은 원본을 그대로 저장하므로, 현장 녹화를 GCE에서 처음부터 다시 처리해 재생 테스트로 쓸 수 있다.
+- **받은 데이터는 그대로 남긴다.** 스캔 PC는 로봇에서 받은 원본을 그대로 저장하므로, 현장 녹화를 개발 PC에서 처음부터 다시 처리해 재생 테스트로 쓸 수 있다.
 
 | 출처 | 예제 | 쓰는 곳 |
 |---|---|---|
@@ -76,8 +76,8 @@
 | 로봇 | `robot_agent`: TCP 서버. 제어 연결(`hello`, `move`, `snapshot`)과 스트림 연결(odom·LiDAR를 그대로 보냄, `stop` 받음) | 신규 |
 | 스캔 PC | `scan_station`: 표식 자세, 주행 판단(3.3), 두 대 맞춤 진행, 원본 저장, 정렬·중앙값, 재구성 실행, 메시 표시 | 신규 |
 | 스캔 PC | `scan_recon`: 자르기 → TSDF → 메시 → 치수 보고 | 신규(Open3D 예제 기반) |
-| GCE | 표식 판 생성, 합성 데이터, 2D 주행 시뮬레이터, 가짜 에이전트, 테스트 | 신규 |
-| officepc | Gazebo 스캔 방(우리 world + D455 옆 장착 xacro), 시뮬레이션용 에이전트 | pinky_sim_examples 기반 |
+| 개발 PC | 표식 판 생성, 합성 데이터, 2D 주행 시뮬레이터, 가짜 에이전트, 테스트 | 신규 |
+| 시뮬레이션 PC | Gazebo 스캔 방(우리 world + D455 옆 장착 xacro), 시뮬레이션용 에이전트 | pinky_sim_examples 기반 |
 
 - **네트워크 양**: 스냅샷 1회에 원본 약 5.9 MB(컬러 1.84 MB + 깊이 0.81 MB × 5)다. 한 바퀴에 두 로봇 48회로 약 285 MB이고, 시점마다 나눠서 오간다. 영상을 15 fps로 계속 받으면 초당 약 69 MB이므로 그 대신이다. Wi-Fi가 느리면 config `capture.compress`로 로봇이 무손실 압축(Python 표준 `zlib`)해 보낸다(기본 끔). odom·LiDAR 스트림은 로봇당 초당 수십 KB다.
 - **ROS 범위**: 로봇의 기존 설정은 그대로 두고, `scripts/robot.sh`가 스캔 스택을 띄울 때 환경에 로봇별 `ROS_DOMAIN_ID`(L 11, H 12)와 `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`를 넣어 ROS 통신을 로봇 안에 둔다. 로봇 밖으로는 TCP 메시지만 오간다.
@@ -157,7 +157,7 @@ docs/specs/          모듈 명세
 - 로봇은 프레임 값을 바꾸지 않는다(형식 변환·정렬·압축 없음. `capture.compress`를 켰을 때만 `zlib` 무손실 압축).
 - 머리말의 `fmt`가 형식을 알려 주고 스캔 PC가 형식별로 처리한다: 컬러 `yuyv`·`rgb8`, 깊이 `z16`(mm)·`f32`(m).
 - 시뮬레이션용 에이전트: 같은 메시지 형식으로 Gazebo 토픽(`/d455/image`, `/d455/depth_image`, `/d455/camera_info`)에서 한 장씩 받아 형식 그대로(`rgb8`, `f32`) 보낸다. 외부 파라미터는 단위 행렬이다.
-- 가짜 에이전트(GCE 테스트): 합성 장면을 렌더링해 실물과 같은 `yuyv`·`z16`으로 보낸다.
+- 가짜 에이전트(개발 PC 테스트): 합성 장면을 렌더링해 실물과 같은 `yuyv`·`z16`으로 보낸다.
 - 적외선 확인용 `snapshot(ir=true)`: 왼쪽 적외선 영상(Y8) 1장만 찍는다(현장 1 투사기 확인).
 
 ### 4.3 주행 접점
@@ -235,8 +235,8 @@ scans/<scan_id>/out/                  mesh.ply, cloud.ply, report.txt(치수, �
 | 모듈(위치) | 명세 핵심 | 먼저 쓸 테스트 |
 |---|---|---|
 | `board`(PC) | 배치 json, 실제 크기 인쇄 PDF(화살표·축 포함) | 생성 이미지에서 40장 모두 검출, 모서리 좌표가 배치 파일과 일치 |
-| `synth`(GCE) | 메시 + 판 → 컬러·깊이(Open3D `RaycastingScene`, 판 영상은 호모그래피), 깊이 카메라와 컬러 카메라를 따로 렌더링 | 다른 테스트의 입력 |
-| `sim2d`(GCE) | 문장 명령대로 움직이는 로봇(odom 잡음 옵션), 물체 원·다른 로봇·장애물 상자에 대한 2D LiDAR(장착 yaw 180°) | 다른 테스트의 입력 |
+| `synth`(개발 PC) | 메시 + 판 → 컬러·깊이(Open3D `RaycastingScene`, 판 영상은 호모그래피), 깊이 카메라와 컬러 카메라를 따로 렌더링 | 다른 테스트의 입력 |
+| `sim2d`(개발 PC) | 문장 명령대로 움직이는 로봇(odom 잡음 옵션), 물체 원·다른 로봇·장애물 상자에 대한 2D LiDAR(장착 yaw 180°) | 다른 테스트의 입력 |
 | `protocol`(공통) | 4.4 제어·스트림 메시지 | 보내고 받은 바이트가 같음 |
 | `tagpose`(PC) | YUY2 → BGR, 왜곡 보정 포함 검출, 보이는 표식 전부로 PnP 한 번 | 알려진 자세로 투영한 합성 영상에서 위치 3 mm, 각도 1° 안 |
 | `align`(PC) | 원본 깊이 + 보정값 → 컬러에 정렬(software device). 반나절 안에 안 되면 numpy 재투영 | 합성 깊이(깊이 카메라 시점)를 정렬한 결과가 컬러 시점 깊이와 2 mm 안 |
@@ -249,36 +249,36 @@ scans/<scan_id>/out/                  mesh.ply, cloud.ply, report.txt(치수, �
 
 통합 시험:
 
-- **I1(GCE)**: 가짜 에이전트 2대(`sim2d` + `synth`) → `scan_station` 전체 흐름 → 메시. 원 경로에 상자를 하나 둔 경우도 돈다.
-- **I2(officepc Gazebo)**: 우리 world에서 `command_driver`, LiDAR, 시뮬레이션용 에이전트로 L 설정 한 바퀴, H 설정 한 바퀴 → 재구성. 한 바퀴 도중 `spawn_object`로 원 경로에 상자를 놓는다. 반나절 안에 안 되면 건너뛰고 I1과 현장 1로 대신한다.
+- **I1(개발 PC)**: 가짜 에이전트 2대(`sim2d` + `synth`) → `scan_station` 전체 흐름 → 메시. 원 경로에 상자를 하나 둔 경우도 돈다.
+- **I2(시뮬레이션 PC Gazebo)**: 우리 world에서 `command_driver`, LiDAR, 시뮬레이션용 에이전트로 L 설정 한 바퀴, H 설정 한 바퀴 → 재구성. 한 바퀴 도중 `spawn_object`로 원 경로에 상자를 놓는다. 반나절 안에 안 되면 건너뛰고 I1과 현장 1로 대신한다.
 
 ## 6. 단계 순서(세부는 `TODOs.md`)
 
 | 단계 | 장소 | 앞 단계 | 끝나는 조건 |
 |---|---|---|---|
-| 온라인 1: 명세, 테스트, 스캔 PC 모듈, 로봇 에이전트, 표식 판 파일, 현장 도구 | GCE | — (표식 판 파일을 가장 먼저) | 테스트 전부 통과, I1 통과, `board_A1.pdf` |
-| 온라인 2: Gazebo 시험 | officepc | 온라인 1 | I2 통과 또는 건너뜀 |
+| 온라인 1: 명세, 테스트, 스캔 PC 모듈, 로봇 에이전트, 표식 판 파일, 현장 도구 | 개발 PC | — (표식 판 파일을 가장 먼저) | 테스트 전부 통과, I1 통과, `board_A1.pdf` |
+| 온라인 2: Gazebo 시험 | 시뮬레이션 PC | 온라인 1 | I2 통과 또는 건너뜀 |
 | 온라인 3: 두 로봇 원격 설치·확인 | 로봇(켜진 상태) | 온라인 1, 준비 0-1 | 두 로봇 스냅샷 24회 연속 성공, odom·LiDAR 스트림 수신, 이동 확인 |
 | 현장 1: 장착, 확인, 한 대씩 한 바퀴, 녹화 | 현장 | 온라인 3, 표식 판 출력 | 실물 `raw/`, 한 대 메시, 장애물·근접 출발 확인 |
-| 온라인 4: 현장 데이터로 수정 | GCE | 현장 1 | 재생 테스트 통과 |
+| 온라인 4: 현장 데이터로 수정 | 개발 PC | 현장 1 | 재생 테스트 통과 |
 | 현장 2: 두 대 동시, 기준 상자 | 현장 | 온라인 4 | 1장 완료 기준 |
 | 현장 3: 시연 물체, 리허설 | 현장 | 현장 2 | 3회 연속 성공 |
 | 시연 | 현장 | 현장 3 | |
 
 ## 7. 구현에 필요한 사실
 
-- **로봇 1 접속**: `ssh pinky`(Tailscale `pinky-pro`, 중계 연결이라 느림) 또는 로봇 AP(192.168.4.1)에 붙은 PC 경유. 로봇 2는 아직 접속 경로와 배포가 없다.
+- **로봇 접속**: 로봇은 자체 Wi-Fi AP(`pinky_XXXX`, 로봇 주소 192.168.4.1)를 띄우고, Pinky Studio로 공유기 Wi-Fi에도 연결할 수 있다. 접속은 `ssh pinky@<로봇 주소>`다.
 - **배포·실행**: `scripts/deploy.sh`(로봇 `~/pinky_auto_ws` 오버레이, 공식 `~/pinky_pro`는 건드리지 않음), `scripts/robot.sh start|stop|status`. 백그라운드 `ros2 launch`는 SIGINT를 무시하므로 프로세스 그룹에 SIGTERM을 보낸다.
 - **직렬 포트**: 모터 `/dev/ttyAMA4`, LiDAR `/dev/ttyAMA0`는 한 프로세스만 쓸 수 있다. 다른 bringup이 떠 있는지 먼저 본다.
-- **로봇 자원**: Pi 5 RAM 2 GB. sudo 비밀번호는 사용자가 입력한다.
+- **로봇 자원**: Pi 5 RAM 2 GB
 - **USB 전원**: Pi 5는 5 V 5 A 전원을 감지하면 USB 기기에 1.6 A, 아니면 600 mA를 준다. D455는 최대 약 0.69 A다. 스냅샷이 끊기면 보조배터리 USB 허브를 쓴다.
 - **LiDAR**: RPLiDAR C1이 차체 맨 위에 있고 주사면은 바닥 위 약 0.125 m다(공식 URDF). 로봇에 180° 돌아가 붙어 있어 스캔 각 0이 로봇 뒤쪽이다. 주사면보다 낮은 물체는 보이지 않는다(pinky_sim_examples README). `pinky_auto` robot 런치가 `/scan`을 낸다.
 - **로봇 카메라 소프트웨어**: PyPI `pyrealsense2` 2.59.2(aarch64·Python 3.12 휠, librealsense 포함)를 venv에 설치한다(sudo 필요 없음). USB 접근용 udev 규칙(librealsense 저장소 `config/99-realsense-libusb.rules`)만 sudo로 설치한다. 로봇에는 OpenCV가 필요 없다. venv는 `--system-site-packages`로 만들어 ROS의 `rclpy`와 `pyrealsense2`를 한 프로세스에서 쓰고, `robot_scan.launch.xml`은 `robot_agent`를 그 venv의 python으로 실행한다(`ExecuteProcess`). 휠이 안 되면 apt `ros-jazzy-librealsense2` 2.59.1의 `rs-save-to-disk`로 찍는다(이 apt 패키지에는 Python 바인딩과 udev 규칙이 없다).
 - **D455 컬러 형식**: 데이터시트의 동시 스트림 표(Table 4-5)에서 D455 컬러는 YUY2(16 bit)다. RGB8을 요청하면 librealsense가 로봇에서 변환하므로 YUY2로 받는다. 쓸 프로파일(1280×720 YUY2, 848×480 Z16, 15 fps)이 있는지는 `scripts/setup_robot.sh`가 카메라에서 확인해 출력한다.
-- **스캔 PC 저장소**: 저장소에는 원격 저장소가 없으므로 `scripts/setup_station.sh`가 GCE의 작업 트리를 academypc `~/3d-scan-bot`로 복사한다.
-- **스캔 PC Python**: `numpy` 1.26, `pyrealsense2==2.59.2.11152`, `open3d==0.20.0`, `opencv-contrib-python-headless==4.11.0.86`(5.x는 numpy 2 필요). 이 조합이 Python 3.12(x86_64)에서 함께 import되고 `rs.software_device()`가 만들어지는 것을 GCE에서 확인했다.
+- **스캔 PC 저장소**: 스캔 PC는 이 저장소를 clone해서 쓰고, `scripts/setup_station.sh`가 Python 패키지를 설치한다.
+- **스캔 PC Python**: `numpy` 1.26, `pyrealsense2==2.59.2.11152`, `open3d==0.20.0`, `opencv-contrib-python-headless==4.11.0.86`(5.x는 numpy 2 필요). 이 조합이 Python 3.12(x86_64)에서 함께 import되고 `rs.software_device()`가 만들어지는 것을 x86_64 Linux에서 확인했다.
 - **`command_driver`**: 제어 주기 20 Hz로 이동 중 `cmd_vel`을 계속 보내므로 모터 드라이버의 0.5 s 명령 끊김 정지와 맞는다. 거리·각도 허용 오차는 1 cm·2°다. 구독이 연결되기 전에 보낸 명령은 사라지므로 `robot_agent`는 `/pinky_command` 구독자가 생긴 뒤에 보낸다. 자체 LiDAR 정지(`stop_distance`, 기본 0.20 m)가 있지만 장애물 판단은 스캔 PC가 하므로 0.0으로 끈다. `package.xml`에 Gazebo·Nav2 패키지가 실행 의존으로 적혀 있으므로 로봇에서는 rosdep 없이 `colcon build --packages-select pinky_sim_examples`로만 빌드한다.
-- **Gazebo D455**(pinky_sim_examples): 정면 방향, 640×360, 15 Hz, near 0.6 m, 질량 0.39 kg으로 정의되어 있다. 우리 xacro에서 yaw +90°, 높이, 피치, near 0.4 m, 질량 0.116 kg으로 바꾼다. 깊이는 32FC1(m). 그 launch는 Gazebo 서버를 `-r -s`로만 띄우므로 SSH로 접속한 officepc에서는 `--headless-rendering`을 더해야 카메라가 나온다.
+- **Gazebo D455**(pinky_sim_examples): 정면 방향, 640×360, 15 Hz, near 0.6 m, 질량 0.39 kg으로 정의되어 있다. 우리 xacro에서 yaw +90°, 높이, 피치, near 0.4 m, 질량 0.116 kg으로 바꾼다. 깊이는 32FC1(m). 그 launch는 Gazebo 서버를 `-r -s`로만 띄우므로 화면 없이(SSH 등) 돌릴 때는 `--headless-rendering`을 더해야 카메라가 나온다.
 - **여러 로봇 네트워크**: 여러 Pinky를 한 공유기에 물리면 DDS 트래픽으로 통신이 끊길 수 있다(공식 README). 3.2의 로컬 탐색 설정으로 피한다.
 - **D455**: 측정 범위 0.4 m 이상, 848×480 최소 깊이 0.35 m, 컬러는 글로벌 셔터·최대 1280×800·시야각 90°×65°, 6축 IMU, 1/4-20 삼각대 나사, 116 g
 - **Pinky Pro**: 110 × 120 × 142 mm(W×D×H), 맨 위 RPLiDAR C1, 공개된 장착 구멍 없음, `wheel_separation` 0.0961 m

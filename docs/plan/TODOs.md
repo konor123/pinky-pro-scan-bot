@@ -2,10 +2,10 @@
 
 - 계획서: `docs/plan/PLAN.md`
 - 표기
-  - **[온라인]** 사람이 로봇 옆에 없어도 되는 일: GCE 개발, officepc 시뮬레이션, 켜 둔 로봇·스캔 PC에 원격 작업
+  - **[온라인]** 사람이 로봇 옆에 없어도 되는 일: 개발 PC 작업, 시뮬레이션 PC 작업, 켜 둔 로봇·스캔 PC에 원격 작업
   - **[현장]** 사람이 로봇 옆에 있어야 하는 일
-  - **(sudo)** 사용자가 비밀번호를 입력하는 일. 원격 터미널에서 해도 된다.
-- 현장 명령은 모두 스캔 PC(academypc)의 저장소 폴더에서 실행한다. 로봇 이름 `pinky1`(L), `pinky2`(H)는 스캔 PC의 SSH 별칭이다.
+  - **(sudo)** 로봇이나 스캔 PC의 sudo 비밀번호가 필요한 일. 원격 터미널에서 해도 된다.
+- 현장 명령은 모두 스캔 PC의 저장소 폴더에서 실행한다. 로봇 이름 `pinky1`(L), `pinky2`(H)는 스캔 PC의 `~/.ssh/config`에 만드는 SSH 별칭이다(3번 묶음).
 - 각 묶음은 앞 묶음이 끝난 뒤에 한다.
 - 실패하면 적힌 일을 한 번 해 보고, 안 되면 로그와 데이터를 남기고 다음 항목으로 간다.
 
@@ -40,7 +40,7 @@
 - [ ] 두 로봇에 D455를 USB 3 포트(파란색)로 꽂는다.
 - [ ] 두 로봇을 바퀴가 바닥에 닿지 않게 상자 위에 올리고, 충전기를 연결한 채 켜 둔다.
 - [ ] 로봇 2를 Pinky Studio(BLE 데스크톱 앱)의 "WiFi 설정" 탭에서 같은 Wi-Fi에 연결한다. `ROS_DOMAIN_ID`는 바꾸지 않는다.
-- [ ] academypc를 같은 Wi-Fi에 연결하고 Tailscale 로그인 상태로 켜 둔다. 이 상태로 3번 묶음을 원격으로 진행한다.
+- [ ] 스캔 PC를 같은 Wi-Fi에 연결해 켜 두고, 원격으로 접속할 수 있게 해 둔다. 이 상태로 3번 묶음을 원격으로 진행한다.
 - [ ] 스캔할 자리로 빈 바닥 약 2.2 m × 2.2 m를 정한다.
 
 ### 0-2. 표식 판 출력 — 1번 묶음의 첫 항목 뒤
@@ -48,7 +48,7 @@
 - [ ] `out/board_A1.pdf`를 출력소에서 A1 무광 용지에 100% 크기로 출력한다.
 - [ ] 594 mm 정사각으로 잘라 폼보드에 붙인다.
 
-## 1. 온라인 1 — 명세와 모듈 [온라인, GCE]
+## 1. 온라인 1 — 명세와 모듈 [온라인, 개발 PC]
 
 - [ ] 표식 판 명세, 배치와 인쇄 파일(0-2 출력에 필요하므로 가장 먼저) → `docs/specs/board.md`, `config/board.json`, `out/board_A1.pdf`
 - [ ] 나머지 모듈 명세(PLAN 4·5장 기준, 모듈당 1쪽) → `docs/specs/*.md`
@@ -74,9 +74,9 @@
 
 완료: `pytest -q` 전부 통과, I1 메시 생성, `out/board_A1.pdf` 준비
 
-## 2. 온라인 2 — Gazebo 시험 [온라인, officepc] — 반나절
+## 2. 온라인 2 — Gazebo 시험 [온라인, 시뮬레이션 PC] — 반나절
 
-- [ ] officepc WSL `~/pinky_pro/src`에 `pinky_sim_examples`를 받아 빌드
+- [ ] 시뮬레이션 PC의 `~/pinky_pro/src`(공식 README 방식 워크스페이스)에 `pinky_sim_examples`를 받아 빌드
 - [ ] world: 3 m 방 + 표식 판(판 이미지를 텍스처로 입힌 2 mm 상자) + 물체(`scan_room`의 비대칭 물체를 높이 0.18 m 안으로 줄임) → `sim/scan3d_room.yaml` → `make_world`
 - [ ] 로봇: 공식 로봇 + D455 옆 장착(yaw +90°, L·H 높이·피치 인자, near 0.4 m, 0.116 kg) → `sim/scan3d_robot.urdf.xacro`
 - [ ] 실행: launch(`--headless-rendering` 추가) + `command_driver` + 시뮬레이션용 에이전트 + `station --only L`(또는 H) → `sim/run_scan.sh L|H`
@@ -87,10 +87,10 @@
 
 ## 3. 온라인 3 — 로봇 원격 설치·확인 [온라인, 로봇 켜진 상태]
 
-- [ ] academypc → 두 로봇 SSH 키 등록(사용자 승인), 로봇 2 접속 확인
+- [ ] 스캔 PC → 두 로봇 SSH 키 등록, `~/.ssh/config`에 `pinky1`(L)·`pinky2`(H) 별칭 추가
   - 명령: `ssh pinky1 hostname`, `ssh pinky2 hostname`
   - 성공: 호스트 이름 출력
-- [ ] 스캔 PC 준비: GCE의 저장소를 academypc `~/3d-scan-bot`로 복사하고 Python 패키지 설치
+- [ ] 스캔 PC 준비: 이 저장소를 clone하고 Python 패키지 설치
   - 명령: `scripts/setup_station.sh`
   - 성공: `station ok`
 - [ ] (sudo) 두 로봇에 udev 규칙, venv에 `pyrealsense2`
@@ -104,8 +104,8 @@
   - 명령: `tools/snapshot_test.py --robot L --count 24 --save`(H도 같이)
   - 성공: `PASS 24/24`, 스냅샷 1회(요청부터 스캔 PC 수신까지) 평균 5 s 이하
   - 실패하면: 평균이 5 s를 넘으면 config `capture.compress`를 켜고 다시 잰다. 시작·정지를 반복할 때 자주 실패하면, 파이프라인을 열어 둔 채 요청 때만 프레임을 가져오는 방식으로 바꿀지 사용자와 정한다.
-- [ ] 위 `raw/`를 GCE로 올려 재생 테스트(YUY2 변환, 실제 보정값으로 정렬)
-  - 명령: `tools/upload.sh` → GCE에서 `pytest tests/replay`
+- [ ] 위 `raw/`를 개발 PC로 옮겨 재생 테스트(YUY2 변환, 실제 보정값으로 정렬)
+  - 명령: `tools/upload.sh` → 개발 PC에서 `pytest tests/replay`
   - 성공: 통과
 - [ ] 스냅샷 시험(바퀴가 뜬 채 모터를 돌리며)
   - 명령: `tools/snapshot_test.py --robot L --count 10 --spin`(H도 같이)
@@ -171,7 +171,7 @@
   - 실패하면: 로그·데이터를 남김
 - [ ] 데이터 올리기(5분)
   - 명령: `tools/upload.sh`
-  - 성공: GCE에 `scans/` 도착
+  - 성공: 개발 PC에 `scans/` 도착
 
 ## 5. 온라인 4 — 현장 데이터로 수정 [온라인]
 
@@ -220,7 +220,7 @@
 
 ## 9. 시연일 체크리스트
 
-- [ ] 두 로봇과 academypc를 충전한다.
+- [ ] 두 로봇과 스캔 PC를 충전한다.
 - [ ] 원 경로 주변 바닥에서 케이블·낮은 물체를 치운다(LiDAR에 안 보임).
 - [ ] 표식 판을 고정하고 물체를 가운데 놓는다.
 - [ ] 두 로봇을 대략 반대편 원 위에 놓는다.

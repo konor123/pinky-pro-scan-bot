@@ -1,6 +1,6 @@
 # Pinky Solar 계획서 v3.0 — Coordinator 독립 검토 (Claude)
 
-- 작성: 2026-11-16 (UTC 05:1x), coordinator Claude Opus 5.5, GCE.
+- 작성: 2026-11-16 (UTC 05:1x), coordinator Claude Opus 5.5, 개발 PC.
 - 대상: `docs/plan/PLAN-v3.0.md` (첨부 PLAN.md 복사본, SHA256 d941b69b…6aad, 1,089행). 행 번호는 이 파일 기준.
 - 성격: 다른 검토자(Codex, Antigravity/Argon) 결과를 보기 전에 쓴 독립 의견. 외부 사실 확인(OpenCode)도 반영하기 전이다.
 - 근거 표기: **일반 지식**(로봇·비전·통계 원리), **추정**(측정 전 수치), **확인 필요**(버전·하드웨어·기본값처럼 출처로 확인해야 하는 것). 이 문서에는 아직 **확인함** 항목이 없다.

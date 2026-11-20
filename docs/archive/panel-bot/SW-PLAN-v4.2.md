@@ -61,7 +61,7 @@
 | BNO055, Wheel encoder | Local odometry | — |
 | RealSense D455 + AprilTag | 패널 좌표 위치 측정, 궤적·Coverage 측정 | 패널 위 1.3–1.5 m 고정, PC에 USB 연결 |
 | 운영 PC (Ubuntu 24.04, Jazzy) | 제어 콘솔, RViz, D455 처리, rosbag | — |
-| 원격 개발 PC (ROS Jazzy) | 빌드, 노드 시험, bag 재생 | GCE에서 SSH로 사용 |
+| 원격 개발 PC (ROS Jazzy) | 빌드, 노드 시험, bag 재생 | 개발 PC에서 SSH로 사용 |
 
 ### 2.2 배치
 
@@ -383,7 +383,7 @@ solar-panel-bot/
 
 ### 4.10 기록·배포·운영 도구
 
-- **`tools/sync_to_pc.sh`:** GCE 저장소를 원격 개발 PC로 동기화하고, 그 PC의 ROS Jazzy에서 `colcon build`·`colcon test`를 실행해 결과를 수집한다.
+- **`tools/sync_to_pc.sh`:** 개발 PC 저장소를 원격 개발 PC로 동기화하고, 그 PC의 ROS Jazzy에서 `colcon build`·`colcon test`를 실행해 결과를 수집한다.
 - **로봇 배포:** 원격 개발 PC 또는 운영 PC에서 로봇으로 동기화한 뒤 로봇에서 빌드한다. 배포 버전(git SHA)을 run 메타데이터에 남긴다.
 - **rosbag2(MCAP) 기록 대상:** `/tf`, `/tf_static`, `/odom`, `/odometry/filtered`, `/imu_raw`, `/scan`, `/amcl_pose`, `/ext/robot_pose`, `/ir_sensor/raw`, `/edge/observation`, 압축 영상, `/mission/cmd`, `/cmd_vel_safe`, `/safety/status`, `/mission/status`.
 - **run 메타데이터:** run ID, git SHA, 파라미터 스냅샷, 지도 SHA, 등록 버전, A_eff 버전.
@@ -445,7 +445,7 @@ solar-panel-bot/
 
 | 단계 | 내용 | 실행 위치 |
 |---|---|---|
-| L0 단위 | `solar_core` 전체와 아래 필수 시나리오 | GCE(pytest) |
+| L0 단위 | `solar_core` 전체와 아래 필수 시나리오 | 개발 PC(pytest) |
 | L1 빌드·노드 | colcon build·test, launch 프로필별 기동, 가짜 입력으로 gate 동작 | 원격 개발 PC(ROS Jazzy) |
 | L2 bag 재생 | 끝단 감지 재현 시험, overhead_tracker, coverage_evaluator, gate replay | 원격 개발 PC |
 | L3 실기 단위 | G0, odom, 위치 정확도, 정지 거리, G-EDGE | 로봇 |
@@ -474,7 +474,7 @@ solar-panel-bot/
 
 **전제 조건(11-16)**
 - 원격 개발 PC에 colcon과 필요한 ROS 패키지 설치(robot_localization, nav2_amcl, nav2_map_server, slam_toolbox, laser_filters, apriltag_ros, realsense2_camera)
-- `sync_to_pc.sh`로 GCE → 원격 개발 PC 동기화
+- `sync_to_pc.sh`로 개발 PC → 원격 개발 PC 동기화
 - 로봇 배포 절차 확정
 - PC–Pi 시계 동기(chrony)
 

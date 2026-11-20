@@ -121,7 +121,7 @@ solar-panel-bot/
 └─ tools/                          # run_trial.sh, 고장 주입 스크립트, 보정 기록 도구
 ```
 
-- **원칙: 핵심 로직은 `solar_core`에 ROS 없이 작성하고, 노드는 얇은 래퍼로 둔다.** ROS가 없는 환경(GCE: Ubuntu 24.04, Python 3.12, numpy, pytest)에서도 단위 시험을 돌릴 수 있게 하기 위해서다.
+- **원칙: 핵심 로직은 `solar_core`에 ROS 없이 작성하고, 노드는 얇은 래퍼로 둔다.** ROS가 없는 환경(개발 PC: Ubuntu 24.04, Python 3.12, numpy, pytest)에서도 단위 시험을 돌릴 수 있게 하기 위해서다.
 - 언어는 Python(rclpy)이다. 지연을 측정했을 때 `safety_gate`가 50 Hz를 지키지 못하면 C++로 옮긴다.
 
 ---
@@ -335,7 +335,7 @@ solar-panel-bot/
 
 | 단계 | 내용 | 실행 위치 |
 |---|---|---|
-| L0 단위 시험 | `solar_core` 전체: footprint·swept polygon, lane 생성·A_eff, gate 규칙(모든 원인 코드), FSM 전이, IMU 단위 변환, coverage raster, IPM 투영. 목표 커버리지 80% 이상 | GCE(pytest) |
+| L0 단위 시험 | `solar_core` 전체: footprint·swept polygon, lane 생성·A_eff, gate 규칙(모든 원인 코드), FSM 전이, IMU 단위 변환, coverage raster, IPM 투영. 목표 커버리지 80% 이상 | 개발 PC(pytest) |
 | L1 빌드·노드 시험 | colcon build, launch 확인, 가짜 입력으로 gate 동작 확인 | ROS Jazzy 호스트(로봇 또는 PC) |
 | L2 bag 재생 | edge_detector, coverage_evaluator, overhead_tracker를 기록 자료로 검증 | PC |
 | L3 실기 단위 | G0(timeout, IMU, IR), odom 1 m/360°, AMCL 반복성, 정지 거리 | 로봇(사람 수행, 스크립트 제공) |
@@ -343,7 +343,7 @@ solar-panel-bot/
 | 고장 주입 | gate kill, driver kill, LiDAR 분리, IMU 토픽 차단, heartbeat 중단, 카메라 정지 | L3·L4 |
 
 - 모든 시행을 기록한다. 실패, 중단, 백스톱 발동은 성공에서 뺀다.
-- GCE에는 ROS가 없다. L1을 GCE에서 하려면 ros-jazzy-ros-base 설치가 필요하다(디스크 여유 6.2 GB, 사용자 승인 필요). 그렇지 않으면 로봇·PC에서 사람이 실행하고 결과 로그를 전달한다.
+- 개발 PC에는 ROS가 없다. L1을 개발 PC에서 하려면 ros-jazzy-ros-base 설치가 필요하다(디스크 여유 6.2 GB, 사용자 승인 필요). 그렇지 않으면 로봇·PC에서 사람이 실행하고 결과 로그를 전달한다.
 
 ---
 
@@ -395,7 +395,7 @@ solar-panel-bot/
 | 드라이버 패치가 설치 버전과 충돌 | 첫날 지연 | 설치 커밋 기준으로 패치하고, 패치를 최소 범위로 유지 |
 | 위치 오차 때문에 lane 사이가 빔 | Coverage 미달 | 횡오차로 s를 정하고, 미달 값도 그대로 보고 |
 | 태그 기둥이 LiDAR 스캔을 가림 | AMCL 품질 저하 | 각도 필터, 기둥 최소화 |
-| ROS 빌드·시험 환경 부족(GCE에 ROS 없음) | 통합 결함을 늦게 발견 | 순수 Python 코어 + L0. ROS 호스트 시험은 매일 사람이 실행 |
+| ROS 빌드·시험 환경 부족(개발 PC에 ROS 없음) | 통합 결함을 늦게 발견 | 순수 Python 코어 + L0. ROS 호스트 시험은 매일 사람이 실행 |
 | 일정(평일 10일) | 기능 누락 | 게이트별 축소 기준, 11-25 동결, 트랙 B는 비필수 |
 
 ---
@@ -431,5 +431,5 @@ solar-panel-bot/
 ## 12. 결정이 필요한 사항 (SW 진행에 영향)
 
 1. **외부 인프라를 제어 입력으로 써도 되는지(F1).** LiDAR 위치 추정이 11-18에 불합격하면, D455 태그 위치로 주행해도 되는지 정해 주셔야 합니다. 허락하면 가장 안정적인 대체 경로가 생깁니다.
-2. **GCE에 ROS Jazzy(ros-base)를 설치해도 되는지.** 설치하면 에이전트가 빌드와 노드 시험(L1)까지 직접 할 수 있습니다. 설치하지 않으면 L1은 로봇·PC에서 사람이 실행해야 합니다.
+2. **개발 PC에 ROS Jazzy(ros-base)를 설치해도 되는지.** 설치하면 에이전트가 빌드와 노드 시험(L1)까지 직접 할 수 있습니다. 설치하지 않으면 L1은 로봇·PC에서 사람이 실행해야 합니다.
 3. **원격 저장소(GitHub)와 CI를 둘지.** 현재 저장소에는 remote가 없습니다.
