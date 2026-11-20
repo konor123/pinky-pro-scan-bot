@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scan3d"
+version = "0.1.0"
+description = "Pinky Pro 2대와 RealSense D455로 물체를 3D 스캔하는 스캔 PC 코드"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "numpy==1.26.4",
+    "opencv-contrib-python-headless==4.11.0.86",
+    "open3d==0.20.0",
+    "pyrealsense2==2.59.2.11152",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7.4"]
+
+[tool.setuptools.packages.find]
+include = ["scan3d*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:dash"
+markers = [
+    "slow: 수십 초 이상 걸리는 테스트(합성 48시점 재구성, I1 통합)",
+]

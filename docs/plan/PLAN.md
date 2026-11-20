@@ -40,7 +40,7 @@
 | 〃 | `wrappers/python/examples/align-with-software-device.py` | 스캔 PC에서 받은 원본 프레임으로 깊이를 컬러에 정렬 |
 | 〃 | `box_dimensioner_multicam/`, `depth_auto_calibration_example.py` | 여러 카메라를 판 하나로 맞추는 방식, 깊이 자체 보정 |
 | 〃 | apt `ros-jazzy-librealsense2`의 `rs-enumerate-devices`, `rs-save-to-disk` | 카메라 확인, pyrealsense2가 로봇에서 안 될 때의 스냅샷 대체 경로 |
-| isl-org/Open3D | `examples/python/t_reconstruction_system/integrate.py`, `reconstruction_system/sensors/realsense_recorder.py` | 알려진 자세로 TSDF 융합, 데이터 폴더 형식 |
+| isl-org/Open3D v0.20.0(사본 `docs/reference/open3d-v0.20.0/`) | `examples/python/t_reconstruction_system/integrate.py`, `reconstruction_system/sensors/realsense_recorder.py` | `integrate.py`의 TSDF 융합(`VoxelBlockGrid`, `compute_unique_block_coordinates` → `integrate`, 메시 추출)을 궤적 대신 표식 자세로 돌린다. 데이터 폴더는 `realsense_recorder.py` 형식(`color/`, `depth/`, `camera_intrinsic.json`). 바꾸는 점은 `docs/specs/recon.md`, `dataset.md` |
 | OpenCV | `cv2.aruco`(`DICT_APRILTAG_36h11`, `Board`, `ArucoDetector`), `solvePnP` | 스캔 PC에서 표식 판 생성·검출·카메라 자세 |
 
 ## 3. 구성
@@ -49,14 +49,14 @@
 
 | 항목 | 값 |
 |---|---|
-| 물체 | 바닥 윤곽이 지름 0.28 m 원 안(0.2 m 정사각 상자 포함), 높이 0.18 m 이하. 무광, 단단함, 돌려 보면 모양이 다름 |
-| 표식 판 | A1 무광 출력을 594 mm 정사각으로 잘라 폼보드에 붙인다. AprilTag 36h11 한 변 50 mm, 75 mm 간격 7×7 격자에서 가운데 3×3을 비운 40장. 판에 0° 화살표와 x·y 축 표시 |
+| 물체 | 바닥 윤곽이 지름 0.28 m 원 안(정사각 상자는 대각선 28 cm 이하, 한 변 약 19.8 cm), 높이 0.20 m 이하. 무광, 단단함, 돌려 보면 모양이 다름 |
+| 표식 판 | A1 무광 출력을 594 mm 정사각으로 잘라 폼보드에 붙인다. AprilTag 36h11 한 변 85 mm, 115 mm 간격 5×5 격자의 바깥 둘레 16장(가운데 ±187.5 mm 비움). 원점에 0° +x·+y 화살표, 물체 자리 원(반지름 140 mm). 배치는 `docs/specs/board.md` |
 | 카메라–물체 거리 `d` | 목표 0.45 m, 유지 범위 0.40~0.55 m |
 | 카메라 원 반지름 `R` | 0.62 m(물체 중심에서 카메라까지) |
 | 시점 | 한 바퀴 24시점(15° 간격). 두 로봇은 180° 떨어져 같은 방향(반시계)으로 돈다. |
 | 낮은 로봇 L | 카메라 높이 약 0.20 m, 아래로 10° |
-| 높은 로봇 H | 카메라 높이 약 0.55 m, 아래로 약 37° |
-| 카메라 장착 | 두 로봇 모두 차체 뒤쪽에 세운 기둥 하나(1/4인치 나사 끝) 위. 진행 방향의 왼쪽 직각을 본다. 반시계로 돌면 물체 중심을 본다. |
+| 높은 로봇 H | 카메라 높이 0.45~0.50 m(본체 약 0.15 m + 알루미늄 프로파일 약 0.30 m), 아래로 35~40° |
+| 카메라 장착 | 두 로봇 모두 차체 뒤쪽에 세운 기둥 하나(1/4인치 나사 끝) 위, 가로 방향. 진행 방향의 왼쪽 직각을 본다. 반시계로 돌면 물체 중심을 본다. |
 | 스냅샷 | 컬러 1280×720 YUY2(센서 원래 형식) 1장 + 깊이 848×480 Z16 5장, 15 fps 프로파일 |
 | 바닥 | 빈 곳 약 2.2 m × 2.2 m(우회 차선 포함) |
 
@@ -64,8 +64,10 @@
 
 - **거리**: 848×480의 최소 깊이 0.35 m가 물리적 한계이고, 데이터시트 측정 범위 0.4 m를 계획 하한으로 쓴다. 목표는 0.45 m다.
 - **원 반지름**: 물체는 바닥 윤곽을 감싸는 원(반지름 `r_obj` 0.14 m)에 놓는 오차 0.03 m를 더한 `r_eff`(0.17 m)로 본다. `R = r_eff + 0.45`라서 상자 모서리가 카메라 쪽을 향해도 거리가 0.45 m다.
-- **카메라 높이**: L은 가까운 면의 높이 0~0.35 m를 보아 옆면 전체가 들어온다. H는 윗면 가운데를 30°로 내려다본다(`h_H ≥ H + R·tan 30°` = 0.54 m). 물체가 바뀌면 이 식들로 `R`과 H 높이를 다시 정한다.
-- **표식 위치**: 두 카메라 모두 바닥이 보이는 반지름 0.37 m 안쪽에 표식이 놓인다. 판 모서리(반지름 0.42 m)는 로봇 안쪽 바퀴 경로(약 0.585 m) 안에 들어 로봇이 판을 밟지 않는다.
+- **같은 사진에 표식과 물체**: 표식 자세를 스냅샷마다 구하므로 각 카메라의 사진에 바닥 표식과 맡은 물체 부분이 함께 들어와야 한다. 깊이 시야 87° × 58°(가로 장착) 기준이다.
+- **카메라 높이**: L(0.20 m, 10°)은 가까운 면의 높이 0~0.36 m와 가까운 표식을 함께 본다. H(0.50 m, 35°)는 표식, 옆면 전체, 윗면을 함께 보고, 윗면 가운데를 약 26°로 내려다본다(`atan((h_H − H)/R)`). 30°로 보려면 `h_H ≥ H + R·tan 30°`(물체 0.20 m면 0.56 m)다. 물체가 바뀌면 이 식들로 `R`과 H 높이를 다시 정한다.
+- **표식 위치**: 표식은 판 중심에서 x 또는 y가 ±0.1875~0.2725 m인 정사각 띠(모서리 표식의 바깥 끝은 중심에서 약 0.385 m)에 있어 물체(반경 0.17 m) 밖이고, 두 카메라 모두 가까운 쪽 표식을 사진 아래쪽에 담는다. 판 모서리(반지름 0.42 m)는 로봇 안쪽 바퀴 경로(약 0.585 m) 안에 들어 로봇이 판을 밟지 않는다.
+- **검증**(합성 영상, 24시점, 흐림 σ 1.5 px, 반경 0.17 m × 높이 0.20 m 원기둥이 가림): L(0.20 m, 10°) 7~9장·최대 0.5 mm, H(0.45~0.50 m, 35~40°) 9~10장·최대 0.9 mm. H 0.50 m에서 30°로 덜 숙이면 최대 2.7 mm
 
 ### 3.2 소프트웨어
 
@@ -84,12 +86,12 @@
 - 저장소 구조:
 
 ```
-scan3d/              스캔 PC 코드(board, tagpose, drive, align, dataset, recon, station, protocol, config, synth, sim2d, fake_agent)
+scan3d/              스캔 PC 코드(protocol, align, tagpose, drive, dataset, recon, station, synth, sim2d, fake_agent), vendor/(pinky_sim_examples commands.py 복사)
 ros/scan3d_robot/    robot_agent(rclpy + pyrealsense2), launch/robot_scan.launch.xml
 ros/pinky_auto/      기존 로봇 구동
 sim/                 Gazebo world 레이아웃, D455 옆 장착 xacro, 시뮬레이션용 에이전트, 실행 스크립트
 config/scan.yaml     현장 값
-tools/               현장 확인 스크립트(스캔 PC에서 실행)
+tools/               표식 판 생성(make_board.py), 현장 확인 스크립트(스캔 PC에서 실행)
 tests/               pytest(합성 데이터, 2D 주행, 가짜 에이전트, 현장 재생)
 docs/specs/          모듈 명세
 ```
@@ -108,20 +110,22 @@ docs/specs/          모듈 명세
 
 **시점 사이 이동**
 
-- 다음 목표: 원 위의 다음 각도(+15°), 진행 방향은 반시계 접선. `plan_move`가 `turn a; forward c; turn b`(a·b 약 7.5°, c 약 0.17 m)를 만든다.
+- 다음 목표: 원 위의 다음 각도(+15°), 진행 방향은 반시계 접선. `plan_move`가 `turn a`, `speed s; forward c`, `turn b`를 만들고 하나씩 보낸다(로봇 기준점이 카메라보다 0.08 m 앞서 있어 a 약 15°, b 약 0°, c 약 0.17 m). 움직일 것이 없으면 보내지 않는다.
+- `command_driver`는 단계마다 약 1 cm·2° 덜 가서 멈춘다. 시점마다 표식 자세로 다시 잡으므로 쌓이지 않는다(시점 허용 오차 2.5 cm·5°).
 - 직진 속도 0.06 m/s(config). 출발 전 장애물 확인을 거친다.
 
 **장애물(LiDAR, 스캔 PC 판단)**
 
 - 로봇은 LiDAR 스캔(10 Hz)과 odom(20 Hz)을 그대로 스캔 PC로 보낸다. 스캔 PC는 `commands.py`의 `sector_min`으로 진행 방향 ±25° 안의 가장 가까운 거리를 구한다.
-- **출발 전**: 그 거리가 0.30 m보다 가깝거나, 마지막 스캔이 0.5 s보다 오래되었으면 출발하지 않는다.
-- **이동 중**: 0.20 m보다 가까워지거나 스캔이 0.5 s 넘게 끊기면 `stop`을 보낸다.
+- **출발 전**(직진마다, 회전을 마친 뒤): 그 거리가 0.30 m보다 가깝거나, 마지막 스캔이 0.5 s보다 오래되었으면 출발하지 않는다. 제자리 회전은 확인하지 않는다.
+- **이동 중**(직진 중): 0.20 m보다 가까워지거나 스캔이 0.5 s 넘게 끊기면 `stop`을 보낸다.
 - **막혔을 때**: 5 s를 기다려 비면 이어 간다. 그대로면 바깥 차선으로 비켜 간다.
-  1. 바깥으로 0.25 m 나간다(`turn -90; forward 0.25; turn 90`).
-  2. 바깥 원을 따라 다음 시점 각도까지 간다(구간마다 출발 전 확인).
-  3. 안으로 돌아가는 길(`turn 90; forward 0.25; turn -90`)의 출발 전 확인이 통과하면 돌아와 찍는다. 막혀 있으면 바깥 원에서 다음 시점 각도로 한 칸 더 간 뒤 다시 확인한다. 지나친 시점은 모두 건너뛰고 보고서에 남긴다.
-  4. 바깥 차선 자체가 막히면 멈추고 화면에 알린 뒤, 길이 비면 이어 간다.
-- **중간에 멈춘 뒤**: 구간 도중 `stop`으로 멈추면, 마지막 표식 자세에 스트림으로 받은 odom 변화를 더한 위치에서 다음 이동을 다시 계산한다.
+  1. 지금 자세에서 바깥 차선(반지름 R + 0.25 m)의 같은 각 지점으로 간다.
+  2. 바깥 원을 따라 막혔던 시점의 각도까지 간다(직진마다 출발 전 확인).
+  3. 그 각에서 안쪽 원으로 돌아가는 직진의 출발 전 확인이 통과하면 돌아와 찍는다. 막혀 있으면 바깥 원에서 다음 시점 각도로 한 칸 더 간 뒤 다시 확인한다. 지나친 시점은 모두 건너뛰고 보고서에 남긴다. 마지막 시점을 넘으면 바깥 차선에서 끝낸다.
+  4. 바깥 차선 자체가 막히면 멈추고 화면에 알린 뒤, 길이 비면 이어 간다. 진입·거리 보정·바깥 차선에서 막히거나 스캔이 끊긴 채 `block_timeout_s`(60 s)가 지나면 두 로봇을 멈추고 끝낸다.
+  모든 이동 목표는 원 위의 절대 지점이고, 매번 지금 자세에서 다시 계획한다.
+- **중간에 멈춘 뒤**: 구간 도중 `stop`으로 멈추면, 마지막 표식 자세에 그 뒤 odom 변화를 평면 강체 변환으로 합성한 위치에서 다음 이동을 다시 계산한다.
 - **비켜 갈 수 있는 크기**: 원 경로 중심에서 바깥쪽으로 약 0.1 m 안에 놓인 물체(바깥 차선 0.25 m에서 진행 부채꼴 ±25°의 출발 여유 0.30 m 폭을 뺀 값). 더 크면 길이 빌 때까지 기다린다.
 - **다른 로봇**: 반대편(약 1.3 m 건너편)에서 같은 시점 번호로 움직이므로 진행 방향 부채꼴에 들어오지 않는다. 한 로봇이 기다리거나 비켜 가는 동안 다른 로봇은 다음 시점에서 기다린다.
 - **LiDAR가 못 보는 것**: 주사면(바닥 위 약 0.125 m)보다 낮은 물체(케이블, 낮은 상자, 표식 판)와 그보다 위에 떠 있는 물체
@@ -143,11 +147,12 @@ docs/specs/          모듈 명세
 
 ### 4.1 좌표와 자세
 
-- **판 좌표계 B**: 원점은 판 중심의 바닥면, x축은 판의 0° 화살표, z축은 위, 단위 m
+- **판 좌표계 B**: 원점은 판 중심의 인쇄면(z = 0, 물체가 놓이는 면), x축은 판의 0° 화살표, z축은 위, 단위 m. 바닥은 z ≈ −0.005 m(폼보드 두께)
 - **카메라 좌표계 C**: 컬러 카메라의 OpenCV 광학 좌표(x 오른쪽, y 아래, z 앞). 깊이 카메라 자세는 공장 보정값(깊이 → 컬러)으로 구한다.
 - **저장하는 자세** `T_cam_board`(4×4): 판 좌표의 점을 컬러 카메라 좌표로 옮기는 변환. `solvePnP` 결과(rvec, tvec)와 같고, 컬러에 정렬한 깊이로 Open3D TSDF `integrate`를 할 때 extrinsic으로 그대로 쓴다.
 - **시점 각** `phi`: 카메라 위치의 판 좌표 극각 `atan2(y, x)`, 도 단위
-- **장착 변환** `T_base_cam`: config의 대략값(카메라 앞뒤·좌우 위치, 높이, 피치, 왼쪽 보기 yaw +90°). 이동 계산에만 쓰고 재구성에는 쓰지 않는다.
+- **장착 변환** `T_base_cam`: config의 대략값(카메라 앞뒤·좌우 위치, 높이, 피치, 왼쪽 보기 yaw +90°). 이동 계산에만 쓰고 재구성에는 쓰지 않는다. 표식 자세에서 로봇 자세를 낼 때는 바닥에 내린 광축 방향과 앞뒤·좌우 위치만 쓴다(높이·피치 오차가 로봇 위치로 번지지 않게).
+- **로봇 좌표**: `base_footprint`, x 앞, y 왼쪽, z 위. odom은 로봇 시작점 기준이다.
 - **LiDAR 각도**: 스캔 각 0은 로봇 뒤쪽이다(장착 yaw 180°). 스캔 PC는 `sector_min`에 장착 yaw π를 넣어 로봇 기준 각도로 바꾼다.
 
 ### 4.2 로봇 스냅샷(`robot_agent`)
@@ -155,97 +160,103 @@ docs/specs/          모듈 명세
 - `snapshot(n_depth, n_skip)`: 파이프라인 시작(컬러 1280×720 YUY2 15 fps, 깊이 848×480 Z16 15 fps) → 자동 노출이 맞을 때까지 `n_skip`세트 버림 → 컬러 1장, 깊이 `n_depth`장 → 파이프라인 정지 → 바이트 그대로 반환. 파이프라인이 멈춰 있는 동안에는 그 카메라의 적외선 투사기도 꺼진다고 보고 스냅샷을 한 로봇씩 차례로 찍는다. 이 가정은 현장 1에서 확인한다.
 - `calibration()`(한 번): 컬러·깊이 내부 파라미터(폭, 높이, fx, fy, ppx, ppy, 왜곡 모델, 계수), 깊이 → 컬러 외부 파라미터(회전, 이동), 깊이 배율, 카메라 일련번호
 - 로봇은 프레임 값을 바꾸지 않는다(형식 변환·정렬·압축 없음. `capture.compress`를 켰을 때만 `zlib` 무손실 압축).
-- 머리말의 `fmt`가 형식을 알려 주고 스캔 PC가 형식별로 처리한다: 컬러 `yuyv`·`rgb8`, 깊이 `z16`(mm)·`f32`(m).
+- 머리말의 `fmt`가 형식을 알려 주고 스캔 PC가 형식별로 처리한다: 컬러 `yuyv`·`rgb8`, 깊이 `z16`(값 × `depth_scale` = m)·`f32`(m).
 - 시뮬레이션용 에이전트: 같은 메시지 형식으로 Gazebo 토픽(`/d455/image`, `/d455/depth_image`, `/d455/camera_info`)에서 한 장씩 받아 형식 그대로(`rgb8`, `f32`) 보낸다. 외부 파라미터는 단위 행렬이다.
 - 가짜 에이전트(개발 PC 테스트): 합성 장면을 렌더링해 실물과 같은 `yuyv`·`z16`으로 보낸다.
-- 적외선 확인용 `snapshot(ir=true)`: 왼쪽 적외선 영상(Y8) 1장만 찍는다(현장 1 투사기 확인).
+- 적외선 확인용 `snapshot(ir=true)`: 이 카메라의 투사기를 끄고 왼쪽 적외선 영상(Y8) 1장만 찍는다(현장 1에서 상대 로봇 투사기 확인).
 
 ### 4.3 주행 접점
 
-- **스캔 PC**: `plan_move(T_board_base, phi_target, R_base) -> "turn a; forward c; turn b"`(순수 함수), 거리 확인·장애물 판단·우회 문장 생성(3.3)
+- **스캔 PC**: `plan_move(pose, target, speed) -> ["turn a", "speed s; forward c", "turn b"]`(순수 함수, 판 좌표 2D 자세, 0인 부분과 움직임 없는 문장은 뺌), 거리 확인·장애물 판단·우회(3.3). 자세한 것은 `docs/specs/drive.md`
 - **로봇** `move(text)`: `/pinky_command`에 문장을 보내고 `/command_status`에서 `(모든 명령 완료)`가 오면 odom을 돌려준다. 구간 사이에서 `blocked`나 `error`가 오면 실패로 돌려준다.
 - **로봇** `stop`: `/pinky_command`에 `stop`을 보낸다(즉시 정지, 남은 명령 취소). 이때 진행 중이던 `move`는 `{"ok":true,"stopped":true,"odom":[…]}`로 끝난다.
 - **로봇 스트림**: `/odom`, `/scan`을 받은 그대로 보낸다.
 
 ### 4.4 스캔 PC ↔ 로봇 메시지
 
-모든 메시지는 한 줄에 JSON 하나다. 실패 응답은 `{"ok": false, "error": "..."}`이고, 받으면 스캔 PC가 두 로봇에 `stop`을 보내고 끝낸다.
+모든 메시지는 한 줄에 JSON 하나다. 실패 응답은 `{"ok": false, "error": "..."}`이고, 받으면 스캔 PC가 두 로봇에 `abort`를 보내고 끝낸다. 영상이 있는 응답의 바이트 규칙, 압축 해제와 머리말 정리는 `docs/specs/protocol.md`를 따른다.
 
 **제어 연결(TCP 7010, 요청 하나에 응답 하나)**
 
 | 요청 | 응답 | 로봇 동작 |
 |---|---|---|
-| `{"cmd":"hello"}` | `{"ok":true,"role":"L","serial":"...","calib":{...}}` | 4.2 `calibration()` |
-| `{"cmd":"move","text":"turn 7.5; forward 0.17; turn 7.5"}` | `{"ok":true,"stopped":false,"odom":[x,y,yaw]}` | 4.3 `move` |
-| `{"cmd":"snapshot","n_depth":5,"n_skip":15}` | `{"ok":true,"t":…,"odom":[…],"color":{"w":1280,"h":720,"fmt":"yuyv","bytes":1843200},"depth":{"w":848,"h":480,"fmt":"z16","n":5,"bytes":4070400}}` + 컬러 바이트 + 깊이 바이트 | 4.2 `snapshot` |
+| `{"cmd":"hello","color":[1280,720,15],"depth":[848,480,15]}` | `{"ok":true,"role":"L","serial":"...","calib":{...}}` | 4.2 `calibration()`, 스냅샷 프로파일 고정, 중단 상태 해제 |
+| `{"cmd":"move","text":"speed 0.06; forward 0.17","timeout_s":60}` | `{"ok":true,"stopped":false,"odom":[x,y,yaw]}` | 4.3 `move`(문장 앞 `speed`는 config `drive.speed`) |
+| `{"cmd":"snapshot","n_depth":5,"n_skip":15,"compress":false,"color":[1280,720,15],"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"color":{"w":1280,"h":720,"fmt":"yuyv","bytes":1843200},"depth":{"w":848,"h":480,"fmt":"z16","n":5,"bytes":4070400}}` + 컬러 바이트 + 깊이 바이트 | 4.2 `snapshot` |
+| `{"cmd":"snapshot","ir":true,"n_skip":15,"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"ir":{"w":848,"h":480,"fmt":"y8","bytes":407040}}` + 바이트 | 4.2 적외선 확인 |
 
 **스트림 연결(TCP 7011, 양방향)**
 
 | 방향 | 메시지 | 주기 |
 |---|---|---|
 | 로봇 → PC | `{"type":"odom","t":…,"x":…,"y":…,"yaw":…}` | 20 Hz |
-| 로봇 → PC | `{"type":"scan","t":…,"angle_min":…,"angle_inc":…,"ranges_mm":[…]}` | 10 Hz(LiDAR 주기) |
-| PC → 로봇 | `{"type":"stop"}` | 필요할 때 |
+| 로봇 → PC | `{"type":"scan","t":…,"angle_min":…,"angle_inc":…,"range_min":…,"range_max":…,"ranges_mm":[…]}`. 무효값(유한하지 않음, 범위 밖)은 0 | 10 Hz(LiDAR 주기) |
+| 로봇 → PC | `{"type":"status","t":…,"text":"…"}`(`/command_status` 그대로) | 올 때 |
+| PC → 로봇 | `{"type":"stop"}`(장애물 정지, 다음 `move`는 받음) | 필요할 때 |
+| PC → 로봇 | `{"type":"abort"}`(스캔 중단, 다음 `hello`까지 모든 `move` 거절) | 실패할 때 |
 
 **스캔 PC 진행 순서**
 
 1. 두 로봇 `hello`, 스트림 연결
 2. L·H `snapshot`(차례로) → 표식 자세 → 3.3 출발(진입, 각도 차 확인)
 3. 시점 k = 0…23마다:
-   1. 두 로봇의 이동 계산과 출발 전 장애물 확인
-   2. 두 로봇 `move`를 동시에 보내고, 이동 중에는 장애물을 감시한다.
-   3. `settle_s` 동안 기다린다.
-   4. L `snapshot` → H `snapshot` → 표식 자세 → 거리 확인
-4. 정렬·중앙값 → 재구성 → 메시 창
+   1. 시점이 k보다 작은 로봇만 시점 k로 이동한다(로봇마다 따로, 동시에). 직진마다 출발 전 확인과 이동 중 감시(3.3), 제자리 회전은 확인 없음. k = 0은 진입 직후라 움직이지 않는다.
+   2. `settle_s` 동안 기다린다.
+   3. L: `snapshot` → 표식 자세 → 거리 확인(벗어나면 보정 이동 후 한 번 다시 찍음) → H: 같은 순서. 스냅샷은 한 번에 한 로봇만 찍는다.
+4. 중앙값·정렬·왜곡 보정 → 재구성 → 메시 창
 
 ### 4.5 데이터셋 형식(스캔 PC)
 
 ```
 scans/<scan_id>/<role>/raw/           받은 그대로
   calib.json                          hello 응답
-  000000.json …                       snapshot 머리말(t, odom, 크기)
+  000000.json …                       snapshot 머리말(t, odom, 크기) + station 기록(k, use, phi_target)
   000000_color.yuyv …                 컬러 바이트
   000000_depth.z16 …                  깊이 바이트(n장 이어 붙임)
-  stream.jsonl                        odom·LiDAR 스트림, 보낸 move·stop
+  stream.jsonl                        odom·LiDAR·status 스트림, 보낸 move·stop, 줄마다 스캔 PC 시각
 scans/<scan_id>/<role>/               raw에서 만든 Open3D 예제 형식
-  color/000000.jpg …                  BGR로 바꾼 컬러
-  depth/000000.png …                  컬러에 정렬한 뒤 픽셀별 중앙값, uint16 mm
-  intrinsic.json                      컬러 카메라 PinholeCameraIntrinsic(width, height, intrinsic_matrix 열 우선)
-  views.json                          [{k, phi, d, T_cam_board(4×4), n_tags, reproj_px, depth_invalid, skipped}]
+  color/000000.jpg …                  BGR로 바꾸고 왜곡 보정한 컬러
+  depth/000000.png …                  픽셀별 중앙값을 컬러에 정렬하고 왜곡 보정, uint16 mm
+  camera_intrinsic.json               왜곡 보정한 컬러 카메라 PinholeCameraIntrinsic(width, height, intrinsic_matrix 열 우선)
+  views.json                          [{k, snap, phi, d, T_cam_board(4×4), n_tags, reproj_px, depth_invalid}]
+  outcomes.json                       시점마다 찍음·자세·d와 출처·빠진 이유
+scans/<scan_id>/report.json           건너뛴 시점, 정지·거리 보정 횟수, 중단 원인, 걸린 시간
+scans/<scan_id>/events.jsonl          구간 결과, 정지, 우회, 거리 보정 기록
+scans/<scan_id>/config.yaml, board.json  시작할 때의 설정과 배치 파일 복사
 scans/<scan_id>/out/                  mesh.ply, cloud.ply, report.txt(치수, 시점별 d, 건너뛴 시점)
 ```
 
-`raw/`만 있으면 나머지를 모두 다시 만들 수 있고, 주행 판단도 `stream.jsonl`로 다시 돌려 볼 수 있다.
+`scans/<scan_id>/`의 `config.yaml`, `board.json`, `events.jsonl`, `raw/`만 있으면 나머지를 모두 다시 만들 수 있고, 주행 판단도 `stream.jsonl`로 다시 돌려 볼 수 있다.
 
 ### 4.6 설정 파일 `config/scan.yaml`
 
 | 묶음 | 항목 |
 |---|---|
 | `board` | 배치 파일, 표식 한 변(mm) |
-| `scene` | `r_obj`, 놓는 오차, 물체 높이, `R`, 시점 수, 자르기 여유 |
+| `scene` | `r_obj`, 놓는 오차, 물체 높이, `R`, 시점 수, 자르기 여유, 판 높이 자르기(`floor_cut`) |
 | `capture` | 컬러·깊이 프로파일, `n_depth`, `n_skip`, `settle_s`, `compress` |
-| `drive` | 직진 속도, `d` 목표·하한·상한, `obstacle` 켜기, 진행 부채꼴 반폭(25°), 출발 여유(0.30 m), 이동 중 정지 거리(0.20 m), 기다림(5 s), 우회 차선 폭(0.25 m), 스캔 끊김 한도(0.5 s) |
-| `lidar` | 장착 yaw(π), 가린 각도 `mask` |
+| `drive` | 직진 속도, `d` 목표·하한·상한, `obstacle` 켜기, 진행 부채꼴 반폭(25°), 출발 여유(0.30 m), 이동 중 정지 거리(0.20 m), 기다림(5 s), 우회 차선 폭(0.25 m), 스캔 끊김 한도(0.5 s), 두 로봇 각도 차 허용(30°), 막힘 한도(60 s) |
+| `lidar` | 장착 yaw(`mount_yaw_deg` 180), 가린 각도 `mask`(로봇 기준 `[[from_deg, to_deg], …]`) |
 | `robots.L`, `robots.H` | 호스트, 포트, 장착 변환(앞뒤·좌우·높이·피치), `wheel_radius`·`wheel_separation` |
-| `recon` | 복셀 크기(기본 3 mm), 절단 거리(기본 12 mm), 겹침 보정 켜기 |
+| `recon` | 복셀 크기(기본 3 mm), 절단 거리(기본 6 mm) |
 | `station` | 데이터 폴더, 메시 창 띄우기 |
 
 ## 5. 모듈 명세와 먼저 쓸 테스트
 
 | 모듈(위치) | 명세 핵심 | 먼저 쓸 테스트 |
 |---|---|---|
-| `board`(PC) | 배치 json, 실제 크기 인쇄 PDF(화살표·축 포함) | 생성 이미지에서 40장 모두 검출, 모서리 좌표가 배치 파일과 일치 |
+| `board`(`tools/make_board.py`) | 배치 json, 실제 크기 인쇄 PDF(화살표·축 포함) | 생성 이미지에서 16장 모두 검출, 모서리 좌표가 배치 파일과 일치 |
 | `synth`(개발 PC) | 메시 + 판 → 컬러·깊이(Open3D `RaycastingScene`, 판 영상은 호모그래피), 깊이 카메라와 컬러 카메라를 따로 렌더링 | 다른 테스트의 입력 |
 | `sim2d`(개발 PC) | 문장 명령대로 움직이는 로봇(odom 잡음 옵션), 물체 원·다른 로봇·장애물 상자에 대한 2D LiDAR(장착 yaw 180°) | 다른 테스트의 입력 |
 | `protocol`(공통) | 4.4 제어·스트림 메시지 | 보내고 받은 바이트가 같음 |
-| `tagpose`(PC) | YUY2 → BGR, 왜곡 보정 포함 검출, 보이는 표식 전부로 PnP 한 번 | 알려진 자세로 투영한 합성 영상에서 위치 3 mm, 각도 1° 안 |
-| `align`(PC) | 원본 깊이 + 보정값 → 컬러에 정렬(software device). 반나절 안에 안 되면 numpy 재투영 | 합성 깊이(깊이 카메라 시점)를 정렬한 결과가 컬러 시점 깊이와 2 mm 안 |
-| `drive`(PC) | 3.3 전부 | `sim2d`로 24시점 한 바퀴, 시점마다 1 cm·2° 안, `d` 0.40~0.55 m. 로봇 정면에 둔 상자가 `sector_min`(yaw π)에서 정면 거리로 나옴. 원 경로의 상자(구간 가운데, 다음 시점 바로 앞 두 위치) → 멈춤 → 우회 → 시점 1~2개 건너뜀 → 반지름 `R`로 복귀. 구간 도중 `stop` 뒤 다시 계산한 이동이 원으로 돌아옴. 너무 가까운 출발 → 보정 이동 뒤 `d` ≥ 0.40 m. 스캔이 끊기면 출발 안 함 |
-| `dataset`(PC) | 4.5 `raw/` → Open3D 형식 | 같은 `raw/`에서 두 번 만든 결과가 같음, Open3D가 `intrinsic.json`을 읽음 |
-| `recon`(PC) | 자르기 → TSDF → 메시 → 치수 | 합성 상자 48시점에서 치수 5 mm 안, 메시 1개 |
-| `station`(PC) | 4.4 진행 순서, 실패 시 `stop` | 가짜 에이전트 2개로 메시지 순서, 스냅샷이 한 로봇씩 차례로, 한 로봇이 우회하는 동안 다른 로봇이 기다림, 각도 차 180° 유지 |
-| `robot_agent`(로봇) | 4.2·4.3·4.4 | 가짜 파이프라인·가짜 `/command_status`·가짜 `/odom`·`/scan`으로 메시지 처리, 바이트 크기, `stop` 전달 |
-| 재생 | 현장 `raw/` | 현장 1 이후 추가: 실제 영상의 표식 자세, 정렬, 재구성, `stream.jsonl`로 주행 판단 |
+| `align`(PC) | YUY2 → BGR, 깊이 중앙값 → 컬러에 정렬(software device + `rs.align`) → 컬러 왜곡 계수로 함께 왜곡 보정 | 합성 깊이(깊이 카메라 시점)를 정렬한 결과가 컬러 시점 깊이와 비교해 깊이 경계 밖 픽셀의 95%가 1.2 mm 안, 최대 2.5 mm |
+| `tagpose`(PC) | 왜곡 보정한 영상에서 검출, 보이는 표식 전부로 PnP 한 번 | 알려진 자세로 투영한 합성 영상에서 위치 3 mm, 각도 1° 안 |
+| `drive`(PC) | 3.3 전부 | `sim2d`로 24시점 한 바퀴, 시점마다 2.5 cm·5° 안, `d` 0.40~0.55 m. 로봇 정면에 둔 상자가 `sector_min`(yaw π)에서 정면 거리로 나옴. 원 경로의 상자(구간 가운데, 다음 시점 바로 앞 두 위치) → 멈춤 → 우회 → 시점 1~2개 건너뜀 → 반지름 `R`로 복귀. 구간 도중 `stop` 뒤 다시 계산한 이동이 원으로 돌아옴. 너무 가까운 출발 → 보정 이동 뒤 `d` ≥ 0.40 m. 스캔이 끊기면 출발 안 함 |
+| `dataset`(PC) | 4.5 `raw/` → Open3D 형식 | 같은 `raw/`에서 두 번 만든 결과가 같음, Open3D가 `camera_intrinsic.json`을 읽음 |
+| `recon`(PC) | 자르기 → TSDF → 메시 → 치수 | 합성 상자 48시점에서 치수 5 mm 안, 메시 1개, 색 순서 맞음 |
+| `station`(PC) | 4.4 진행 순서, 실패 시 `abort` | 가짜 에이전트 2개로 메시지 순서, 스냅샷이 한 로봇씩 차례로, 한 로봇이 우회하는 동안 다른 로봇이 기다림, 각도 차 180° 유지 |
+| `robot_agent`(로봇) | 4.2·4.3·4.4 | 가짜 파이프라인·가짜 `/command_status`·가짜 `/odom`·`/scan`으로 메시지 처리, 바이트 크기, `stop`·`abort` 전달, 중단 잠금 |
+| 재생 | 현장 `scans/<scan_id>/`(`config.yaml`, `board.json`, `events.jsonl`, `raw/`) | 현장 1 이후 추가: 실제 영상의 표식 자세, 정렬, 재구성, `stream.jsonl`로 주행 판단 |
 
 통합 시험:
 
@@ -287,4 +298,4 @@ scans/<scan_id>/out/                  mesh.ply, cloud.ply, report.txt(치수, �
 
 1. **대상 물체**: 3.1의 조건. 기준 물체는 다이소 크라프트 상자(`TODOs.md` 0단계)
 2. **정밀도**: 치수 오차 ±1 cm
-3. **윗면**: 포함(H 높이 0.55 m)
+3. **윗면**: 포함(H 높이 0.50 m, 약 26°로 내려다봄)
