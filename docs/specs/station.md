@@ -10,15 +10,16 @@
 
 ## 인터페이스
 
-- `python -m scan3d.station [--config config/scan.yaml] [--only L|H] [--fake [--obstacle <k>] [--time-scale N]] [--no-window]`
-- `Clock(time_scale=1.0)`: `now()`, `sleep(s)`. 모든 시간(기다림, 0.1 s 감시 주기, 스캔 나이, 요청 한도)은 이 시계의 초다. `--fake`면 `FakeFleet`과 같은 시계를 쓴다.
+- `python -m scan3d.station [--config config/scan.yaml] [--only L|H] [--fake [--obstacle <k>] [--time-scale N]] [--no-window] [--hello]`(`--hello`: 연결과 `hello`만 하고 role·일련번호·보정값 출력)
+- `Clock(time_scale=1.0)`: `now()`, `sleep(s, cancel=None)`, `hold()`(동안 시계가 멈춘다. 가짜 에이전트 렌더링용). 모든 시간(기다림, 0.1 s 감시 주기, 스캔 나이, 요청 한도)은 이 시계의 초다. `--fake`면 `FakeFleet`과 같은 시계를 쓴다.
 - `RobotLink(role, host, port, stream_port, raw_writer, clock, cancel)`: drive의 `RobotIO` 구현
   - 스트림을 읽는 스레드가 마지막 odom, 마지막 scan(`decode_scan`, 받은 시각)을 들고 있고, 받은 줄과 보낸 `move`·`stop`을 모두 `stream.jsonl`에 쓴다.
   - `move`는 요청 한도(`timeout_s` + 5 s) 안에서 응답을 기다리며 0.1 s마다 `watch()`를 부르고, true면 스트림으로 `stop`을 한 번 보낸다.
   - `snapshot(k, use, phi_target)`: 요청에 `capture` 값을 싣고, 받은 것을 `raw_writer`에 쓴 뒤 `(header, payloads, NNNNNN)`을 돌려준다.
   - `abort()`: 스트림으로 `abort`를 보내고(로봇이 중단 상태가 되어 늦게 도착한 `move`도 거절) 중단 표시를 켠다. 이후 `move`는 보내지 않고 `Cancelled`. 기다리던 `recv`는 제어 소켓을 닫아 끊는다.
   - `cancelled()`: 공유 `cancel` 이벤트
-- `run(cfg, links, writer, board) -> scan_dir`
+- `run(cfg, links, writer, board, cancel=None) -> (scan_dir, recon 결과, 보고서)`. 출발 조건 실패는 `StartError`, 로봇 실패 응답은 `RemoteError`
+- `execute(cfg, cfg_path, addrs, clock, roles, no_window, data_dir) -> (종료 코드, scan_dir)`: 연결부터 끝까지(`main`과 테스트가 부른다). 현장 도구용 `load_config`, `load_board`, `connect_robot(cfg, role)`
 
 ## 동작
 

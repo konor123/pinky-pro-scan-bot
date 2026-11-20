@@ -26,7 +26,9 @@
 | 9 | `recon.md` | `scan3d/recon.py` | 5 | `tests/test_recon.py` | synth, dataset |
 | 10 | `fake_agent.md` | `scan3d/fake_agent.py` | 4.2, 4.4 | `tests/test_fake_agent.py` | synth, sim2d, protocol |
 | 11 | `station.md` | `scan3d/station.py` | 4.4, 5 | `tests/test_station.py`, I1 `tests/test_integration.py` | 전부 |
-| 12 | `robot_agent.md` | `ros/scan3d_robot/` | 4.2~4.4, 7 | `tests/test_robot_agent.py` | protocol |
+| 12 | `robot_agent.md` | `ros/scan3d_robot/` | 4.2~4.4, 7 | `ros/scan3d_robot/test/test_agent.py` | protocol |
+| — | Gazebo 시험(TODOs 2장) | `ros/scan3d_sim/`, `scripts/sim_scan.sh`, `tools/make_sim_assets.py`, `config/scan_sim.yaml` | 4.2 | `ros/scan3d_sim/test/test_sim_camera.py`, `tests/test_sim.py` | robot_agent, protocol, synth, drive |
+| — | 현장 도구(TODOs 3·4장) | `tools/snapshot_test.py`, `show_pose.py`, `drive_check.py`, `lidar_view.py`, `scan.sh`, `upload.sh` | — | `tests/test_tools.py`(가짜 에이전트에 붙여 실행) | station, align, tagpose, drive |
 
 `board.md`가 먼저다. 표식 판 PDF를 출력소에 맡겨야 하기 때문이다.
 
@@ -74,10 +76,10 @@
 ## 테스트 규칙
 
 - 저장소 폴더에서 `.venv/bin/python -m pytest -q` 하나로 전부 돈다. 로봇, 카메라, ROS, Gazebo 없이 개발 PC에서 돌고(소켓은 localhost만), 그 자리는 `synth`, `sim2d`, 가짜 에이전트가 맡는다. board 테스트는 pdftoppm(poppler-utils)이 필요하다.
-- 파일: `tests/test_<모듈>.py`. 현장 원본으로 도는 재생 테스트는 `tests/replay/`, 그 원본은 `tests/data/`.
+- 파일: `tests/test_<모듈>.py`. ROS 2 패키지 테스트는 패키지의 `test/`(`ros/<패키지>/test/`)에 두고, 저장소 `pyproject.toml`의 `testpaths`에 넣어 함께 돌린다(파일 이름은 겹치지 않게). 현장 원본으로 도는 재생 테스트는 `tests/replay/`이고, `tests/data/*/`와 `scans/*/`(또는 `SCAN3D_REPLAY=<scans/<scan_id>>`)의 `raw/`로 돈다. 원본이 없으면 건너뛴다.
 - fixture(`tests/conftest.py`): `cfg`(테스트마다 새로 읽은 `config/scan.yaml`, 바꿔 써도 됨), `rng`(seed 0), `repo_root`
 - 통과 기준 수치는 PLAN 5장 값을 그대로 쓴다.
-- 오래 걸리는 테스트(합성 48시점 재구성, I1)에는 `@pytest.mark.slow`를 붙인다. 빠르게 돌릴 때는 `pytest -q -m "not slow"`.
+- 오래 걸리는 테스트(합성 48시점 재구성, 가짜 에이전트 한 바퀴, I1)에는 `@pytest.mark.slow`를 붙인다. 빠르게 돌릴 때는 `pytest -q -m "not slow"`. station 테스트는 렌더링을 줄이려고 640×360·424×240 프로파일을 쓰고, I1만 실제 프로파일을 쓴다.
 - 환경 확인: `scripts/setup_station.sh`가 `.venv`를 만들고 `tests/test_env.py`를 돌린 뒤 `station ok`를 출력한다.
 
 ## 외부 코드에서 확인한 사실

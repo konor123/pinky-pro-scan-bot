@@ -2,23 +2,103 @@
 set -euo pipefail
 
 usage() {
-    echo "usage: robot.sh [-H host] start <robot|mapping|navigation|patrol> [launch args...]"
+    echo "usage: robot.sh [-H host] start <robot|mapping|navigation|patrol|robot_scan> [launch args...]"
     echo "       robot.sh [-H host] stop <name|all>"
     echo "       robot.sh [-H host] status"
     exit 1
 }
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 HOST=pinky
-if [ "${1:-}" = "-H" ]; then HOST="$2"; shift 2; fi
+if [ "${1:-}" = "-H" ]; then
+    [ "$#" -ge 2 ] || usage
+    HOST="$2"
+    shift 2
+fi
 CMD="${1:-}"; [ -n "$CMD" ] || usage; shift
 
 ENV='source /opt/ros/jazzy/setup.bash && source ~/pinky_pro/install/local_setup.bash && source ~/pinky_auto_ws/install/local_setup.bash && mkdir -p ~/pinky_auto_ws/run && cd ~/pinky_auto_ws/run'
 
+config_py() {
+    local py="$ROOT/.venv/bin/python"
+    [ -x "$py" ] || py="python3"
+    "$py" - "$ROOT/config/scan.yaml" "$@"
+}
+
+# config/scan.yaml에서 robots.<role>.host가 이 호스트인 역할
+resolve_role() {
+    config_py "$1" <<'PY'
+import sys
+import yaml
+
+cfg_path, target_host = sys.argv[1], sys.argv[2]
+with open(cfg_path, encoding="utf-8") as f:
+    cfg = yaml.safe_load(f) or {}
+for role, info in (cfg.get("robots") or {}).items():
+    if isinstance(info, dict) and info.get("host") == target_host:
+        print(role)
+        break
+PY
+}
+
+# robots.<role>의 wheel_radius, wheel_separation
+wheel_args() {
+    config_py "$1" <<'PY'
+import sys
+import yaml
+
+cfg_path, role = sys.argv[1], sys.argv[2]
+with open(cfg_path, encoding="utf-8") as f:
+    rc = (yaml.safe_load(f) or {})["robots"][role]
+print(f"wheel_radius:={rc['wheel_radius']} wheel_separation:={rc['wheel_separation']}")
+PY
+}
+
 case "$CMD" in
     start)
         NAME="${1:-}"; [ -n "$NAME" ] || usage; shift
-        ARGS=""; [ $# -eq 0 ] || ARGS="$(printf '%q ' "$@")"
-        ssh "$HOST" "$ENV && if [ -f $NAME.pid ] && kill -0 \$(cat $NAME.pid) 2>/dev/null; then echo '$NAME is already running'; exit 1; fi && (setsid nohup ros2 launch pinky_auto $NAME.launch.xml $ARGS > $NAME.log 2>&1 < /dev/null & echo \$! > $NAME.pid) && echo started $NAME"
+        PKG="pinky_auto"
+        PRE_ENV=""
+        LAUNCH_ARGS=("$@")
+        if [ "$NAME" = "robot_scan" ]; then
+            PKG="scan3d_robot"
+            ROLE=""
+            HAS_ROLE_ARG=0
+            for arg in "$@"; do
+                case "$arg" in
+                    role:=*)
+                        ROLE="${arg#role:=}"
+                        HAS_ROLE_ARG=1
+                        ;;
+                esac
+            done
+            if [ -z "$ROLE" ]; then
+                ROLE="$(resolve_role "$HOST")"
+            fi
+            case "$ROLE" in
+                L) DOMAIN_ID=11 ;;
+                H) DOMAIN_ID=12 ;;
+                *)
+                    echo "unknown or unconfigured role '${ROLE:-}' for host '$HOST' (check config/scan.yaml or pass role:=L|H)" >&2
+                    exit 1
+                    ;;
+            esac
+            if [ "$HAS_ROLE_ARG" -eq 0 ]; then
+                LAUNCH_ARGS=("role:=$ROLE" "${LAUNCH_ARGS[@]}")
+            fi
+            for arg in $(wheel_args "$ROLE"); do
+                case " ${LAUNCH_ARGS[*]} " in
+                    *" ${arg%%:=*}:="*) ;;
+                    *) LAUNCH_ARGS+=("$arg") ;;
+                esac
+            done
+            PRE_ENV="export ROS_DOMAIN_ID=$DOMAIN_ID ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST && "
+        fi
+        ARGS=""
+        if [ "${#LAUNCH_ARGS[@]}" -gt 0 ]; then
+            ARGS="$(printf '%q ' "${LAUNCH_ARGS[@]}")"
+        fi
+        ssh "$HOST" "$ENV && ${PRE_ENV}if [ -f $NAME.pid ] && kill -0 \$(cat $NAME.pid) 2>/dev/null; then echo '$NAME is already running'; exit 1; fi && (setsid nohup ros2 launch $PKG $NAME.launch.xml $ARGS > $NAME.log 2>&1 < /dev/null & echo \$! > $NAME.pid) && echo started $NAME"
         ;;
     stop)
         NAME="${1:-}"; [ -n "$NAME" ] || usage

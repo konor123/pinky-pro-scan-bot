@@ -35,7 +35,7 @@ dataset의 시점별 컬러·깊이와 표식 자세 `T_cam_board`로 물체만 
 | 입력 폴더 | `color/`, `depth/`, `camera_intrinsic.json` | 같음(dataset이 이 형식으로 만든다) |
 | 외부 파라미터 | 궤적 파일(`.log`, 포즈 그래프)의 세계 → 카메라 행렬 | 시점마다 표식 자세 `T_cam_board`(판 → 카메라). 같은 방향의 행렬이라 그대로 넣는다 |
 | 내부 파라미터 | `load_intrinsic` → Float64 3×3, 깊이·컬러 따로 | 왜곡 보정한 컬러 K 하나를 깊이·컬러에 같이 쓴다(깊이가 컬러에 정렬됨) |
-| `VoxelBlockGrid` | `('tsdf', 'weight', 'color')`, 블록 해상도 16, `voxel_size` 3/512 m(약 5.9 mm), `block_count` 50000 | 같은 속성·블록 해상도, `voxel_size` = `recon.voxel`(3 mm), `block_count` 20000 |
+| `VoxelBlockGrid` | `('tsdf', 'weight', 'color')`, 블록 해상도 16, `voxel_size` 3/512 m(약 5.9 mm), `block_count` 50000 | 같은 속성·블록 해상도, `voxel_size` = `recon.voxel`(3 mm), `block_count` 2000(넘으면 Open3D 해시맵이 스스로 늘어난다. 20000이면 격자 하나가 약 1.6 GB) |
 | 장치 | `CUDA:0` | `CPU:0` |
 | 절단 거리 | 넘기지 않아 기본값 8복셀 | `trunc_voxel_multiplier = recon.trunc / recon.voxel`(2복셀, 6 mm)를 두 호출에 모두 넘긴다 |
 | `depth_max` | 3.0 m | 1.5 m |

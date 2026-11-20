@@ -14,7 +14,7 @@
 - `World(circles=[(x, y, r)], boxes=[(x, y, w, d, yaw_deg)])`: 판 좌표 2D 장애물. 물체는 원, 장애물 상자는 회전한 직사각형. `add_box`, `remove`로 실행 중에 바꾼다.
 - `Robot(world, pose=(x, y, yaw), name, linear_speed=0.10, odom_noise=None, rng=None)`: 반지름 0.07 m 원으로 다른 로봇의 LiDAR에 보인다.
 - `Robot.command(text)`: `/pinky_command`와 같다. `Robot.statuses()`: 그동안 나온 `/command_status` 문자열을 꺼낸다.
-- `Robot.step(dt)`: dt만큼 움직인다.
+- `Robot.step(dt)`: dt만큼 움직인다. `Robot.busy()`: 실행 중이거나 남은 문장이 있으면 True
 - `Robot.odom() -> (x, y, yaw)`: odom 좌표(출발 자세가 원점, 잡음 포함). `Robot.true_pose()`: 판 좌표 참값
 - `Robot.scan() -> dict`: `{"angle_min": -π, "angle_inc": 2π/720, "range_min": 0.05, "range_max": 12.0, "ranges": [m…]}`. LiDAR 좌표(장착 yaw π, 로봇 중심에서 x −0.017 m, 각도 0이 로봇 뒤쪽), 맞는 것이 없으면 `inf`
 - `Sim(world, robots, dt=0.05)`: 여러 로봇을 함께 진행. `run_until(pred, timeout)`, `now`, `at(t, fn)`(시뮬레이션 시각 t에 `fn()`을 부름. 장애물을 놓거나 치우는 테스트용)

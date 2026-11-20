@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+    <arg name="role"/>
+    <arg name="port" default="7010"/>
+    <arg name="stream_port" default="7011"/>
+    <arg name="wheel_radius" default="0.027"/>
+    <arg name="wheel_separation" default="0.0961"/>
+
+    <include file="$(find-pkg-share pinky_auto)/launch/robot.launch.xml">
+        <arg name="wheel_radius" value="$(var wheel_radius)"/>
+        <arg name="wheel_separation" value="$(var wheel_separation)"/>
+    </include>
+
+    <node pkg="pinky_sim_examples" exec="command_driver" output="screen">
+        <param name="stop_distance" value="0.0"/>
+    </node>
+
+    <executable cmd="$(env HOME)/scan3d_venv/bin/python -m scan3d_robot.node --role $(var role) --port $(var port) --stream-port $(var stream_port)" output="screen">
+        <env name="PYTHONPATH" value="$(env HOME)/scan3d_lib:$(env PYTHONPATH '')"/>
+    </executable>
+</launch>

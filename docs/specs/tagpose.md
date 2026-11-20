@@ -20,7 +20,7 @@ align이 만든 왜곡 없는 컬러 영상과 K에서 표식을 찾아, 보이�
 ## 동작
 
 1. 회색으로 바꿔 `DICT_APRILTAG_36h11`, `cornerRefinementMethod = CORNER_REFINE_APRILTAG`으로 검출한다. 이 보정은 모서리를 (+0.5, +0.5) px 치우쳐 돌려주므로(OpenCV 4.11, 정수 픽셀 중심 기준) 모서리에서 0.5 px를 뺀다.
-2. 배치 파일에 없는 id는 버린다. 서로 다른 id가 2개보다 적으면 `None`. `board.matchImagePoints`로 3D–2D 대응을 만들고 `solvePnP(SOLVEPNP_ITERATIVE)`를 왜곡 계수 없이 한 번 푼다(영상은 align이 이미 폈다).
+2. 배치 파일에 없는 id와, 모서리 하나라도 영상 가장자리에서 2 px 안에 있는 표식(잘린 표식)은 버린다. 서로 다른 id가 2개보다 적으면 `None`. `board.matchImagePoints`로 3D–2D 대응을 만들고 `solvePnP(SOLVEPNP_ITERATIVE)`를 왜곡 계수 없이 한 번 푼다(영상은 align이 이미 폈다).
 3. `reproj_px`는 대응점 재투영 오차의 RMS다. 걸러 내지 않고 기록만 한다.
 
 ## 설정

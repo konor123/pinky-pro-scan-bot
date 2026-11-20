@@ -15,6 +15,8 @@
 - `base_from_cam(T_cam_board, mount) -> Pose2`(판 좌표): 카메라 광축(+z)을 바닥에 내린 방향의 각에서 `mount.yaw_deg`를 뺀 것이 로봇 yaw, 카메라 xy에서 `Rot(yaw)·(mount.x, mount.y)`를 뺀 것이 로봇 xy. 카메라 높이와 피치는 쓰지 않는다.
 - `cam_xy(pose, mount) -> (x, y)`: 위의 역. 표식이 안 보인 시점의 `d` 계산에 쓴다.
 - `view_pose(phi_deg, radius, mount) -> Pose2`: 카메라가 반지름 `radius` 원의 각 `phi`에 오고 로봇 yaw = phi + 90°(반시계 접선)인 자세
+- `camera_pose(pose, mount) -> T_cam_board`: 로봇 자세와 장착(높이 `z` − 0.005, 피치 포함)으로 구한 컬러 카메라 자세. `base_from_cam`의 역이고, 테스트와 가짜 에이전트가 쓴다. `synth.pose_on_circle`과 같은 규칙이다.
+- `Driver.phi_deg(k)`: 시점 k의 목표 각(도, `enter()` 뒤)
 - `plan_move(pose, target, speed) -> list[str]`: 순서대로 보낼 문장들. `turn a`(목표 위치 방향으로), `speed s; forward c`(0.25 m보다 길면 나눔), `turn b`(목표 yaw로). 각도 0.1°, 거리 0.001 m로 반올림. |a|·|b| < 1°인 회전, c < 0.005 m인 직진은 뺀다. c < 0.02 m이면 직진 없이 목표 yaw로 `turn` 하나. 할 것이 없으면 빈 목록. 각 문장은 `parse`를 통과한다.
 - `in_mask(angle_deg, mask) -> bool`: 로봇 기준 각이 `lidar.mask`의 어느 범위 안인지
 - `front_min(scan, age_s, cfg) -> float`: 로봇 정면 ±`sector_half_deg` 안의 최소 거리. `lidar.mask`의 각 범위(`[from_deg, to_deg]`, from에서 반시계로 to까지, 360으로 나눈 나머지)의 값은 버린다. `scan`이 없거나 `age_s` > `scan_timeout_s`이면 0
@@ -52,7 +54,7 @@
 | `test_mask_wrap` | `in_mask(angle_deg, [[170, -170]])` | 175°·−175°는 가림, 165°·0°는 안 가림 |
 | `test_bypass` | 지름 0.10 m 상자를 로봇 원 위 시점 2·3 사이 가운데에 고정 | 출발 안 함 → `wait_s` → 우회 → 반지름 R(± 2.5 cm)로 복귀 → 24시점 마침, `skipped` 1~2개 |
 | `test_stop_resume` | 시점 2로 가는 직진을 시작하고 1 s 뒤 `Sim.at`으로 정면 0.15 m에 상자를 놓고 2 s 뒤 치움 | `stop` 1번, 이어 가서 목표 2.5 cm·5° 안, `skipped` 없음 |
-| `test_bypass_tail` | 시점 22·23 기준점 목표 사이 가운데와 시점 23 안쪽 복귀 경로에 상자 | 바깥 차선에서 멈추고 `view = n_views`, `skipped = [23]` |
+| `test_bypass_tail` | 시점 22에 도착한 뒤 시점 22·23 기준점 목표 사이 가운데에 0.02 m 상자, 시점 23 안쪽 복귀 경로에 0.05 m 상자(0.10 m 상자는 출발 여유 0.30 m 때문에 한 구간 앞에서 막힌다) | 바깥 차선에서 멈추고 `view = n_views`, `skipped = [23]` |
 | `test_correct` | 시점 k에서 `d` 0.30이 되게 `set_fix` 후 `correct(k)`만 | `d` ≥ `d_min` |
 | `test_stale_scan` | `drop_scans` | 직진을 보내지 않음, 이동 중이면 `stop`, `block_timeout_s` 뒤 `Blocked` |
 | `test_cancel` | 기다리는 중 `cancelled()` true | `Cancelled`, 더 보내지 않음 |

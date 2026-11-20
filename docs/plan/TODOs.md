@@ -55,36 +55,36 @@
 
 - [x] 표식 판 명세, 배치와 인쇄 파일(0-2 출력에 필요하므로 가장 먼저) → `docs/specs/board.md`, `config/board.json`, `out/board_A1.pdf`
 - [x] 나머지 모듈 명세(PLAN 4·5장 기준, 모듈당 1쪽) → `docs/specs/*.md`
-- [ ] 테스트 먼저 쓰고 구현 → `scan3d/`, `tests/`
-  - [ ] `synth`
-  - [ ] `sim2d`(문장 명령 로봇 + 2D LiDAR)
-  - [ ] `protocol`(제어·스트림 연결)
-  - [ ] `tagpose`
-  - [ ] `align`
-  - [ ] `drive`(거리 유지, 시점 이동, 장애물 판단, 우회 — PLAN 3.3)
-  - [ ] `dataset`
-  - [ ] `recon`
-  - [ ] 가짜 에이전트
-  - [ ] `station`
-- [ ] I1 통합: 가짜 에이전트 2대로 전체 흐름 → `python -m scan3d.station --fake`가 `scans/<id>/out/mesh.ply`를 만든다. 원 경로에 상자를 둔 경우(`--fake --obstacle 2`)도 한 바퀴를 마친다.
-- [ ] 로봇 쪽: `robot_agent`(pyrealsense2 스냅샷, `move` → `command_driver`, `stop`, odom·LiDAR 스트림), `robot_scan.launch.xml`(`pinky_auto` robot + `command_driver`(`stop_distance:=0.0`) + `robot_agent`) → `ros/scan3d_robot/`
-- [ ] 현장 도구 → `tools/snapshot_test.py`, `show_pose.py`, `drive_check.py`, `lidar_view.py`, `scan.sh`, `upload.sh`
-- [ ] 설치·배포·실행 스크립트
-  - [ ] `scripts/setup_robot.sh`(sudo는 udev 규칙만)
-  - [ ] `scripts/deploy.sh` 확장
-  - [ ] `scripts/robot.sh`가 `scan3d_robot`의 launch도 띄우게 확장
+- [x] 테스트 먼저 쓰고 구현 → `scan3d/`, `tests/`
+  - [x] `synth`
+  - [x] `sim2d`(문장 명령 로봇 + 2D LiDAR)
+  - [x] `protocol`(제어·스트림 연결)
+  - [x] `tagpose`
+  - [x] `align`
+  - [x] `drive`(거리 유지, 시점 이동, 장애물 판단, 우회 — PLAN 3.3)
+  - [x] `dataset`
+  - [x] `recon`
+  - [x] 가짜 에이전트
+  - [x] `station`
+- [x] I1 통합: 가짜 에이전트 2대로 전체 흐름 → `python -m scan3d.station --fake`가 `scans/<id>/out/mesh.ply`를 만든다. 원 경로에 상자를 둔 경우(`--fake --obstacle 2`)도 한 바퀴를 마친다.
+- [x] 로봇 쪽: `robot_agent`(pyrealsense2 스냅샷, `move` → `command_driver`, `stop`, odom·LiDAR 스트림), `robot_scan.launch.xml`(`pinky_auto` robot + `command_driver`(`stop_distance:=0.0`) + `robot_agent`) → `ros/scan3d_robot/`
+- [x] 현장 도구 → `tools/snapshot_test.py`, `show_pose.py`, `drive_check.py`, `lidar_view.py`, `scan.sh`, `upload.sh`
+- [x] 설치·배포·실행 스크립트
+  - [x] `scripts/setup_robot.sh`(sudo는 udev 규칙만)
+  - [x] `scripts/deploy.sh` 확장
+  - [x] `scripts/robot.sh`가 `scan3d_robot`의 launch도 띄우게 확장
   - [x] `scripts/setup_station.sh`
 
 완료: `pytest -q` 전부 통과, I1 메시 생성, `out/board_A1.pdf` 준비
 
 ## 2. 온라인 2 — Gazebo 시험 [온라인, 시뮬레이션 PC] — 반나절
 
-- [ ] 시뮬레이션 PC의 `~/pinky_pro/src`(공식 README 방식 워크스페이스)에 `pinky_sim_examples`를 받아 빌드
-- [ ] world: 3 m 방 + 표식 판(판 이미지를 텍스처로 입힌 2 mm 상자) + 물체(`scan_room`의 비대칭 물체를 높이 0.18 m 안으로 줄임) → `sim/scan3d_room.yaml` → `make_world`
-- [ ] 로봇: 공식 로봇 + D455 옆 장착(yaw +90°, L·H 높이·피치 인자, near 0.4 m, 0.116 kg) → `sim/scan3d_robot.urdf.xacro`
-- [ ] 실행: launch(`--headless-rendering` 추가) + `command_driver` + 시뮬레이션용 에이전트 + `station --only L`(또는 H) → `sim/run_scan.sh L|H`
-- [ ] I2: L과 H 설정으로 각각 한 바퀴 → 두 데이터셋을 합쳐 재구성 → 물체 치수 1 cm 안
-- [ ] 장애물: 한 바퀴 도중 `spawn_object`로 원 경로에 상자를 놓는다 → 멈춤 → 우회 → 반지름 `R`로 복귀
+- [x] 시뮬레이션 PC의 `~/pinky_pro/src`(공식 README 방식 워크스페이스)에 `pinky_sim_examples`를 받아 빌드
+- [x] world: 3 m 방 + 표식 판(판 이미지를 텍스처로 입힌 2 mm 상자) + 물체(가짜 에이전트와 같은 0.18 × 0.14 × 0.16 m 상자, 면마다 색) → `ros/scan3d_sim/layouts/scan3d_room.yaml` → `make_world`
+- [x] 로봇: 공식 로봇 + D455 옆 장착(yaw +90°, L·H 높이·피치 인자, near 0.4 m, 0.116 kg) → `ros/scan3d_sim/urdf/scan3d_robot.urdf.xacro`
+- [x] 실행: launch(`--headless-rendering` 추가) + `command_driver` + 시뮬레이션용 에이전트 → `ros/scan3d_sim/launch/scan_sim.launch.py`, 그 위에 world 생성과 `station --only L`(또는 H) → `scripts/sim_scan.sh L|H [--obstacle]`(설정 `config/scan_sim.yaml`)
+- [x] I2: L과 H 설정으로 각각 한 바퀴 → 두 데이터셋을 합쳐 재구성 → 물체 치수 1 cm 안
+- [x] 장애물: 한 바퀴 도중 `spawn_object`로 원 경로에 상자를 놓는다 → 멈춤 → 우회 → 반지름 `R`로 복귀
 
 반나절을 넘기면 멈추고 다음 묶음으로 간다.
 
@@ -93,8 +93,8 @@
 - [ ] 스캔 PC → 두 로봇 SSH 키 등록, `~/.ssh/config`에 `pinky1`(L)·`pinky2`(H) 별칭 추가
   - 명령: `ssh pinky1 hostname`, `ssh pinky2 hostname`
   - 성공: 호스트 이름 출력
-- [ ] 스캔 PC 준비: 이 저장소를 clone하고 Python 패키지 설치
-  - 명령: `scripts/setup_station.sh`
+- [ ] 스캔 PC 준비: 이 저장소를 clone하고 Python 패키지 설치, `tools/upload.sh`가 보낼 곳 설정
+  - 명령: `scripts/setup_station.sh`, `echo 'export SCAN3D_UPLOAD=<사용자@개발PC:저장소 경로>' >> ~/.bashrc`
   - 성공: `station ok`
 - [ ] (sudo) 두 로봇에 udev 규칙, venv에 `pyrealsense2`
   - 명령: `scripts/setup_robot.sh pinky1`, `scripts/setup_robot.sh pinky2`
@@ -154,7 +154,7 @@
   - 실패하면: 기록만 하고 다음(8장 참고)
 - [ ] 주행 확인(두 로봇 20분)
   - 명령: `tools/drive_check.py --robot L`(H도 같이)
-  - 성공: 표식으로 잰 이동이 `forward 0.2; turn 90`과 2 cm·5° 안
+  - 성공: 표식으로 잰 이동이 `forward 0.2`와 2 cm, `turn 45`·`turn -45`와 각각 2.5° 안(로봇은 카메라가 판을 보는 원 위에 놓는다)
   - 실패하면: config의 `wheel_radius`·`wheel_separation` 조정
 - [ ] L 한 바퀴, 너무 가깝게 출발: 기준 상자를 판 가운데 두고 L을 상자에서 0.30 m 거리에 놓고 시작한다(15분)
   - 명령: `tools/scan.sh --only L`

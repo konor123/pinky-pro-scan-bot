@@ -22,7 +22,8 @@ test = ["pytest>=7.4"]
 include = ["scan3d*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+testpaths = ["tests", "ros/pinky_auto/test", "ros/scan3d_robot/test", "ros/scan3d_sim/test"]
+pythonpath = [".", "ros/pinky_auto", "ros/scan3d_robot", "ros/scan3d_sim"]
 addopts = "-p no:dash"
 markers = [
     "slow: 수십 초 이상 걸리는 테스트(합성 48시점 재구성, I1 통합)",

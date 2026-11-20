@@ -1,7 +1,7 @@
 # robot_agent
 
 - 코드: `ros/scan3d_robot/`(ament_python): `scan3d_robot/agent.py`(ROS·카메라를 import하지 않는 본체), `scan3d_robot/camera.py`(pyrealsense2), `scan3d_robot/node.py`(rclpy 연결과 실행), `launch/robot_scan.launch.xml`
-- 테스트: `tests/test_robot_agent.py`(개발 PC, ROS·카메라 없이). pytest `pythonpath`에 `ros/scan3d_robot`를 넣는다.
+- 테스트: `ros/scan3d_robot/test/test_agent.py`(개발 PC, ROS·카메라 없이). 저장소 pytest 설정의 `testpaths`·`pythonpath`에 이 패키지가 들어 있어 `pytest -q` 하나로 함께 돈다.
 - PLAN: 4.2, 4.3, 4.4, 7
 - 출처 예제: librealsense v2.59.2 `wrappers/python/examples/align-depth2color.py`(파이프라인·프레임·깊이 배율), pinky_sim_examples `1d14183` `command_driver.py`(토픽과 상태 문자열)
 

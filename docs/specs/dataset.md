@@ -15,7 +15,7 @@
 scans/<scan_id>/config.yaml                  시작할 때의 config/scan.yaml 복사
 scans/<scan_id>/board.json                   시작할 때의 config/board.json 복사
 scans/<scan_id>/events.jsonl                 station·drive 판단 기록(구간 결과, 정지, 우회, 건너뜀, 거리 보정, 중단 원인)
-scans/<scan_id>/report.json                  {"skipped": {"L": [k…], "H": [k…]}, "stops": {"L": n, "H": n}, "corrections": {"L": n, "H": n}, "aborted": null | "원인", "elapsed_s": …}
+scans/<scan_id>/report.json                  {"skipped": {"L": [k…], "H": [k…]}, "stops": {"L": n, "H": n}, "corrections": {"L": n, "H": n}, "aborted": null | "원인", "elapsed_s": …, "dims_mm": [w, d, h](성공했을 때)}
 scans/<scan_id>/<role>/raw/calib.json         hello 응답 그대로
 scans/<scan_id>/<role>/raw/NNNNNN.json        protocol이 돌려준 snapshot 머리말 + "station": {"k", "use", "phi_target"}
 scans/<scan_id>/<role>/raw/NNNNNN_color.<fmt> 컬러 바이트(머리말 `bytes`만큼)
@@ -31,6 +31,14 @@ scans/<scan_id>/<role>/outcomes.json          시점별 결과(아래)
 - `NNNNNN`은 받은 순서의 스냅샷 번호, `KKKKKK`는 시점 번호 k다.
 - `use`: `start`(출발 전, `k`와 `phi_target`은 null), `view`(시점), `retake`(거리 보정 뒤 다시 찍음). `phi_target`은 도
 - `<scan_id>`는 시작 시각 `YYYYMMDD-HHMMSS`
+- `events.jsonl` 줄(모두 `pc_t`, `role`(L·H 또는 스캔 전체면 null), `type`):
+  - `start`: `snap`, `pose`, `phi`, `d`, `d_source`
+  - `leg`: `k`, `view`, `skipped`, `stops`, `waited_s`(진입·시점 이동마다)
+  - `skip`: `k`, `reason: "bypass"`(건너뛴 시점마다)
+  - `view`: `k`, `use`(`view`·`retake`), `snap`, `pose`, `d`, `d_source`(`tag`·`odom`)
+  - `correct`: `k`, `d_before`, `src_before`, `d_after`, `src_after`
+  - `drive`: `Driver(on_event)`의 `event`(`wait`, `stop`, `bypass`, `skip`, `blocked`), `view`, `t`
+  - `abort`: `reason`
 - `<role>/` 아래 `color/`, `depth/`, `camera_intrinsic.json`은 `realsense_recorder.py`가 만드는 형식(`%06d.jpg`, `%06d.png`, 같은 JSON 키)과 같다. 다른 점은 번호가 받은 순서가 아니라 시점 번호 k라는 것, 깊이가 중앙값·정렬·왜곡 보정을 거친 것, `views.json`에 시점별 자세가 따로 있다는 것이다. 그래서 Open3D 예제 `integrate.py`도 이 폴더를 읽을 수 있다.
 
 ## 인터페이스

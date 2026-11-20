@@ -1,0 +1,87 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="pinky">
+  <xacro:include filename="$(find pinky_description)/urdf/pinky.urdf.xacro"/>
+
+  <xacro:arg name="namespace" default=""/>
+  <xacro:arg name="cam_tilt_deg" default="8"/>
+  <xacro:arg name="screen_tilt_deg" default="-25"/>
+  <xacro:arg name="d455_x" default="-0.08"/>
+  <xacro:arg name="d455_y" default="0.0"/>
+  <xacro:arg name="d455_z" default="0.20"/>
+  <xacro:arg name="d455_yaw_deg" default="90"/>
+  <xacro:arg name="d455_pitch_deg" default="10"/>
+
+  <xacro:insert_robot namespace="$(arg namespace)" is_sim="true"
+                      cam_tilt_deg="$(arg cam_tilt_deg)" screen_tilt_deg="$(arg screen_tilt_deg)"/>
+
+  <!-- base_link는 바닥(base_footprint) 위 0.028 m, 기둥 시작 높이는 base_link + 0.070 m -->
+  <xacro:property name="mast_h" value="${$(arg d455_z) - 0.028 - 0.070}"/>
+
+  <link name="d455_mast">
+    <visual>
+      <origin xyz="0 0 ${mast_h / 2}" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.01 ${mast_h}"/></geometry>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${mast_h / 2}" rpy="0 0 0"/>
+      <geometry><box size="0.01 0.01 ${mast_h}"/></geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 ${mast_h / 2}" rpy="0 0 0"/>
+      <mass value="0.02"/>
+      <inertia ixx="${0.02 * (0.01 * 0.01 + mast_h * mast_h) / 12}"
+               iyy="${0.02 * (0.01 * 0.01 + mast_h * mast_h) / 12}"
+               izz="${0.02 * (0.01 * 0.01 + 0.01 * 0.01) / 12}"
+               ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="d455_mast_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="d455_mast"/>
+    <origin xyz="$(arg d455_x) $(arg d455_y) 0.070" rpy="0 0 0"/>
+  </joint>
+
+  <link name="d455_link">
+    <visual>
+      <geometry><box size="0.026 0.124 0.029"/></geometry>
+      <material name="d455_gray"><color rgba="0.25 0.25 0.28 1"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.026 0.124 0.029"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="0.116"/>
+      <inertia ixx="1.57e-4" iyy="1.47e-5" izz="1.55e-4" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+
+  <joint name="d455_joint" type="fixed">
+    <parent link="d455_mast"/>
+    <child link="d455_link"/>
+    <origin xyz="0 0 ${mast_h}"
+            rpy="0 ${$(arg d455_pitch_deg) * pi / 180} ${$(arg d455_yaw_deg) * pi / 180}"/>
+  </joint>
+
+  <gazebo reference="d455_mast_joint"><disableFixedJointLumping>true</disableFixedJointLumping></gazebo>
+  <gazebo reference="d455_joint"><disableFixedJointLumping>true</disableFixedJointLumping></gazebo>
+
+  <gazebo reference="d455_link">
+    <sensor name="d455" type="rgbd_camera">
+      <topic>d455</topic>
+      <always_on>1</always_on>
+      <update_rate>15</update_rate>
+      <gz_frame_id>d455_link</gz_frame_id>
+      <camera>
+        <horizontal_fov>1.5184</horizontal_fov>
+        <image>
+          <width>1280</width>
+          <height>720</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip><near>0.4</near><far>6.0</far></clip>
+        <noise><type>gaussian</type><mean>0</mean><stddev>0.005</stddev></noise>
+      </camera>
+    </sensor>
+  </gazebo>
+</robot>
