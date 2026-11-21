@@ -5,6 +5,7 @@
 """
 import json
 import math
+import select
 import socket
 import threading
 import time
@@ -14,6 +15,8 @@ CTRL_PORT = 7010
 STREAM_PORT = 7011
 PAYLOAD_KEYS = ("color", "depth", "ir")
 MAX_LINE = 16 * 1024 * 1024
+# 보내기 한도. 스냅샷(약 6 MB)을 Wi-Fi로 보낼 때 버퍼가 잠깐 막혀도 끊기지 않게 넉넉히 둔다.
+SEND_TIMEOUT = 30.0
 
 
 def _payload_items(obj):
@@ -60,6 +63,9 @@ class Channel:
 
     def __init__(self, sock):
         self.sock = sock
+        # 소켓 한도는 보내기용으로 고정한다. 받기 한도는 _fill이 select로 따로 기다린다.
+        # (받기 한도를 settimeout으로 주면 짧은 recv 한도가 큰 sendall에도 걸려 연결이 끊긴다.)
+        self.sock.settimeout(SEND_TIMEOUT)
         self._buf = bytearray()
         self._send_lock = threading.Lock()
         self._recv_lock = threading.Lock()
@@ -73,7 +79,12 @@ class Channel:
         remaining = deadline - time.monotonic()
         if remaining <= 0:
             raise TimeoutError("recv timeout")
-        self.sock.settimeout(None if math.isinf(remaining) else remaining)
+        try:
+            ready, _, _ = select.select([self.sock], [], [], None if math.isinf(remaining) else remaining)
+        except (OSError, ValueError) as e:  # 닫힌 소켓(fd -1) 등
+            raise ConnectionError(str(e)) from e
+        if not ready:
+            raise TimeoutError("recv timeout")
         try:
             chunk = self.sock.recv(1 << 20)
         except socket.timeout:
