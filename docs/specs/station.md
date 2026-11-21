@@ -2,14 +2,14 @@
 
 - 코드: `scan3d/station.py`(`python -m scan3d.station`, CLI와 재구성까지의 흐름), 현장에서는 `tools/scan.sh`가 부른다.
   - 로봇 1대: `scan3d/robot/link.py`(`RobotLink`, `connect`), `scan3d/robot/unit.py`(`RobotScan`: hello·출발 자세·진입·시점 이동·촬영과 거리 보정, `StartError`)
-  - 두 대 합침: `scan3d/pair/coordinator.py`(`PairScan`: 일련번호 중복·180° 간격 확인, 동시 진행, 시점별 촬영 맞춤, 전체 중단)
+  - 두 대 합침: `scan3d/pair/coordinator.py`(`PairScan`: 일련번호 중복·180° 간격 확인, 로봇마다 진행, 촬영 차례, 한 시점 앞섬 제한, 전체 중단)
   - 공통: `scan3d/clock.py`(`Clock`), `scan3d/config.py`(`load_config`, `load_board`, `resolve_host`, `robot_addr`, `ORDER`)
 - 테스트: `tests/test_station.py`, I1 `tests/test_integration.py`(localhost 소켓만 쓴다)
 - PLAN: 3.3(출발과 끝), 4.4(진행 순서), 5
 
 ## 하는 일
 
-스캔 PC의 주 프로그램. 두 로봇(또는 한 대)과 연결해 출발, 24시점 맞춤 진행, 스냅샷, 원본 저장, 데이터셋, 재구성, 메시 표시까지 한 번에 한다.
+스캔 PC의 주 프로그램. 두 로봇(또는 한 대)과 연결해 출발, 24시점 엇갈림 진행, 스냅샷, 원본 저장, 데이터셋, 재구성, 메시 표시까지 한 번에 한다.
 
 ## 인터페이스
 
@@ -30,13 +30,12 @@
 2. **출발 위치**: L, H 차례로 `snapshot(use=start)` → `align.prepare` → `tagpose.estimate` → `drive.base_from_cam` → `set_fix`. 표식이 안 보이면 어느 로봇인지 출력하고 종료 코드 1(움직이지 않음)
 3. **각도 차**(두 대일 때): `|wrap(phi_H − phi_L)|`가 180 ± `pair_gap_tol_deg` 밖이면 어느 로봇을 몇 도 옮길지 출력하고 종료 코드 1(움직이지 않음). 받아들인 각도 차는 한 바퀴 내내 유지된다.
 4. **진입**: 두 로봇 `enter()`를 동시에(로봇마다 스레드) 실행한다. 끝나면 두 로봇 모두 시점 0이다.
-5. **시점 k = 0…n_views−1**
-   1. 지금 시점이 k보다 작은 로봇만 `go_to_view(k)`를 동시에 실행한다. 우회로 시점을 건너뛴 로봇은 앞선 시점에서 기다린다.
-   2. `settle_s` 기다린다.
-   3. 지금 시점이 k인 로봇을 L, H 순서로 하나씩: `snapshot(k, view, phi_k)` → 자세 → `set_fix`(odom은 스냅샷 머리말 값) → `d`. 자세가 없으면 `drive.pose()`로 `d`를 낸다. `d`가 `d_min`~`d_max` 밖이면 그 로봇만 `correct(k)` → `settle_s` → `snapshot(k, retake, phi_k)` 한 번 → 자세가 있으면 `set_fix` → `d`. 그 로봇이 끝난 뒤 다음 로봇을 찍는다.
-   4. 구간 결과, 정지, 우회, 건너뜀, 거리 보정(전후 `d`와 그 출처: 표식 또는 odom)을 일어날 때마다 `events.jsonl`에 쓴다. drive의 정지·기다림·우회 결정은 `Driver(on_event=…)`로 받아 그때 쓴다.
+5. **시점 k = 0…n_views−1**: 로봇마다 스레드로 따로 진행한다. 한 로봇이 찍는 동안 다른 로봇은 다음 시점으로 이동한다(엇갈림).
+   1. 지금 시점이 k보다 작으면, 다른 로봇이 시점 k − 1 이상에 도착할 때까지 기다린 뒤 `go_to_view(k)`(앞섬 제한: 한 로봇이 다른 로봇보다 한 시점 넘게 앞서 출발하지 않는다). 우회로 건너뛴 시점에서는 찍지 않는다.
+   2. 지금 시점이 k이면 `settle_s` 기다린 뒤 촬영 차례를 얻는다(한 번에 한 로봇만 카메라를 켠다). `snapshot(k, view, phi_k)` → 자세 → `set_fix`(odom은 스냅샷 머리말 값) → `d`. 자세가 없으면 `drive.pose()`로 `d`를 낸다. `d`가 `d_min`~`d_max` 밖이면 차례를 놓고 `correct(k)` → `settle_s` → 다시 차례를 얻어 `snapshot(k, retake, phi_k)` 한 번 → 자세가 있으면 `set_fix` → `d`.
+   3. 구간 결과, 정지, 우회, 건너뜀, 거리 보정(전후 `d`와 그 출처: 표식 또는 odom)을 일어날 때마다 `events.jsonl`에 쓴다. drive의 정지·기다림·우회 결정은 `Driver(on_event=…)`로 받아 그때 쓴다.
 6. **끝**: 두 로봇은 마지막 시점에서 멈춘다. 역할마다 `dataset.build` → `recon.reconstruct`(어느 역할이든 융합한 시점이 없으면 실패) → `out/` → `report.json`(시작부터 `out/`을 쓴 때까지 걸린 시간, `report.txt`와 같은 값) → 치수와 걸린 시간 출력 → `station.show_mesh`이고 `--no-window`가 아니면 Open3D 창
-7. **실패**: 어느 스레드에서든 예외(`ok:false`, 연결 끊김, 요청 한도 초과, `Blocked`)가 나거나 Ctrl-C면 바로 공유 `cancel`을 켜고 연결된 모든 로봇에 `abort`를 보낸다. 스레드의 예외는 끝나는 대로 바로 확인한다(다른 스레드가 끝나기를 기다리지 않는다). 다른 스레드는 다음 `move` 전이나 기다리는 중에 `Cancelled`로 끝난다(최대 2 s 기다림). 원인을 `report.json`의 `aborted`와 화면에 남기고 종료 코드 1. 받은 `raw/`는 남는다.
+7. **실패**: 어느 스레드에서든 예외(`ok:false`, 연결 끊김, 요청 한도 초과, `Blocked`)가 나거나 Ctrl-C면 바로 공유 `cancel`을 켜고 연결된 모든 로봇에 `abort`를 보낸다. 스레드의 예외는 끝나는 대로 바로 확인한다(다른 스레드가 끝나기를 기다리지 않는다). 다른 스레드는 다음 `move` 전이나 기다리는 중(앞섬 제한·촬영 차례 기다림 포함)에 `Cancelled`로 끝난다(최대 2 s 기다림). 원인을 `report.json`의 `aborted`와 화면에 남기고 종료 코드 1. 받은 `raw/`는 남는다.
 
 ## 설정
 
@@ -46,7 +45,7 @@
 
 | 테스트 함수 | 입력 | 통과 조건 |
 |---|---|---|
-| `test_sequence` (slow) | 두 대, 시작 각 0°·180° | 로봇마다 `hello`가 먼저, 스냅샷 시간 구간이 서로 겹치지 않음, 시점마다 L·H 각도 차 180 ± 10°, 로봇마다 시점 스냅샷 24개 |
+| `test_sequence` (slow) | 두 대, 시작 각 0°·180°, 가짜 촬영 시간 `snapshot_s` 2 s | 로봇마다 `hello`가 먼저, 스냅샷 시간 구간이 서로 겹치지 않음, 시점마다 L·H 각도 차 180 ± 10°, 로봇마다 시점 스냅샷 24개, 로봇마다 시점 도착(`leg`)부터 촬영 끝(`view`)까지의 중앙값이 `settle_s` + 1.5 × `snapshot_s` 이하(엇갈림), 로봇이 시점에 도착할 때 다른 로봇이 한 시점 넘게 뒤처져 있지 않음 |
 | `test_gap_kept` (slow) | 시작 각 0°·160° | 시점마다 각도 차가 시작 각도 차 ± 10° |
 | `test_bypass_waits` (slow) | `--obstacle 2`(L의 시점 2·3 기준점 목표 사이 가운데에 한 변 0.10 m 정사각 상자) | H가 시점 k + 1 문장을 받은 시각이 L이 시점 k 이상에 도착한 시각보다 늦음(모든 k), L의 `events.jsonl`에 기다림과 우회가 있음, 두 로봇 모두 끝까지 감, 건너뛴 시점이 로봇마다 1~2개(L은 시점 3 근처, H는 12시점 뒤 같은 상자 근처)이고 나머지 시점은 모두 찍힘, `report.json`과 `events.jsonl`이 같음 |
 | `test_pair_gap` | 시작 각 0°·120° | 종료 코드 1, 어느 로봇도 `move`를 받지 않음 |

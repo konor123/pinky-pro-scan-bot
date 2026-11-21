@@ -10,14 +10,15 @@
 
 ## 인터페이스
 
-- `FakeFleet(cfg, clock, mesh=None, board=None, roles=("L", "H"), starts=None, obstacle=None, fail=None, rng_seed=0)`
+- `FakeFleet(cfg, clock, mesh=None, board=None, roles=("L", "H"), starts=None, obstacle=None, fail=None, rng_seed=0, snapshot_s=0.0)`
   - `mesh` 기본은 `synth.box_mesh`(config `scene` 크기 안), `board` 기본은 `config/board.json`
   - `starts`: `{"L": phi_deg 또는 (phi_deg, yaw_offset_deg), …}`. 기본 `{"L": 0, "H": 180}`. 카메라가 반지름 R + 0.08 m, 각 phi에 오고 로봇 yaw가 반시계 접선 + `yaw_offset`(기본 0) ± 5°(`rng_seed`). yaw_offset 180이면 카메라가 바깥을 본다.
   - `obstacle`: `(k, size_m=0.10)`. L의 시점 k와 k + 1 로봇 기준점 목표(`drive.view_pose`) 사이 가운데에 놓는 정사각 상자(변이 진행 방향과 나란함)
   - `fail`: `{"role": "H", "cmd": "move", "nth": 3, "after": "L_moving"}`이면 그 요청에 `ok:false`. `after`가 있으면 그 조건(`L_moving`: L의 sim2d 로봇이 움직이는 중, `L_waiting`: L이 기다리는 중)이 될 때까지 응답을 미룬다
   - `after` 조건은 최대 30 s(`clock`) 기다리고, 그때 조건이 맞았는지를 `fail_log`(역할, 시각, 다른 로봇이 움직이던 중인지)에 남긴다.
+  - `snapshot_s`: 스냅샷 하나에 걸리는 `clock` 초(실물은 약 3.3 s). 렌더링 뒤 이만큼 기다리고 응답한다. 기본 0
   - `serials`(역할별 일련번호, 같은 값을 주면 일련번호 확인 시험), `ports`(역할별 (제어, 스트림) 포트, 기본 0)
-  - 기록: `hello_log`, `move_log`, `stop_log`(stop·abort), `snapshot_log`(역할, 실제 시작·끝 시각, `clock` 시각), `arrive_log`(시점 목표에 도착한 시각), `fail_log`. 조회: `true_pose(role)`, `view_target(role, k)`, `world_boxes()`
+  - 기록: `hello_log`, `move_log`, `stop_log`(stop·abort), `snapshot_log`(역할, 실제 시작·끝 시각(`snapshot_s` 기다림 포함), `clock` 시각), `arrive_log`(시점 목표에 도착한 시각), `fail_log`. 조회: `true_pose(role)`, `view_target(role, k)`, `world_boxes()`
 - `start() -> {"L": (host, ctrl_port, stream_port), …}`: 포트 0으로 열어 실제 포트를 돌려준다. `stop()`
 - `python -m scan3d.fake_agent [--obstacle 2] [--time-scale 5]`: config의 포트로 띄운다.
 

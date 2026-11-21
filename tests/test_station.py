@@ -86,7 +86,8 @@ def gaps(run):
 
 @pytest.mark.slow
 def test_sequence(cfg, tmp_path, runs):
-    run = scan(cfg, tmp_path)
+    snapshot_s = 2.0
+    run = scan(cfg, tmp_path, snapshot_s=snapshot_s)
     runs.append(run)
     f = run.fleet
     assert run.code == 0
@@ -99,6 +100,18 @@ def test_sequence(cfg, tmp_path, runs):
     assert all(b0 <= a1 for (_, b0), (a1, _) in zip(spans, spans[1:]))
     g = gaps(run)
     assert len(g) == 24 and all(170 <= v <= 190 for v in g.values()), g
+
+    limit = cfg["capture"]["settle_s"] + 1.5 * snapshot_s
+    for role in ("L", "H"):
+        arrived = {e["view"]: e["pc_t"] for e in run.events(role, "leg") if e["view"] == e["k"]}
+        shot = {e["k"]: e["pc_t"] for e in run.events(role, "view") if e["use"] == "view"}
+        dwell = sorted(shot[k] - arrived[k] for k in arrived if k > 0 and k in shot)
+        assert len(dwell) >= 20 and dwell[len(dwell) // 2] <= limit, (role, limit, dwell)
+    legs = {r: sorted((e["pc_t"], e["view"]) for e in run.events(r, "leg")) for r in ("L", "H")}
+    for r, o in (("L", "H"), ("H", "L")):
+        for t, v in legs[r]:
+            other = max((w for s, w in legs[o] if s <= t), default=0)
+            assert other >= v - 1, (r, v, other)
 
 
 @pytest.mark.slow

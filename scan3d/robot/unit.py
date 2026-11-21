@@ -4,6 +4,7 @@
 
 두 로봇을 함께 돌리는 순서와 조건은 pair.coordinator가 정한다. 이 모듈은 다른 로봇을 모른다.
 """
+import contextlib
 import math
 from dataclasses import dataclass, field
 
@@ -107,11 +108,15 @@ class RobotScan:
         cx, cy = drive.cam_xy(self.driver.pose(), self.mount)
         return math.hypot(cx, cy) - self.r_eff, "odom", False
 
-    def capture(self, k):
-        """시점 k 촬영. 거리가 [d_min, d_max] 밖이면 한 번 보정 이동 뒤 다시 찍는다."""
+    def capture(self, k, turn=contextlib.nullcontext):
+        """시점 k 촬영. 거리가 [d_min, d_max] 밖이면 한 번 보정 이동 뒤 다시 찍는다.
+
+        turn()은 스냅샷 동안 잡는 촬영 차례(두 대일 때 한 번에 한 로봇만 카메라를 켠다). 보정 이동 중에는 놓는다.
+        """
         dcfg = self.cfg["drive"]
         phi = self.driver.phi_deg(k)
-        header, payloads, snap = self.link.snapshot(k, "view", phi)
+        with turn():
+            header, payloads, snap = self.link.snapshot(k, "view", phi)
         d, src, has_pose = self._distance(header, payloads)
         self.emit("view", k=k, use="view", snap=snap, pose=has_pose, d=d, d_source=src)
         if dcfg["d_min"] <= d <= dcfg["d_max"]:
@@ -120,7 +125,8 @@ class RobotScan:
         self.stats.corrections += 1
         self.stats.stops += leg.stops
         self.link.sleep(self.cfg["capture"]["settle_s"])
-        header, payloads, snap = self.link.snapshot(k, "retake", phi)
+        with turn():
+            header, payloads, snap = self.link.snapshot(k, "retake", phi)
         d2, src2, has_pose = self._distance(header, payloads)
         self.emit("view", k=k, use="retake", snap=snap, pose=has_pose, d=d2, d_source=src2)
         self.emit("correct", k=k, d_before=d, src_before=src, d_after=d2, src_after=src2)

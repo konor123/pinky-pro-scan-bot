@@ -3,18 +3,23 @@
 로봇마다 하는 일은 robot.unit.RobotScan에 있고, 여기는 두 대를 묶는 규칙만 둔다.
   - 카메라 일련번호가 서로 달라야 한다(같은 카메라를 두 자리에 꽂은 실수)
   - 두 로봇의 출발 각도 차가 180° ± pair_gap_tol_deg 안이어야 한다
-  - 진입과 시점 이동은 두 대가 동시에(스레드), 촬영은 두 대가 모두 시점 k에 선 뒤 차례로
+  - 진입은 두 대가 동시에. 그 뒤 로봇마다 스레드로 24시점을 돈다
+  - 스냅샷은 한 번에 한 로봇만(촬영 차례), 다른 로봇이 시점 k − 1에 도착하기 전에는 시점 k로 출발하지 않는다(앞섬 제한).
+    그래서 한 로봇이 찍는 동안 다른 로봇은 다음 시점으로 이동한다(엇갈림)
   - 한 대라도 실패하면 둘 다 중단
 """
+import contextlib
 import math
 import queue
 import threading
+import time
 
 from ..robot import drive
 from ..robot.unit import RobotScan, StartError
 from ..vendor.pinky_commands import wrap_angle
 
 ORDER = ("L", "H")
+WAIT_POLL_S = 0.01   # 촬영 차례·앞섬 제한을 기다릴 때 취소를 확인하는 주기(실제 초)
 
 
 def run_parallel(jobs):
@@ -88,17 +93,42 @@ class PairScan:
     def enter(self):
         run_parallel({r: u.enter for r, u in self.units.items()})
 
+    def _check_cancel(self):
+        if self.cancel.is_set():
+            raise drive.Cancelled("취소됨")
+
     def views(self):
-        for k in range(self.cfg["scene"]["n_views"]):
-            movers = {r: (lambda u=u: u.go_to_view(k)) for r, u in self.units.items() if u.needs_move(k)}
-            if movers:
-                run_parallel(movers)
-            self.clock_link.sleep(self.cfg["capture"]["settle_s"])
-            if self.cancel.is_set():
-                raise drive.Cancelled("취소됨")
-            for u in self.units.values():
-                if u.at_view(k):
-                    u.capture(k)
+        """로봇마다 스레드로 시점 0…n−1. 촬영 차례와 앞섬 제한으로 두 로봇이 엇갈려 찍고 이동한다."""
+        n = self.cfg["scene"]["n_views"]
+        settle = self.cfg["capture"]["settle_s"]
+        camera = threading.Lock()
+
+        @contextlib.contextmanager
+        def turn():
+            while not camera.acquire(timeout=WAIT_POLL_S):
+                self._check_cancel()
+            try:
+                yield
+            finally:
+                camera.release()
+
+        def others_reached(role, k):
+            return all(u.cur >= k for r, u in self.units.items() if r != role)
+
+        def walk(role, u):
+            for k in range(n):
+                if u.needs_move(k):
+                    while not others_reached(role, k - 1):
+                        self._check_cancel()
+                        time.sleep(WAIT_POLL_S)
+                    u.go_to_view(k)
+                if not u.at_view(k):
+                    continue
+                u.link.sleep(settle)
+                self._check_cancel()
+                u.capture(k, turn)
+
+        run_parallel({r: (lambda r=r, u=u: walk(r, u)) for r, u in self.units.items()})
 
     def abort_all(self, reason):
         self.cancel.set()

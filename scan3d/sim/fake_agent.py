@@ -60,9 +60,10 @@ class _Bot:
 
 class FakeFleet:
     def __init__(self, cfg, clock, mesh=None, board=None, roles=("L", "H"), starts=None,
-                 obstacle=None, fail=None, rng_seed=0, serials=None, hosts=None, ports=None):
+                 obstacle=None, fail=None, rng_seed=0, serials=None, hosts=None, ports=None, snapshot_s=0.0):
         self.cfg = cfg
         self.clock = clock
+        self.snapshot_s = float(snapshot_s)   # 스냅샷 하나에 걸리는 clock 초(실물 약 3.3 s)
         self.board = board if board is not None else json.loads((ROOT / cfg["board"]["layout"]).read_text())
         self.mesh = mesh if mesh is not None else default_mesh(cfg)
         self.roles = tuple(roles)
@@ -400,7 +401,9 @@ class FakeFleet:
                    "depth": {"w": dw, "h": dh, "fmt": "z16", "n": n}}
             hdr, payloads = protocol.pack_snapshot(hdr, {"color": synth.to_yuyv(color), "depth": depth},
                                                    bool(req.get("compress")))
-            self._log(self.snapshot_log, (bot.role, wall0, time.monotonic(), t))
+        if self.snapshot_s > 0:
+            self.clock.sleep(self.snapshot_s)
+        self._log(self.snapshot_log, (bot.role, wall0, time.monotonic(), t))
         return hdr, payloads
 
 

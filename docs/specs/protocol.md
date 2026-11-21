@@ -16,8 +16,8 @@
 |---|---|
 | `{"cmd":"hello","color":[1280,720,15],"depth":[848,480,15]}` | `{"ok":true,"role":"L","serial":"…","calib":{…}}`. 이 연결의 스냅샷 프로파일이 여기서 정해지고, `calib`은 이 프로파일의 값이다. 로봇의 중단 상태를 푼다 |
 | `{"cmd":"move","text":"speed 0.06; forward 0.17","timeout_s":60}` | `{"ok":true,"stopped":false,"odom":[x,y,yaw]}`(odom 좌표). `stop`으로 끝나면 `"stopped":true` |
-| `{"cmd":"snapshot","n_depth":5,"n_skip":15,"compress":false,"color":[1280,720,15],"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"color":{"w":1280,"h":720,"fmt":"yuyv","bytes":1843200},"depth":{"w":848,"h":480,"fmt":"z16","n":5,"bytes":4070400}}` + 컬러 바이트 + 깊이 바이트 |
-| `{"cmd":"snapshot","ir":true,"n_skip":15,"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"ir":{"w":848,"h":480,"fmt":"y8","bytes":407040}}` + 바이트. `t`·`odom`은 그 적외선 프레임을 받은 순간 |
+| `{"cmd":"snapshot","n_depth":5,"n_skip":5,"compress":false,"color":[1280,720,15],"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"color":{"w":1280,"h":720,"fmt":"yuyv","bytes":1843200},"depth":{"w":848,"h":480,"fmt":"z16","n":5,"bytes":4070400}}` + 컬러 바이트 + 깊이 바이트 |
+| `{"cmd":"snapshot","ir":true,"n_skip":5,"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"ir":{"w":848,"h":480,"fmt":"y8","bytes":407040}}` + 바이트. `t`·`odom`은 그 적외선 프레임을 받은 순간 |
 
 - 실패 응답: `{"ok":false,"error":"…"}`. `move`에서 `blocked: …`·`error: …`가 오거나 `timeout_s`가 지나도 실패다.
 - `move`의 `text`는 drive `plan_move`가 만든 문장 하나(회전 하나 또는 `speed s; forward c` 하나)다. 움직임이 없는 문장(`speed`만)은 보내지 않는다.
