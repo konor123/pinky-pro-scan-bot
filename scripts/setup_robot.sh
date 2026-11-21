@@ -18,7 +18,7 @@ RULES_FILE="$CACHE_DIR/99-realsense-libusb.rules"
 UDEV_URL="https://raw.githubusercontent.com/realsenseai/librealsense/v2.59.2/config/99-realsense-libusb.rules"
 PKG_SPEC="pyrealsense2==2.59.2.11152"
 
-PY="$ROOT/.venv/bin/python"
+PY="${SCAN3D_PY:-$ROOT/.venv/bin/python}"
 if [ ! -x "$PY" ]; then
     PY="python3"
 fi
@@ -46,7 +46,9 @@ fi
 ssh "$HOST" "mkdir -p ~/.cache/scan3d/wheels"
 rsync -a "$RULES_FILE" "$HOST:.cache/scan3d/99-realsense-libusb.rules"
 rsync -a "$WHEEL_DIR/" "$HOST:.cache/scan3d/wheels/"
-rsync -a --chmod=F0755 "$ROOT/scripts/robot_root_setup.sh" "$HOST:.cache/scan3d/robot_root_setup.sh"
+# macOS 기본 rsync(openrsync)는 --chmod를 지원하지 않아 권한은 ssh로 따로 준다
+rsync -a "$ROOT/scripts/robot_root_setup.sh" "$HOST:.cache/scan3d/robot_root_setup.sh"
+ssh "$HOST" "chmod 0755 ~/.cache/scan3d/robot_root_setup.sh"
 
 # udev 규칙과 USB 전류 한도만 sudo 사용(비밀번호 입력을 위해 -t 사용)
 ssh -t "$HOST" "sudo sh ~/.cache/scan3d/robot_root_setup.sh"

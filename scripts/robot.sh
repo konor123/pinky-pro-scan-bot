@@ -20,7 +20,7 @@ CMD="${1:-}"; [ -n "$CMD" ] || usage; shift
 ENV='source /opt/ros/jazzy/setup.bash && source ~/pinky_pro/install/local_setup.bash && source ~/pinky_auto_ws/install/local_setup.bash && mkdir -p ~/pinky_auto_ws/run && cd ~/pinky_auto_ws/run'
 
 config_py() {
-    local py="$ROOT/.venv/bin/python"
+    local py="${SCAN3D_PY:-$ROOT/.venv/bin/python}"
     [ -x "$py" ] || py="python3"
     "$py" - "$ROOT/config/scan.yaml" "$@"
 }
@@ -84,7 +84,8 @@ case "$CMD" in
                     ;;
             esac
             if [ "$HAS_ROLE_ARG" -eq 0 ]; then
-                LAUNCH_ARGS=("role:=$ROLE" "${LAUNCH_ARGS[@]}")
+                # macOS bash 3.2는 set -u에서 빈 배열 "${a[@]}"를 unbound로 본다
+                LAUNCH_ARGS=("role:=$ROLE" ${LAUNCH_ARGS[@]+"${LAUNCH_ARGS[@]}"})
             fi
             for arg in $(wheel_args "$ROLE"); do
                 case " ${LAUNCH_ARGS[*]} " in
