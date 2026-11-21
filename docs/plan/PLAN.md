@@ -92,7 +92,7 @@ ros/                 ROS 2 패키지(ament_python, colcon이 찾는 패키지 �
   scan3d_robot/      로봇 에이전트(scan3d_robot/agent.py·camera.py·node.py), launch/robot_scan.launch.xml
   scan3d_sim/        Gazebo 스캔 시험: scan3d_sim/(시뮬레이션용 에이전트), launch/scan_sim.launch.py, urdf/(D455 옆 장착 xacro), layouts/(world 레이아웃)
 config/              현장 값 scan.yaml, 시뮬레이션용 scan_sim.yaml, 표식 배치 board.json
-scripts/             설치·배포·실행(setup_station.sh, setup_robot.sh, deploy.sh, robot.sh, sim_scan.sh)
+scripts/             설치·배포·실행(setup_station.sh, setup_robot.sh + robot_root_setup.sh, deploy.sh, robot.sh, sim_scan.sh)
 tools/               표식 판 생성(make_board.py), 시뮬레이션 텍스처(make_sim_assets.py), 현장 확인 스크립트(스캔 PC에서 실행)
 tests/               pytest(합성 데이터, 2D 주행, 가짜 에이전트, 통합, 현장 재생). ROS 패키지 테스트는 각 패키지의 test/
 docs/specs/          모듈 명세
@@ -284,9 +284,9 @@ scans/<scan_id>/out/                  mesh.ply, cloud.ply, report.txt(치수, �
 - **배포·실행**: `scripts/deploy.sh`(로봇 `~/pinky_auto_ws` 오버레이, 공식 `~/pinky_pro`는 건드리지 않음), `scripts/robot.sh start|stop|status`. 백그라운드 `ros2 launch`는 SIGINT를 무시하므로 프로세스 그룹에 SIGTERM을 보낸다.
 - **직렬 포트**: 모터 `/dev/ttyAMA4`, LiDAR `/dev/ttyAMA0`는 한 프로세스만 쓸 수 있다. 다른 bringup이 떠 있는지 먼저 본다.
 - **로봇 자원**: Pi 5 RAM 2 GB
-- **USB 전원**: Pi 5는 5 V 5 A 전원을 감지하면 USB 기기에 1.6 A, 아니면 600 mA를 준다. D455는 최대 약 0.69 A다. 스냅샷이 끊기면 보조배터리 USB 허브를 쓴다.
+- **USB 전원**: Pi 5는 5 V 5 A 전원을 감지하면 USB 기기에 1.6 A, 아니면 600 mA를 준다. 로봇의 Pi는 3 A 전원으로 감지하고(`/proc/device-tree/chosen/power/max_current` 3000), D455는 USB에 720 mA를 선언한다(최대 약 0.69 A). 그래서 `config.txt`에 `usb_max_current_enable=1`을 넣어 1.6 A로 올린다(재부팅 필요, `scripts/robot_root_setup.sh`). 설정 전에도 레이저 최대로 20초 스트리밍은 저전압 없이 됐다. 모터를 돌리며 스냅샷이 끊기면 보조배터리 USB 허브를 쓴다.
 - **LiDAR**: RPLiDAR C1이 차체 맨 위에 있고 주사면은 바닥 위 약 0.125 m다(공식 URDF). 로봇에 180° 돌아가 붙어 있어 스캔 각 0이 로봇 뒤쪽이다. 주사면보다 낮은 물체는 보이지 않는다(pinky_sim_examples README). `pinky_auto` robot 런치가 `/scan`을 낸다.
-- **로봇 카메라 소프트웨어**: PyPI `pyrealsense2` 2.59.2(aarch64·Python 3.12 휠, librealsense 포함)를 venv에 설치한다(sudo 필요 없음). USB 접근용 udev 규칙(librealsense 저장소 `config/99-realsense-libusb.rules`)만 sudo로 설치한다. 로봇에는 OpenCV가 필요 없다. venv는 `--system-site-packages`로 만들어 ROS의 `rclpy`와 `pyrealsense2`를 한 프로세스에서 쓰고, `robot_scan.launch.xml`은 `robot_agent`를 그 venv의 python으로 실행한다(`ExecuteProcess`). 휠이 안 되면 apt `ros-jazzy-librealsense2` 2.59.1의 `rs-save-to-disk`로 찍는다(이 apt 패키지에는 Python 바인딩과 udev 규칙이 없다).
+- **로봇 카메라 소프트웨어**: PyPI `pyrealsense2` 2.59.2(aarch64·Python 3.12 휠, librealsense 포함)를 venv에 설치한다(sudo 필요 없음). 이 휠은 V4L2로 카메라에 접근하고 로봇의 영상 장치 파일은 누구나 열 수 있어, udev 규칙 없이도 카메라가 열린다. sudo로는 udev 규칙(librealsense 저장소 `config/99-realsense-libusb.rules`)과 위 USB 전류 한도만 설정한다. 로봇에는 OpenCV가 필요 없다. venv는 `--system-site-packages`로 만들어 ROS의 `rclpy`와 `pyrealsense2`를 한 프로세스에서 쓰고, `robot_scan.launch.xml`은 `robot_agent`를 그 venv의 python으로 실행한다(`ExecuteProcess`). 휠이 안 되면 apt `ros-jazzy-librealsense2` 2.59.1의 `rs-save-to-disk`로 찍는다(이 apt 패키지에는 Python 바인딩과 udev 규칙이 없다).
 - **D455 컬러 형식**: 데이터시트의 동시 스트림 표(Table 4-5)에서 D455 컬러는 YUY2(16 bit)다. RGB8을 요청하면 librealsense가 로봇에서 변환하므로 YUY2로 받는다. 쓸 프로파일(1280×720 YUY2, 848×480 Z16, 15 fps)이 있는지는 `scripts/setup_robot.sh`가 카메라에서 확인해 출력한다.
 - **스캔 PC 저장소**: 스캔 PC는 이 저장소를 clone해서 쓰고, `scripts/setup_station.sh`가 Python 패키지를 설치한다.
 - **스캔 PC Python**: `numpy` 1.26, `pyrealsense2==2.59.2.11152`, `open3d==0.20.0`, `opencv-contrib-python-headless==4.11.0.86`(5.x는 numpy 2 필요). 이 조합이 Python 3.12(x86_64)에서 함께 import되고 `rs.software_device()`가 만들어지는 것을 x86_64 Linux에서 확인했다.

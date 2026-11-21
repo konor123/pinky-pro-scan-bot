@@ -70,7 +70,7 @@
 - [x] 로봇 쪽: `robot_agent`(pyrealsense2 스냅샷, `move` → `command_driver`, `stop`, odom·LiDAR 스트림), `robot_scan.launch.xml`(`pinky_auto` robot + `command_driver`(`stop_distance:=0.0`) + `robot_agent`) → `ros/scan3d_robot/`
 - [x] 현장 도구 → `tools/snapshot_test.py`, `show_pose.py`, `drive_check.py`, `lidar_view.py`, `scan.sh`, `upload.sh`
 - [x] 설치·배포·실행 스크립트
-  - [x] `scripts/setup_robot.sh`(sudo는 udev 규칙만)
+  - [x] `scripts/setup_robot.sh`(sudo는 udev 규칙과 USB 전류 한도만, `scripts/robot_root_setup.sh`)
   - [x] `scripts/deploy.sh` 확장
   - [x] `scripts/robot.sh`가 `scan3d_robot`의 launch도 띄우게 확장
   - [x] `scripts/setup_station.sh`
@@ -96,9 +96,9 @@
 - [ ] 스캔 PC 준비: 이 저장소를 clone하고 Python 패키지 설치, `tools/upload.sh`가 보낼 곳 설정
   - 명령: `scripts/setup_station.sh`, `echo 'export SCAN3D_UPLOAD=<사용자@개발PC:저장소 경로>' >> ~/.bashrc`
   - 성공: `station ok`
-- [ ] (sudo) 두 로봇에 udev 규칙, venv에 `pyrealsense2`
-  - 명령: `scripts/setup_robot.sh pinky1`, `scripts/setup_robot.sh pinky2`
-  - 성공: `setup ok`, 카메라 일련번호, USB 3 연결, 컬러 1280×720 YUY2·깊이 848×480 Z16 15 fps 프로파일 있음
+- [ ] (sudo) 두 로봇에 udev 규칙과 USB 전류 한도 1.6 A(`usb_max_current_enable=1`), venv에 `pyrealsense2`
+  - 명령: `scripts/setup_robot.sh pinky1`, `scripts/setup_robot.sh pinky2`. 처음 실행에서 `reboot needed`가 나오면 `ssh -t pinky1 sudo reboot` 뒤 같은 명령을 한 번 더 실행한다.
+  - 성공: `setup ok`, 카메라 일련번호, USB 3 연결, 컬러 1280×720 YUY2·깊이 848×480 Z16 15 fps 프로파일 있음, `usb_max_current_enable: 1`
   - 실패하면: 휠이 import되지 않거나 카메라를 못 찾으면 apt `ros-jazzy-librealsense2`(sudo)를 설치하고 `rs-enumerate-devices`로 확인한 뒤 `rs-save-to-disk` 경로로 바꾼다.
 - [ ] 배포 후 구동 스택 켜기(`pinky_auto`, `pinky_sim_examples`, `scan3d_robot`)
   - 명령: `scripts/deploy.sh pinky1` → `scripts/robot.sh -H pinky1 start robot_scan`(pinky2도 같이)

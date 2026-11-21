@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# 로봇에 RealSense udev 규칙(sudo)과 ~/scan3d_venv(pyrealsense2)를 설치하고 카메라·프로파일을 확인한다.
+# 로봇에 RealSense udev 규칙과 USB 전류 한도 1.6 A(sudo), ~/scan3d_venv(pyrealsense2)를 설치하고
+# 카메라·프로파일·USB 전류 설정을 확인한다.
 # 사용: scripts/setup_robot.sh <host>
+# 처음 실행하면 USB 설정 적용을 위해 재부팅 안내가 나온다. 재부팅한 뒤 한 번 더 실행하면 `setup ok`.
 set -euo pipefail
 
 if [ "$#" -lt 1 ] || [ -z "${1:-}" ]; then
@@ -44,9 +46,10 @@ fi
 ssh "$HOST" "mkdir -p ~/.cache/scan3d/wheels"
 rsync -a "$RULES_FILE" "$HOST:.cache/scan3d/99-realsense-libusb.rules"
 rsync -a "$WHEEL_DIR/" "$HOST:.cache/scan3d/wheels/"
+rsync -a --chmod=F0755 "$ROOT/scripts/robot_root_setup.sh" "$HOST:.cache/scan3d/robot_root_setup.sh"
 
-# udev 규칙 설치만 sudo 사용(비밀번호 입력을 위해 -t 사용)
-ssh -t "$HOST" "sudo install -m 0644 ~/.cache/scan3d/99-realsense-libusb.rules /etc/udev/rules.d/99-realsense-libusb.rules && sudo udevadm control --reload-rules && sudo udevadm trigger"
+# udev 규칙과 USB 전류 한도만 sudo 사용(비밀번호 입력을 위해 -t 사용)
+ssh -t "$HOST" "sudo sh ~/.cache/scan3d/robot_root_setup.sh"
 
 ssh "$HOST" "if [ ! -x ~/scan3d_venv/bin/python ]; then python3 -m venv --system-site-packages ~/scan3d_venv; fi && ~/scan3d_venv/bin/python -m pip install -q --no-index --find-links ~/.cache/scan3d/wheels '$PKG_SPEC'"
 
@@ -84,6 +87,14 @@ for sensor in dev.query_sensors():
 print(f"color 1280x720 YUY2 15fps: {has_color}")
 print(f"depth 848x480 Z16 15fps: {has_depth}")
 if not (has_color and has_depth):
+    sys.exit(1)
+
+# 부팅 때 펌웨어가 config.txt를 반영한 값(4바이트 big-endian)
+with open("/proc/device-tree/chosen/power/usb_max_current_enable", "rb") as f:
+    usb_max = int.from_bytes(f.read(4), "big")
+print(f"usb_max_current_enable: {usb_max}")
+if usb_max != 1:
+    print("reboot needed: ssh -t <host> sudo reboot, then run setup_robot.sh again", file=sys.stderr)
     sys.exit(1)
 print("setup ok")
 PY
