@@ -16,6 +16,8 @@ from launch.substitutions import Command, EnvironmentVariable, LaunchConfigurati
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 
+from scan3d_sim.wheel_moves import COMMAND_TOPIC, STATUS_TOPIC
+
 
 def generate_launch_description():
     share = get_package_share_directory('scan3d_sim')
@@ -65,9 +67,11 @@ def generate_launch_description():
              parameters=[{'config_file': os.path.join(examples, 'config', 'd455_bridge.yaml')}]),
 
         Node(package='pinky_sim_examples', executable='command_driver', name='command_driver',
-             output='screen', parameters=[{'use_sim_time': True, 'stop_distance': 0.0}]),
+             output='screen', parameters=[{'use_sim_time': True, 'stop_distance': 0.0}],
+             remappings=[('/pinky_command', COMMAND_TOPIC), ('/command_status', STATUS_TOPIC)]),
         Node(package='scan3d_sim', executable='sim_agent', name='sim_agent', output='screen',
              arguments=['--role', arg('role'), '--port', arg('port'), '--stream-port', arg('stream_port')],
+             remappings=[('/pinky_command', COMMAND_TOPIC), ('/command_status', STATUS_TOPIC)],
              additional_env={'PYTHONPATH': [arg('scan3d_root'), ':',
                                             EnvironmentVariable('PYTHONPATH', default_value='')]}),
     ])

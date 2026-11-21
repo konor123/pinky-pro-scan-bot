@@ -25,6 +25,7 @@ setup(
     entry_points={
         'console_scripts': [
             'sim_agent=scan3d_sim.sim_agent:main',
+            'wheel_moves=scan3d_sim.wheel_moves:main',
         ],
     },
 )
