@@ -1,5 +1,6 @@
 import json
 import math
+import time
 from pathlib import Path
 
 import pytest
@@ -175,7 +176,13 @@ def test_failure_stops(cfg, tmp_path, runs, after, nth):
     assert run.code == 1
     (role, t_fail, l_busy), = f.fail_log
     assert l_busy == (after == "L_moving")
-    aborts = {r: t for r, what, t in f.stop_log if what == "abort"}
+    # 가짜 에이전트는 abort를 자기 스트림 스레드에서 기록하므로 execute가 돌아온 직후에는 아직 없을 수 있다
+    end = time.monotonic() + 2.0
+    while True:
+        aborts = {r: t for r, what, t in list(f.stop_log) if what == "abort"}
+        if set(aborts) == {"L", "H"} or time.monotonic() > end:
+            break
+        time.sleep(0.01)
     assert set(aborts) == {"L", "H"} and all(t - t_fail < 2.0 for t in aborts.values())
     assert all(t <= t_fail + 2.0 for _, _, t in f.move_log)
     before = {r: f.true_pose(r) for r in ("L", "H")}
