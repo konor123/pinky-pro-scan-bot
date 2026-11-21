@@ -93,7 +93,7 @@ ros/                 ROS 2 패키지(ament_python, colcon이 찾는 패키지 �
   scan3d_sim/        Gazebo 스캔 시험: scan3d_sim/(시뮬레이션용 에이전트), launch/scan_sim.launch.py, urdf/(D455 옆 장착 xacro), layouts/(world 레이아웃)
 config/              현장 값 scan.yaml, 시뮬레이션용 scan_sim.yaml, 표식 배치 board.json
 scripts/             설치·배포·실행(setup_station.sh, setup_robot.sh + robot_root_setup.sh, deploy.sh, robot.sh, sim_scan.sh)
-tools/               표식 판 생성(make_board.py), 시뮬레이션 텍스처(make_sim_assets.py), 현장 확인 스크립트(스캔 PC에서 실행)
+tools/               표식 판 생성(make_board.py), 카메라 숙임 각도기(make_angle_gauge.py), 시뮬레이션 텍스처(make_sim_assets.py), 현장 확인 스크립트(스캔 PC에서 실행)
 tests/               pytest(합성 데이터, 2D 주행, 가짜 에이전트, 통합, 현장 재생). ROS 패키지 테스트는 각 패키지의 test/
 docs/specs/          모듈 명세
 ```
