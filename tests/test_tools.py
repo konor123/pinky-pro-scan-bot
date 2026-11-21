@@ -9,7 +9,7 @@ from scan3d.clock import Clock
 from scan3d.sim.fake_agent import FakeFleet
 from tools import drive_check, led_check, lidar_view, show_pose, snapshot_test
 
-SMALL = {"color": {"w": 640, "h": 360, "fmt": "yuyv", "fps": 15},
+SMALL = {"color": {"w": 1280, "h": 720, "fmt": "yuyv", "fps": 15},
          "depth": {"w": 424, "h": 240, "fmt": "z16", "fps": 15}}
 
 

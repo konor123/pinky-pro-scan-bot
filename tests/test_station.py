@@ -15,7 +15,7 @@ from scan3d.station import execute
 from scan3d.vendor.pinky_commands import wrap_angle
 
 SCALE = 5.0
-SMALL = {"color": {"w": 640, "h": 360, "fmt": "yuyv", "fps": 15},
+SMALL = {"color": {"w": 1280, "h": 720, "fmt": "yuyv", "fps": 15},
          "depth": {"w": 424, "h": 240, "fmt": "z16", "fps": 15}}
 
 
