@@ -7,6 +7,7 @@
   - **(sudo)** 로봇이나 스캔 PC의 sudo 비밀번호가 필요한 일. 원격 터미널에서 해도 된다.
 - 현장 명령은 모두 스캔 PC의 저장소 폴더에서 실행한다. 로봇 이름 `pinky1`(H, SSID pinky_d52c), `pinky2`(L, SSID pinky_6437)는 스캔 PC의 `~/.ssh/config`에 만드는 SSH 별칭이다(3번 묶음).
 - 각 묶음은 앞 묶음이 끝난 뒤에 한다.
+- 지금: 0~4장 끝. 로봇마다 한 바퀴 스캔과 메시 생성까지 실물에서 확인했다. 남은 일은 5장(두 로봇 동시 촬영)과 6장(두 데이터를 합쳐 모델 만들기)이다.
 - 실패하면 적힌 일을 한 번 해 보고, 안 되면 로그와 데이터를 남기고 다음 항목으로 간다.
 
 ## 정확해야 하는 것과 대충이어도 되는 것
@@ -28,29 +29,29 @@
 
 다이소(다이소몰 상품 페이지 확인, 2026-11-18. 온라인 품절 표시 품목은 매장 재고를 확인한다):
 
-- [ ] 크라프트 포장 박스 중형 3개입(품번 1050541, 1,000원) — 기준 물체. 조립한 바닥 대각선이 28 cm 이하(한 변 약 19.8 cm)·높이 20 cm 이하인지 확인
-- [ ] 원단보드롱 화이트 5T 60×90cm(품번 1021054, 1,500원) — 표식 판 바탕. 휘지 않은 것
-- [ ] 카메라 기둥 2개: H는 알루미늄 프로파일 약 0.30 m(카메라가 바닥 위 약 0.45 m), L은 카메라가 바닥 위 약 0.15 m에 오는 짧은 기둥. 끝에 1/4인치 나사(카메라 고정)와 아래로 숙일 수 있는 볼헤드나 각도 브래킷. 차체 뒤쪽에 하나만 세운다(다리 있는 받침은 LiDAR를 가림).
-- [ ] 시연 물체 — 바닥 윤곽이 지름 28 cm 원 안, 높이 20 cm 이하, 무광, 단단함, 비대칭(동물·캐릭터 장식품 등)
-- [ ] 장애물 시험용 작은 상자(한 변 10 cm 안팎, 높이 15 cm 이상 — LiDAR 주사면 0.125 m보다 높게)
-- [ ] 양면테이프, 케이블타이
+- [x] 크라프트 포장 박스 중형 3개입(품번 1050541, 1,000원) — 기준 물체. 조립한 바닥 대각선이 28 cm 이하(한 변 약 19.8 cm)·높이 20 cm 이하인지 확인
+- [x] 원단보드롱 화이트 5T 60×90cm(품번 1021054, 1,500원) — 표식 판 바탕. 휘지 않은 것
+- [x] 카메라 기둥 2개: H는 알루미늄 프로파일 약 0.30 m(카메라가 바닥 위 약 0.45 m), L은 카메라가 바닥 위 약 0.15 m에 오는 짧은 기둥. 끝에 1/4인치 나사(카메라 고정)와 아래로 숙일 수 있는 볼헤드나 각도 브래킷. 차체 뒤쪽에 하나만 세운다(다리 있는 받침은 LiDAR를 가림).
+- [x] 시연 물체 — 바닥 윤곽이 지름 28 cm 원 안, 높이 20 cm 이하, 무광, 단단함, 비대칭(동물·캐릭터 장식품 등)
+- [x] 장애물 시험용 작은 상자(한 변 10 cm 안팎, 높이 15 cm 이상 — LiDAR 주사면 0.125 m보다 높게)
+- [x] 양면테이프, 케이블타이
 
 로봇과 스캔 PC:
 
-- [ ] 두 로봇에 D455를 USB 3 포트(파란색)로 꽂는다.
-- [ ] 두 로봇을 바퀴가 바닥에 닿지 않게 상자 위에 올리고, 충전기를 연결한 채 켜 둔다.
-- [ ] 로봇 2를 Pinky Studio(BLE 데스크톱 앱)의 "WiFi 설정" 탭에서 같은 Wi-Fi에 연결한다. `ROS_DOMAIN_ID`는 바꾸지 않는다.
-- [ ] 스캔 PC를 같은 Wi-Fi에 연결해 켜 두고, 원격으로 접속할 수 있게 해 둔다. 이 상태로 3번 묶음을 원격으로 진행한다.
-- [ ] 스캔할 자리로 빈 바닥 약 2.2 m × 2.2 m를 정한다.
+- [x] 두 로봇에 D455를 USB 3 포트(파란색)로 꽂는다.
+- [x] 두 로봇을 바퀴가 바닥에 닿지 않게 상자 위에 올리고, 충전기를 연결한 채 켜 둔다.
+- [x] 로봇 2를 Pinky Studio(BLE 데스크톱 앱)의 "WiFi 설정" 탭에서 같은 Wi-Fi에 연결한다. `ROS_DOMAIN_ID`는 바꾸지 않는다.
+- [x] 스캔 PC를 같은 Wi-Fi에 연결해 켜 두고, 원격으로 접속할 수 있게 해 둔다. 이 상태로 3번 묶음을 원격으로 진행한다.
+- [x] 스캔할 자리로 빈 바닥 약 2.2 m × 2.2 m를 정한다.
 
 ### 0-2. 표식 판 출력 — 1번 묶음의 첫 항목 뒤
 
-- [ ] `out/board_A1.pdf`를 출력소에서 출력한다: A1 세로, 실제 크기 100%(용지 맞춤·축소·확대 끔), 무광, 코팅 없음.
-- [ ] 점선 아래 594 × 594 mm를 잘라 폼보드에 기포 없이 평평하게 붙인다. 테이프는 표식과 그 둘레 흰 부분에 붙이지 않는다.
-- [ ] 가로·세로 각각 표식 줄의 바깥 끝에서 끝까지 잰다.
+- [x] `out/board_A1.pdf`를 출력소에서 출력한다: A1 세로, 실제 크기 100%(용지 맞춤·축소·확대 끔), 무광, 코팅 없음.
+- [x] 점선 아래 594 × 594 mm를 잘라 폼보드에 기포 없이 평평하게 붙인다. 테이프는 표식과 그 둘레 흰 부분에 붙이지 않는다.
+- [x] 가로·세로 각각 표식 줄의 바깥 끝에서 끝까지 잰다.
   - 성공: 두 값의 차이 2 mm 이하. 두 값의 평균을 `docs/specs/board.md`의 식으로 바꿔 config `board.tag_mm`에 적는다.
   - 실패하면: 다시 출력한다.
-- [ ] `out/angle_gauge_A4.pdf`(카메라 숙임 각도기, 1쪽 L·2쪽 H)를 A4로 출력해 뒷면 안내대로 접는다. 실, 바늘, 작은 클립, 풀이 필요하다.
+- [x] `out/angle_gauge_A4.pdf`(카메라 숙임 각도기, 1쪽 L·2쪽 H)를 A4로 출력해 뒷면 안내대로 접는다. 실, 바늘, 작은 클립, 풀이 필요하다.
 
 ## 1. 온라인 1 — 명세와 모듈 [온라인, 개발 PC]
 
@@ -91,87 +92,106 @@
 
 ## 3. 온라인 3 — 로봇 원격 설치·확인 [온라인, 로봇 켜진 상태]
 
-- [ ] 스캔 PC → 두 로봇 SSH 키 등록, `pinky1`(H)·`pinky2`(L) 별칭. 팀원 노트북도 같은 Wi-Fi에서 이 항목과 다음 "스캔 PC 준비"를 똑같이 하면 두 로봇에 바로 붙는다.
+- [x] 스캔 PC → 두 로봇 SSH 키 등록, `pinky1`(H)·`pinky2`(L) 별칭. 팀원 노트북도 같은 Wi-Fi에서 이 항목과 다음 "스캔 PC 준비"를 똑같이 하면 두 로봇에 바로 붙는다.
   - 명령: `cp .env.example .env`(로봇 SSID가 들어 있다. 로봇에 쓸 키가 기본 키가 아니면 그 경로를 `PINKY_KEY`에 적는다) → `scripts/ssh_aliases.sh`(같은 Wi-Fi에서 SSID로 주소를 찾아 `.env`와 별칭을 채운다. 로봇 주소가 바뀌면 다시 실행) → `ssh-copy-id pinky1`, `ssh-copy-id pinky2`(`PINKY_KEY`를 쓰면 `-i <그 키>`, 로봇 비밀번호는 제조사 위키 "초기설정") → `scripts/ssh_aliases.sh` 한 번 더
   - 성공: `pinky1: pinky_d52c 확인`, `pinky2: pinky_6437 확인`
   - 한 로봇은 한 번에 한 곳에서만 구동한다. 먼저 `scripts/robot.sh -H pinky1 status`로 본다. 다른 사람이 띄운 구동 스택(LiDAR·모터)이 있으면 `robot.sh start robot|robot_scan|follow`는 시작하지 않고 그 프로세스를 보여 준다. 에이전트 제어 연결도 한 번에 하나라서, 나중에 붙은 쪽은 앞 연결이 끝날 때까지 응답을 받지 못한다.
-- [ ] 스캔 PC 준비: 이 저장소를 clone하고 Python 패키지 설치, `tools/upload.sh`가 보낼 곳 설정
+- [x] 스캔 PC 준비: 이 저장소를 clone하고 Python 패키지 설치, `tools/upload.sh`가 보낼 곳 설정
   - 명령: `scripts/setup_station.sh`, `echo 'export SCAN3D_UPLOAD=<사용자@개발PC:저장소 경로>' >> ~/.bashrc`
   - 성공: `station ok`
   - Docker로 할 때(`docker/README.md`): 로봇 주소는 `cp .env.example .env`로 만든 `.env`(Docker 밖에서는 `scripts/ssh_aliases.sh`로 `~/.ssh/config` 별칭 생성) → `docker compose -f docker/compose.yaml build` → `docker compose -f docker/compose.yaml run --rm station pytest -q tests/test_env.py`. 이후 이 문서의 스캔 PC 명령은 `docker compose -f docker/compose.yaml run --rm station <명령>`으로 돌린다.
-- [ ] (sudo) 두 로봇에 udev 규칙과 USB 전류 한도 1.6 A(`usb_max_current_enable=1`), venv에 `pyrealsense2`
+- [x] (sudo) 두 로봇에 udev 규칙과 USB 전류 한도 1.6 A(`usb_max_current_enable=1`), venv에 `pyrealsense2`
   - 명령: `scripts/setup_robot.sh pinky1`, `scripts/setup_robot.sh pinky2`. 처음 실행에서 `reboot needed`가 나오면 `ssh -t pinky1 sudo reboot` 뒤 같은 명령을 한 번 더 실행한다.
   - 성공: `setup ok`, 카메라 일련번호, USB 3 연결, 컬러 1280×720 YUY2·깊이 848×480 Z16 15 fps 프로파일 있음, `usb_max_current_enable: 1`
   - 실패하면: 휠이 import되지 않거나 카메라를 못 찾으면 apt `ros-jazzy-librealsense2`(sudo)를 설치하고 `rs-enumerate-devices`로 확인한 뒤 `rs-save-to-disk` 경로로 바꾼다.
-- [ ] 배포 후 구동 스택 켜기(`pinky_auto`, `pinky_sim_examples`, `scan3d_robot`)
+- [x] 배포 후 구동 스택 켜기(`pinky_auto`, `pinky_sim_examples`, `scan3d_robot`)
   - 명령: `scripts/deploy.sh pinky1` → `scripts/robot.sh -H pinky1 start robot_scan`(pinky2도 같이)
   - 성공: `build ok`, `started`
-- [ ] 스냅샷 반복 시험(가장 먼저 확인할 것). 받은 원본은 `raw/`로 저장
+- [x] 스냅샷 반복 시험(가장 먼저 확인할 것). 받은 원본은 `raw/`로 저장
   - 명령: `tools/snapshot_test.py --robot L --count 24 --save`(H도 같이)
   - 성공: `PASS 24/24`, 스냅샷 1회(요청부터 스캔 PC 수신까지) 평균 5 s 이하
   - 실패하면: 평균이 5 s를 넘으면 config `capture.compress`를 켜고 다시 잰다. 시작·정지를 반복할 때 자주 실패하면, 파이프라인을 열어 둔 채 요청 때만 프레임을 가져오는 방식으로 바꿀지 사용자와 정한다.
-- [ ] 위 `raw/`를 개발 PC로 옮겨 재생 테스트(YUY2 변환, 실제 보정값으로 정렬)
+- [x] 위 `raw/`를 개발 PC로 옮겨 재생 테스트(YUY2 변환, 실제 보정값으로 정렬)
   - 명령: `tools/upload.sh` → 개발 PC에서 `pytest tests/replay`
   - 성공: 통과
-- [ ] 스냅샷 시험(바퀴가 뜬 채 모터를 돌리며)
+- [x] 스냅샷 시험(바퀴가 뜬 채 모터를 돌리며)
   - 명령: `tools/snapshot_test.py --robot L --count 10 --spin`(H도 같이)
   - 성공: `PASS 10/10`, `throttled=0x0`
   - 실패하면: 현장 1 전에 보조배터리 USB 허브를 준비한다.
-- [ ] odom·LiDAR 스트림 확인
+- [x] odom·LiDAR 스트림 확인
   - 명령: `tools/lidar_view.py --robot L`(H도 같이)
   - 성공: 스캔 PC에서 odom 약 20 Hz, 스캔 약 10 Hz 수신, 주변 벽까지 거리가 그럴듯함
-- [ ] 이동 경로 확인(바퀴가 뜬 채)
+- [x] 이동 경로 확인(바퀴가 뜬 채)
   - 명령: `tools/drive_check.py --robot L --odom-only`(H도 같이)
   - 성공: `forward 0.1; turn 30`에 odom 0.1 ± 0.01 m, 30 ± 3°, 이동 중 보낸 `stop`에 바로 멈춤
-- [ ] 에이전트 응답
+- [x] 에이전트 응답
   - 명령: `tools/scan.sh --hello`
   - 성공: 두 로봇의 role, 일련번호, 보정값 출력
 
 ## 4. 현장 1 [현장] — 약 3시간
 
-- [ ] 표식 판을 바닥에 놓고 판 가장자리만 테이프로 고정한다(10분)
+- [x] 표식 판을 바닥에 놓고 판 가장자리만 테이프로 고정한다(10분)
   - 성공: 판이 평평하고 밀어도 움직이지 않음, config `board.tag_mm`에 0-2에서 잰 값
   - 실패하면: 판 아래 바닥 이물질을 치우고 테이프를 더 붙인다.
-- [ ] 카메라 장착: 두 로봇 모두 차체 뒤쪽에 기둥 하나(L 카메라 바닥 위 0.15 m·15° 아래, H 0.45 m·37° 아래), 카메라는 가로로 진행 방향 왼쪽을 보게. 피치는 숙임 각도기(`out/angle_gauge_A4.pdf`)로 맞춘다. 고정 나사를 조인 뒤 높이를 재고 피치를 다시 읽어 config에 적는다(30분)
+- [x] 카메라 장착: 두 로봇 모두 차체 뒤쪽에 기둥 하나(L 카메라 바닥 위 0.15 m·15° 아래, H 0.45 m·37° 아래), 카메라는 가로로 진행 방향 왼쪽을 보게. 피치는 숙임 각도기(`out/angle_gauge_A4.pdf`)로 맞춘다. 고정 나사를 조인 뒤 높이를 재고 피치를 다시 읽어 config에 적는다(30분)
   - 성공: 단단히 고정됨
   - 실패하면: 나사가 안 맞으면 케이블타이·양면테이프
-- [ ] 두 로봇 구동 스택 켜기(5분)
+- [x] 두 로봇 구동 스택 켜기(5분)
   - 명령: `scripts/robot.sh -H pinky1 start robot_scan`, `scripts/robot.sh -H pinky2 start robot_scan`
   - 성공: `started`
   - 실패하면: `robot.sh status`로 남은 bringup을 끄고 다시
-- [ ] LiDAR 가림 확인(두 로봇 10분)
+- [x] LiDAR 가림 확인(두 로봇 10분)
   - 명령: `tools/lidar_view.py --robot L --mask`(H도 같이)
   - 성공: 가려진 각도가 뒤쪽뿐이고 앞쪽 ±25°는 비어 있음. 출력된 범위를 config `lidar.mask`에 적는다.
   - 실패하면: 기둥 위치를 뒤쪽으로 옮긴다.
-- [ ] 스냅샷 시험(바닥에서, 두 로봇 10분)
+- [x] 스냅샷 시험(바닥에서, 두 로봇 10분)
   - 명령: `tools/snapshot_test.py --robot L --count 5`(H도 같이)
   - 성공: `PASS 5/5`
   - 실패하면: 보조배터리 USB 허브를 연결하고 다시
-- [ ] 좌표 확인: 로봇을 판 +x 쪽 원 위에 놓는다(두 로봇 20분)
+- [x] 좌표 확인: 로봇을 판 +x 쪽 원 위에 놓는다(두 로봇 20분)
   - 명령: `tools/show_pose.py --robot L`(H도 같이)
   - 성공: 카메라 위치가 줄자로 잰 값과 3 cm 안, `phi` 약 0°
   - 실패하면: 축·부호가 다르면 config 장착 변환 수정
+- [x] 주행 확인(두 로봇 20분)
+  - 명령: `tools/drive_check.py --robot L`(H도 같이)
+  - 성공: 표식으로 잰 이동이 `forward 0.2`와 2 cm, `turn 45`·`turn -45`와 각각 2.5° 안(로봇은 카메라가 판을 보는 원 위에 놓는다)
+  - 실패하면: config의 `wheel_radius`·`wheel_separation` 조정
+- [x] L 한 바퀴, 너무 가깝게 출발: 기준 상자를 판 가운데 두고 L을 상자에서 0.30 m 거리에 놓고 시작한다(15분)
+  - 명령: `tools/scan.sh --only L`
+  - 성공: 시작 전 보정 이동, 메시 창, `report.txt`에서 모든 시점 `d` 0.40~0.55 m
+  - 실패하면: config `scene`의 `r_obj`와 장착 변환 확인, 로그·데이터를 남기고 다음
+- [x] H 한 바퀴(15분)
+  - 명령: `tools/scan.sh --only H`
+  - 성공: 메시 창, `report.txt` 치수, 모든 시점 `d` 0.40~0.55 m
+  - 실패하면: 로그·데이터를 남기고 다음
+- [x] 장애물 우회와 LiDAR 방향: L이 도는 원 경로 위에 장애물 상자를 놓는다(15분)
+  - 명령: `tools/lidar_view.py --robot L`로 상자가 진행 방향 앞쪽에 보이는지 본 뒤 `tools/scan.sh --only L`
+  - 성공: 상자 앞에서 멈춤 → 5 s 뒤 바깥 차선으로 비켜 감 → 원으로 돌아와 한 바퀴 마침, `report.txt`에 건너뛴 시점 1~2개
+  - 실패하면: 상자가 반대쪽에 보이면 config `lidar` 장착 yaw 확인. 잘못 멈추면 config `drive` 부채꼴·거리 조정. 로그·데이터를 남긴다.
+- [x] 데이터 올리기(5분)
+  - 명령: `tools/upload.sh`
+  - 성공: 개발 PC에 `scans/` 도착
+
+## 5. 남은 일 1 — 두 로봇 동시 촬영 [현장]
+
+- [ ] 표식 판과 기준 상자를 놓고, 두 로봇을 판을 사이에 두고 대략 반대편 원 위에 놓는다(10분)
+- [ ] 두 로봇 구동 스택 켜기와 역할 확인(5분)
+  - 명령: `scripts/robot.sh -H pinky1 start robot_scan`, `scripts/robot.sh -H pinky2 start robot_scan` → `tools/scan.sh --hello`
+  - 성공: `L: role L`, `H: role H`, 두 일련번호가 다름
+  - 실패하면: `role이 config와 다름`이면 그 로봇의 `robot_scan`을 멈추고 다시 띄운다(`robot.sh`가 config에서 역할을 읽는다).
+- [ ] 두 대 동시 명령(5분)
+  - 명령: `tools/led_check.py`
+  - 성공: `PASS`, 뒤 LED가 L 초록·H 파랑으로 켜졌다가 함께 흰색으로 깜빡임
+  - 실패하면: `SLOW`면 두 로봇과 스캔 PC를 공유기 가까이 두고 다시
 - [ ] 투사기 확인: 두 로봇을 마주 보게 두고 H는 멈춘 채 L의 적외선 영상 1장(5분)
   - 명령: `tools/snapshot_test.py --robot L --ir`
   - 성공: 영상에 H 쪽 점 패턴 없음(또는 휴대폰 카메라로 H 투사기 창이 꺼져 보임)
   - 실패하면: 기록만 하고 다음(8장 참고)
-- [ ] 주행 확인(두 로봇 20분)
-  - 명령: `tools/drive_check.py --robot L`(H도 같이)
-  - 성공: 표식으로 잰 이동이 `forward 0.2`와 2 cm, `turn 45`·`turn -45`와 각각 2.5° 안(로봇은 카메라가 판을 보는 원 위에 놓는다)
-  - 실패하면: config의 `wheel_radius`·`wheel_separation` 조정
-- [ ] L 한 바퀴, 너무 가깝게 출발: 기준 상자를 판 가운데 두고 L을 상자에서 0.30 m 거리에 놓고 시작한다(15분)
-  - 명령: `tools/scan.sh --only L`
-  - 성공: 시작 전 보정 이동, 메시 창, `report.txt`에서 모든 시점 `d` 0.40~0.55 m
-  - 실패하면: config `scene`의 `r_obj`와 장착 변환 확인, 로그·데이터를 남기고 다음
-- [ ] H 한 바퀴(15분)
-  - 명령: `tools/scan.sh --only H`
-  - 성공: 메시 창, `report.txt` 치수, 모든 시점 `d` 0.40~0.55 m
-  - 실패하면: 로그·데이터를 남기고 다음
-- [ ] 장애물 우회와 LiDAR 방향: L이 도는 원 경로 위에 장애물 상자를 놓는다(15분)
-  - 명령: `tools/lidar_view.py --robot L`로 상자가 진행 방향 앞쪽에 보이는지 본 뒤 `tools/scan.sh --only L`
-  - 성공: 상자 앞에서 멈춤 → 5 s 뒤 바깥 차선으로 비켜 감 → 원으로 돌아와 한 바퀴 마침, `report.txt`에 건너뛴 시점 1~2개
-  - 실패하면: 상자가 반대쪽에 보이면 config `lidar` 장착 yaw 확인. 잘못 멈추면 config `drive` 부채꼴·거리 조정. 로그·데이터를 남긴다.
-- [ ] 두 대 동시 한 바퀴(15분)
+- [ ] 두 대 동시 한 바퀴, 기준 상자 2회(30분)
+  - 명령: `tools/scan.sh`
+  - 성공: 두 로봇이 180° 떨어져 함께 돌고 메시 창, `report.txt`에 `[L]`·`[H]` 융합 시점이 모두 있음
+  - 실패하면: 로그·데이터를 남기고, 판과 상자를 그대로 둔 채 `tools/scan.sh --only L`, `tools/scan.sh --only H`로 따로 찍는다. 두 결과는 6장에서 합친다.
+- [ ] 시연 물체로 1회(15분)
   - 명령: `tools/scan.sh`
   - 성공: 메시 창
   - 실패하면: 로그·데이터를 남김
@@ -179,33 +199,21 @@
   - 명령: `tools/upload.sh`
   - 성공: 개발 PC에 `scans/` 도착
 
-## 5. 온라인 4 — 현장 데이터로 수정 [온라인]
+## 6. 남은 일 2 — 두 데이터를 합쳐 모델 만들기 [온라인, 개발 PC]
 
-- [ ] 현장 1의 `raw/`를 `tests/data/`에 넣고 재생 테스트(표식 자세, 정렬, 재구성)를 추가한다.
-- [ ] 드러난 문제를 고친다. 예: 겹친 벽이면 재생 테스트로 원인(표식 자세, 정렬)을 찾아 고치고 필요하면 이웃 시점 ICP 보정을 추가, 표식 검출이 약하면 L 피치 조정
-- [ ] config에 반영하고, 로봇 쪽을 고쳤으면 원격으로 다시 배포한다(`scripts/deploy.sh`).
+동시 촬영이 끝나면 스캔 PC가 L·H 시점을 한 TSDF로 합쳐 `scans/<id>/out/mesh.ply`를 만든다(`scan3d/pair/recon.py`). 여기서는 그 결과를 확인해 고치고, 따로 찍은 두 결과도 합칠 수 있게 한다.
 
-완료: 재생 테스트 통과, 현장 1 데이터로 만든 메시에서 기준 상자 치수 ±1 cm
+- [ ] 따로 찍은 L·H 결과를 합치는 명령(테스트 먼저): `python -m scan3d.pair.recon scans/<a>/L scans/<b>/H` → `scans/<새 id>/out/mesh.ply`, `report.txt`. 판과 물체를 움직이지 않고 찍은 두 결과만 합친다.
+  - 성공: `tests/test_recon.py`에 합성 L·H 폴더를 명령으로 합치는 테스트 추가, 통과
+- [ ] 5장 데이터로 합친 모델 확인
+  - 명령: `scans/<id>/out/mesh.ply`를 Open3D로 열고 `report.txt`를 본다.
+  - 성공: 기준 상자 치수 ±1 cm, L이 찍은 아래쪽과 H가 찍은 위쪽·윗면이 한 겹으로 이어짐(겹친 벽 없음)
+  - 실패하면: `report.txt`의 시점별 `reproj_px`·`n_tags`로 원인(표식 자세, 정렬)을 찾는다. L과 H가 어긋나 벽이 겹치면 L–H 사이 ICP 보정을 테스트 먼저 추가한다.
+- [ ] 5장의 `raw/`를 `tests/data/`에 넣고 재생 테스트를 추가해 고친 것을 고정한다.
 
-## 6. 현장 2 [현장]
+완료: 동시 촬영 데이터로 만든 메시에서 기준 상자 치수 ±1 cm, 겹친 벽 없음
 
-- [ ] 판, 기준 상자, 두 로봇 배치(대략 반대편, 10분)
-- [ ] 구동 스택 켜기(5분)
-  - 명령: `scripts/robot.sh -H pinky1 start robot_scan`, `scripts/robot.sh -H pinky2 start robot_scan`
-  - 성공: `started`
-  - 실패하면: 4장의 구동 스택 항목과 같음
-- [ ] 두 대 동시 스캔 2회(30분)
-  - 명령: `tools/scan.sh`
-  - 성공: 15분 안에 메시 창, 치수 ±1 cm, 겹친 벽 없음
-  - 실패하면: 로그·데이터를 남기고 5장 순서로 고친 뒤 다시
-- [ ] 시연 물체로 1회(15분)
-  - 명령: `tools/scan.sh`
-  - 성공: 메시 창
-  - 실패하면: 로그·데이터를 남김
-- [ ] 데이터 올리기(5분): `tools/upload.sh`
-- [ ] 남은 문제가 있으면 5장과 같은 방식으로 온라인에서 고친다.
-
-## 7. 현장 3 — 리허설 [현장]
+## 7. 리허설 [현장]
 
 - [ ] 시연 순서대로 처음부터 끝까지(9장 체크리스트, 60분)
   - 성공: 3회 연속 메시 창
@@ -216,7 +224,7 @@
 - 스냅샷이 끊기거나 카메라를 못 찾음 → 보조배터리 USB 허브, 3장의 apt `rs-save-to-disk` 경로
 - 스냅샷이 느림 → config `capture.compress` 켜기, `n_depth` 줄이기, 전용 공유기
 - 표식이 잘 안 잡힘 → 판 위 반사광 줄이기, L 피치 키우기
-- 메시에 겹친 벽 → `report.txt`의 시점별 `reproj_px`·`n_tags`를 보고, 데이터를 올려 온라인 4에서 고친다.
+- 메시에 겹친 벽 → `report.txt`의 시점별 `reproj_px`·`n_tags`를 보고, 데이터를 올려 6장에서 고친다.
 - 로봇이 시점에서 크게 빗나감 → `settle_s` 늘리기, 이동 속도 줄이기
 - 다른 로봇의 투사 패턴이 영상에 섞임 → 스냅샷 전 대기 늘리기, 상대 로봇이 스냅샷을 끝낸 뒤에 찍는지 확인
 - 아무것도 없는데 멈춤 → `tools/lidar_view.py`로 확인하고 config `lidar.mask`나 `drive` 부채꼴·거리 조정, 급하면 `drive.obstacle` 끄기
