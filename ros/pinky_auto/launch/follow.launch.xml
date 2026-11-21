@@ -1,0 +1,21 @@
+<?xml version='1.0' ?>
+<!-- 로봇 구동(robot.launch.xml) + 초음파 따라가기. 예: scripts/robot.sh -H pinky1 start follow radius:=0.62 -->
+<launch>
+    <arg name="gap" default="0.15"/>
+    <arg name="radius" default="0.62"/>
+    <arg name="direction" default="1"/>
+    <arg name="laps" default="1"/>
+    <arg name="v_max" default="0.12"/>
+    <arg name="kp" default="2.5"/>
+
+    <include file="$(find-pkg-share pinky_auto)/launch/robot.launch.xml"/>
+
+    <node pkg="pinky_auto" exec="follow_ultra" output="screen">
+        <param name="gap" value="$(var gap)"/>
+        <param name="radius" value="$(var radius)"/>
+        <param name="direction" value="$(var direction)"/>
+        <param name="laps" value="$(var laps)"/>
+        <param name="v_max" value="$(var v_max)"/>
+        <param name="kp" value="$(var kp)"/>
+    </node>
+</launch>

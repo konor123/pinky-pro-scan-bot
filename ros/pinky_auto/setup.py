@@ -25,6 +25,7 @@ setup(
         'console_scripts': [
             'motor_driver=pinky_auto.motor_driver:main',
             'patrol=pinky_auto.patrol:main',
+            'follow_ultra=pinky_auto.follow_ultra:main',
         ],
     },
 )
