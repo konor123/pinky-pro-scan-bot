@@ -45,14 +45,14 @@ robots:
     host: 127.0.0.1
     port: 7010                   # 제어 연결
     stream_port: 7011            # odom·LiDAR 스트림 연결
-    mount: {x: -0.08, y: 0.0, z: 0.20, pitch_down_deg: 10, yaw_deg: 90}
+    mount: {x: -0.08, y: 0.0, z: 0.15, pitch_down_deg: 15, yaw_deg: 90}
     wheel_radius: 0.027
     wheel_separation: 0.0961
   H:
     host: 127.0.0.1
     port: 7010
     stream_port: 7011
-    mount: {x: -0.08, y: 0.0, z: 0.50, pitch_down_deg: 35, yaw_deg: 90}
+    mount: {x: -0.08, y: 0.0, z: 0.45, pitch_down_deg: 37, yaw_deg: 90}
     wheel_radius: 0.027
     wheel_separation: 0.0961
 
