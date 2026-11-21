@@ -7,3 +7,4 @@ build/
 scans/
 out/pose_*.jpg
 out/ir_*.png
+.env

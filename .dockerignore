@@ -1,0 +1,9 @@
+.git
+.venv
+build
+scans
+**/__pycache__
+**/.pytest_cache
+out/pose_*.jpg
+out/ir_*.png
+.env
