@@ -1,6 +1,6 @@
 # align
 
-- 코드: `scan3d/align.py`
+- 코드: `scan3d/robot/align.py`
 - 테스트: `tests/test_align.py`
 - PLAN: 4.2, 4.5, 5
 - 출처 예제: librealsense v2.59.2 `wrappers/python/examples/align-with-software-device.py`

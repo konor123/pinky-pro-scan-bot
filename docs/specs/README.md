@@ -11,21 +11,32 @@
 
 명세가 PLAN 4장 접점과 달라지면 PLAN을 먼저 고친다.
 
+## 코드 구성
+
+| 묶음 | 경로 | 내용 |
+|---|---|---|
+| 공통 | `scan3d/protocol.py`, `clock.py`, `config.py`, `dataset.py` | 스캔 PC ↔ 로봇 메시지(로봇도 같은 파일), 시계, 설정·주소, 원본·데이터셋 저장 |
+| 로봇 1대 | `scan3d/robot/` | `link`(연결), `unit`(한 로봇의 스캔 단계), `drive`, `tagpose`, `align` |
+| 두 대 합침 | `scan3d/pair/` | `coordinator`(두 대 진행 규칙), `recon`(두 데이터셋 융합) |
+| 개발용 가짜 | `scan3d/sim/` | `synth`, `sim2d`, `fake_agent` |
+| 주 프로그램 | `scan3d/station.py` | 연결 → 두 대 진행 → 데이터셋 → 재구성 → 표시 |
+| 로봇에서 도는 것 | `ros/` | `scan3d_robot`(에이전트), `pinky_auto`(구동·순찰·초음파 따라가기), `scan3d_sim`(Gazebo 시험) |
+
 ## 명세 목록
 
 | 순서 | 명세 | 코드 | PLAN | 테스트 | 가져다 쓰는 것 |
 |---|---|---|---|---|---|
 | 1 | `board.md` | `tools/make_board.py` | 3.1, 4.1, 5 | `tests/test_board.py` | — |
-| 2 | `synth.md` | `scan3d/synth.py` | 5 | `tests/test_synth.py` | board |
-| 3 | `sim2d.md` | `scan3d/sim2d.py` | 3.3, 5 | `tests/test_sim2d.py` | vendor `parse` |
+| 2 | `synth.md` | `scan3d/sim/synth.py` | 5 | `tests/test_synth.py` | board |
+| 3 | `sim2d.md` | `scan3d/sim/sim2d.py` | 3.3, 5 | `tests/test_sim2d.py` | vendor `parse` |
 | 4 | `protocol.md` | `scan3d/protocol.py` | 4.4 | `tests/test_protocol.py` | — |
-| 5 | `align.md` | `scan3d/align.py` | 4.2, 4.5, 5 | `tests/test_align.py` | synth |
-| 6 | `tagpose.md` | `scan3d/tagpose.py` | 4.1, 5 | `tests/test_tagpose.py` | board, synth, align |
-| 7 | `drive.md` | `scan3d/drive.py` | 3.3, 4.3 | `tests/test_drive.py` | sim2d, vendor `parse`·`sector_min` |
+| 5 | `align.md` | `scan3d/robot/align.py` | 4.2, 4.5, 5 | `tests/test_align.py` | synth |
+| 6 | `tagpose.md` | `scan3d/robot/tagpose.py` | 4.1, 5 | `tests/test_tagpose.py` | board, synth, align |
+| 7 | `drive.md` | `scan3d/robot/drive.py` | 3.3, 4.3 | `tests/test_drive.py` | sim2d, vendor `parse`·`sector_min` |
 | 8 | `dataset.md` | `scan3d/dataset.py` | 4.5 | `tests/test_dataset.py` | align, tagpose |
-| 9 | `recon.md` | `scan3d/recon.py` | 5 | `tests/test_recon.py` | synth, dataset |
-| 10 | `fake_agent.md` | `scan3d/fake_agent.py` | 4.2, 4.4 | `tests/test_fake_agent.py` | synth, sim2d, protocol |
-| 11 | `station.md` | `scan3d/station.py` | 4.4, 5 | `tests/test_station.py`, I1 `tests/test_integration.py` | 전부 |
+| 9 | `recon.md` | `scan3d/pair/recon.py` | 5 | `tests/test_recon.py` | synth, dataset |
+| 10 | `fake_agent.md` | `scan3d/sim/fake_agent.py` | 4.2, 4.4 | `tests/test_fake_agent.py` | synth, sim2d, protocol |
+| 11 | `station.md` | `scan3d/station.py`, `robot/link.py`·`robot/unit.py`(로봇 1대), `pair/coordinator.py`(두 대), `clock.py`·`config.py` | 4.4, 5 | `tests/test_station.py`, I1 `tests/test_integration.py` | 전부 |
 | 12 | `robot_agent.md` | `ros/scan3d_robot/` | 4.2~4.4, 7 | `ros/scan3d_robot/test/test_agent.py` | protocol |
 | — | Gazebo 시험(TODOs 2장) | `ros/scan3d_sim/`, `scripts/sim_scan.sh`, `tools/make_sim_assets.py`, `config/scan_sim.yaml` | 4.2 | `ros/scan3d_sim/test/test_sim_camera.py`, `tests/test_sim.py` | robot_agent, protocol, synth, drive |
 | — | 현장 도구(TODOs 3·4장) | `tools/snapshot_test.py`, `show_pose.py`, `drive_check.py`, `lidar_view.py`, `scan.sh`, `upload.sh` | — | `tests/test_tools.py`(가짜 에이전트에 붙여 실행) | station, align, tagpose, drive |

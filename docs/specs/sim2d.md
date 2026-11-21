@@ -1,6 +1,6 @@
 # sim2d
 
-- 코드: `scan3d/sim2d.py`
+- 코드: `scan3d/sim/sim2d.py`
 - 테스트: `tests/test_sim2d.py`
 - PLAN: 3.3, 5
 - 출처 예제: pinky_sim_examples `1d14183` `command_driver.py`(동작), `scan3d/vendor/pinky_commands.py`(`parse`)

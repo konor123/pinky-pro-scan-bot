@@ -5,7 +5,8 @@ import pytest
 import yaml
 
 from scan3d import station
-from scan3d.fake_agent import FakeFleet
+from scan3d.clock import Clock
+from scan3d.sim.fake_agent import FakeFleet
 from tools import drive_check, lidar_view, show_pose, snapshot_test
 
 SMALL = {"color": {"w": 640, "h": 360, "fmt": "yuyv", "fps": 15},
@@ -16,7 +17,7 @@ SMALL = {"color": {"w": 640, "h": 360, "fmt": "yuyv", "fps": 15},
 def site(cfg, tmp_path):
     cfg["capture"].update(json.loads(json.dumps(SMALL)))
     cfg["station"]["data_dir"] = str(tmp_path / "scans")
-    fleet = FakeFleet(cfg, station.Clock(1.0))
+    fleet = FakeFleet(cfg, Clock(1.0))
     addrs = fleet.start()
     for role, (host, port, sport) in addrs.items():
         cfg["robots"][role].update(host=host, port=port, stream_port=sport)

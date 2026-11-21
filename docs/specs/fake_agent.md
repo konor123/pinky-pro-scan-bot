@@ -1,6 +1,6 @@
 # fake_agent
 
-- 코드: `scan3d/fake_agent.py`
+- 코드: `scan3d/sim/fake_agent.py`
 - 테스트: `tests/test_fake_agent.py`
 - PLAN: 4.2, 4.4, 5(I1)
 

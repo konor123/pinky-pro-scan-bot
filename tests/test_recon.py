@@ -8,7 +8,11 @@ import numpy as np
 import pytest
 import yaml
 
-from scan3d import dataset, recon, synth
+from scan3d import dataset
+
+from scan3d.pair import recon
+
+from scan3d.sim import synth
 from test_dataset import new_scan, write_role
 
 BOX = (0.19, 0.13, 0.16)

@@ -1,6 +1,6 @@
 # drive
 
-- 코드: `scan3d/drive.py`
+- 코드: `scan3d/robot/drive.py`
 - 테스트: `tests/test_drive.py`
 - PLAN: 3.3, 4.1, 4.3
 - 출처 예제: `scan3d/vendor/pinky_commands.py`(`parse`, `sector_min`, `wrap_angle`), pinky_sim_examples `1d14183` `command_driver.py`(정지 허용 오차 1 cm·2°)

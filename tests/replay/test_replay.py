@@ -10,7 +10,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scan3d import align, dataset, tagpose
+from scan3d import dataset
+
+
+from scan3d.robot import align, tagpose
 
 ROOT = Path(__file__).resolve().parents[2]
 

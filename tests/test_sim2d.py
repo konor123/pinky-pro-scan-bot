@@ -2,7 +2,7 @@ import math
 
 import pytest
 
-from scan3d.sim2d import Robot, Sim, SimIO, World
+from scan3d.sim.sim2d import Robot, Sim, SimIO, World
 from scan3d.vendor.pinky_commands import sector_min
 
 

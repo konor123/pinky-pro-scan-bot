@@ -9,7 +9,7 @@ import cv2
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from scan3d.synth import board_texture  # noqa: E402
+from scan3d.sim.synth import board_texture  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BOARD = ROOT / "config" / "board.json"

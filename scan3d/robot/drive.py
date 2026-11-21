@@ -6,7 +6,7 @@ from typing import Protocol
 
 import numpy as np
 
-from .vendor.pinky_commands import sector_min, wrap_angle
+from ..vendor.pinky_commands import sector_min, wrap_angle
 
 
 Pose2 = tuple[float, float, float]

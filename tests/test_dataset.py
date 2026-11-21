@@ -11,7 +11,11 @@ import open3d as o3d
 import pytest
 import yaml
 
-from scan3d import dataset, synth, tagpose
+from scan3d import dataset
+
+from scan3d.robot import tagpose
+
+from scan3d.sim import synth
 from scan3d.protocol import Channel, pack_snapshot
 
 NOISE_MM = 2.0

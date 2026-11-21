@@ -1,7 +1,7 @@
 """개발 PC용 가짜 로봇 에이전트(docs/specs/fake_agent.md).
 
 robot_agent와 같은 메시지로 응답한다. 움직임은 sim2d, 스냅샷은 synth가 만든다.
-두 로봇이 한 sim2d 세계를 같이 쓰고, 시간은 station.Clock을 따른다.
+두 로봇이 한 sim2d 세계를 같이 쓰고, 시간은 clock.Clock을 따른다.
 """
 import argparse
 import json
@@ -14,9 +14,11 @@ from pathlib import Path
 
 import numpy as np
 
-from . import drive, protocol, sim2d, synth
+from .. import protocol
+from ..robot import drive
+from . import sim2d, synth
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 ODOM_PERIOD = 0.05
 SCAN_PERIOD = 0.1
 DEPTH_NOISE_MM = 2.0
@@ -404,7 +406,7 @@ class FakeFleet:
 
 def main(argv=None):
     import yaml
-    from .station import Clock
+    from ..clock import Clock
 
     ap = argparse.ArgumentParser(description="가짜 로봇 에이전트 2대(localhost)")
     ap.add_argument("--config", default=str(ROOT / "config" / "scan.yaml"))

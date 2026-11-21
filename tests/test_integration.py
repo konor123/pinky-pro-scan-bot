@@ -7,8 +7,9 @@ import open3d as o3d
 import pytest
 import yaml
 
-from scan3d.fake_agent import BOX, FakeFleet
-from scan3d.station import Clock, execute
+from scan3d.sim.fake_agent import BOX, FakeFleet
+from scan3d.clock import Clock
+from scan3d.station import execute
 
 SCALE = 5.0
 
@@ -43,7 +44,7 @@ def test_integration(cfg, tmp_path, obstacle):
     text = (out / "report.txt").read_text(encoding="utf-8")
     dims = [float(x) for x in rep["dims_mm"]] if "dims_mm" in rep else None
     if dims is None:
-        from scan3d.recon import measure
+        from scan3d.pair.recon import measure
         dims = measure(mesh)
     assert abs(dims[0] - w * 1000) <= 10 and abs(dims[1] - d * 1000) <= 10 and abs(dims[2] - h * 1000) <= 10, dims
 

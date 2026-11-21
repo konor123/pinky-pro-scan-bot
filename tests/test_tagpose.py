@@ -7,7 +7,10 @@ import numpy as np
 import open3d as o3d
 import pytest
 
-from scan3d import align, synth, tagpose
+from scan3d.robot import align, tagpose
+
+
+from scan3d.sim import synth
 
 PHIS = (0, 45, 90, 135)
 

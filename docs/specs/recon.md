@@ -1,6 +1,6 @@
 # recon
 
-- 코드: `scan3d/recon.py`
+- 코드: `scan3d/pair/recon.py`
 - 테스트: `tests/test_recon.py`
 - PLAN: 5
 - 출처 예제: Open3D v0.20.0 `examples/python/t_reconstruction_system/integrate.py`(사본 `docs/reference/open3d-v0.20.0/t_reconstruction_system/`)

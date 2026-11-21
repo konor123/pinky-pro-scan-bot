@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 import pytest
 
-from scan3d import synth
+from scan3d.sim import synth
 
 
 @pytest.fixture(scope="module")

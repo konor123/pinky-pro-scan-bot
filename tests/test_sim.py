@@ -11,7 +11,9 @@ import numpy as np
 import pytest
 import yaml
 
-from scan3d import align, protocol, tagpose
+from scan3d import protocol
+
+from scan3d.robot import align, tagpose
 from scan3d_robot.agent import Agent
 from scan3d_sim.sim_camera import GazeboCamera
 from tools.make_sim_assets import build_board_texture

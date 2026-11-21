@@ -1,6 +1,9 @@
 # station
 
-- 코드: `scan3d/station.py`(`python -m scan3d.station`), 현장에서는 `tools/scan.sh`가 부른다.
+- 코드: `scan3d/station.py`(`python -m scan3d.station`, CLI와 재구성까지의 흐름), 현장에서는 `tools/scan.sh`가 부른다.
+  - 로봇 1대: `scan3d/robot/link.py`(`RobotLink`, `connect`), `scan3d/robot/unit.py`(`RobotScan`: hello·출발 자세·진입·시점 이동·촬영과 거리 보정, `StartError`)
+  - 두 대 합침: `scan3d/pair/coordinator.py`(`PairScan`: 일련번호 중복·180° 간격 확인, 동시 진행, 시점별 촬영 맞춤, 전체 중단)
+  - 공통: `scan3d/clock.py`(`Clock`), `scan3d/config.py`(`load_config`, `load_board`, `resolve_host`, `robot_addr`, `ORDER`)
 - 테스트: `tests/test_station.py`, I1 `tests/test_integration.py`(localhost 소켓만 쓴다)
 - PLAN: 3.3(출발과 끝), 4.4(진행 순서), 5
 
@@ -11,15 +14,15 @@
 ## 인터페이스
 
 - `python -m scan3d.station [--config config/scan.yaml] [--only L|H] [--fake [--obstacle <k>] [--time-scale N]] [--no-window] [--hello]`(`--hello`: 연결과 `hello`만 하고 role·일련번호·보정값 출력)
-- `Clock(time_scale=1.0)`: `now()`, `sleep(s, cancel=None)`, `hold()`(동안 시계가 멈춘다. 가짜 에이전트 렌더링용). 모든 시간(기다림, 0.1 s 감시 주기, 스캔 나이, 요청 한도)은 이 시계의 초다. `--fake`면 `FakeFleet`과 같은 시계를 쓴다.
-- `RobotLink(role, host, port, stream_port, raw_writer, clock, cancel)`: drive의 `RobotIO` 구현
+- `clock.Clock(time_scale=1.0)`: `now()`, `sleep(s, cancel=None)`, `hold()`(동안 시계가 멈춘다. 가짜 에이전트 렌더링용). 모든 시간(기다림, 0.1 s 감시 주기, 스캔 나이, 요청 한도)은 이 시계의 초다. `--fake`면 `FakeFleet`과 같은 시계를 쓴다.
+- `robot.link.RobotLink(role, host, port, stream_port, raw_writer, clock, cancel)`: drive의 `RobotIO` 구현
   - 스트림을 읽는 스레드가 마지막 odom, 마지막 scan(`decode_scan`, 받은 시각)을 들고 있고, 받은 줄과 보낸 `move`·`stop`을 모두 `stream.jsonl`에 쓴다.
   - `move`는 요청 한도(`timeout_s` + 5 s) 안에서 응답을 기다리며 0.1 s마다 `watch()`를 부르고, true면 스트림으로 `stop`을 한 번 보낸다.
   - `snapshot(k, use, phi_target)`: 요청에 `capture` 값을 싣고, 받은 것을 `raw_writer`에 쓴 뒤 `(header, payloads, NNNNNN)`을 돌려준다.
   - `abort()`: 스트림으로 `abort`를 보내고(로봇이 중단 상태가 되어 늦게 도착한 `move`도 거절) 중단 표시를 켠다. 이후 `move`는 보내지 않고 `Cancelled`. 기다리던 `recv`는 제어 소켓을 닫아 끊는다.
   - `cancelled()`: 공유 `cancel` 이벤트
-- `run(cfg, links, writer, board, cancel=None) -> (scan_dir, recon 결과, 보고서)`. 출발 조건 실패는 `StartError`, 로봇 실패 응답은 `RemoteError`
-- `execute(cfg, cfg_path, addrs, clock, roles, no_window, data_dir) -> (종료 코드, scan_dir)`: 연결부터 끝까지(`main`과 테스트가 부른다). 현장 도구용 `load_config`, `load_board`, `connect_robot(cfg, role)`
+- `run(cfg, links, writer, board, cancel=None) -> (scan_dir, recon 결과, 보고서)`: `PairScan.run()` 뒤 로봇마다 `dataset.build`, 두 대를 `pair.recon.reconstruct`로 융합. 출발 조건 실패는 `robot.unit.StartError`, 로봇 실패 응답은 `robot.link.RemoteError`
+- `execute(cfg, cfg_path, addrs, clock, roles, no_window, data_dir) -> (종료 코드, scan_dir)`: 연결부터 끝까지(`main`과 테스트가 부른다). 현장 도구는 `config.load_config`, `config.load_board`, `robot.link.connect(cfg, role)`를 쓴다
 
 ## 동작
 

@@ -7,7 +7,7 @@ from itertools import count
 
 import numpy as np
 
-from .vendor.pinky_commands import parse, wrap_angle
+from ..vendor.pinky_commands import parse, wrap_angle
 
 
 _RADIUS = 0.07
@@ -256,7 +256,7 @@ class SimIO:
         self.robot.command(text)
 
     def move(self, text, watch=None, timeout_s=60):
-        from .drive import MoveResult
+        from ..robot.drive import MoveResult
 
         self.robot.statuses()
         self._send(text)

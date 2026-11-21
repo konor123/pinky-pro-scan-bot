@@ -8,7 +8,11 @@ import open3d as o3d
 import pyrealsense2 as rs
 import pytest
 
-from scan3d import align, synth
+from scan3d.robot import align
+
+
+
+from scan3d.sim import synth
 
 
 @pytest.fixture(scope="module")

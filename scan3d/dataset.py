@@ -15,7 +15,7 @@ import cv2
 import numpy as np
 import yaml
 
-from scan3d import align, tagpose
+from scan3d.robot import align, tagpose
 from scan3d.protocol import PAYLOAD_KEYS
 
 JPEG_QUALITY = 95

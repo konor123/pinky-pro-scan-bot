@@ -14,20 +14,23 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scan3d import align, drive, station, tagpose  # noqa: E402
+from scan3d import config  # noqa: E402
+
+from scan3d.robot import align, drive, tagpose  # noqa: E402
+from scan3d.robot import link as robot_link  # noqa: E402
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="표식 자세 확인")
-    ap.add_argument("--robot", required=True, choices=station.ORDER)
+    ap.add_argument("--robot", required=True, choices=config.ORDER)
     ap.add_argument("--config", default=None)
     args = ap.parse_args(argv)
-    _, cfg = station.load_config(args.config)
-    _, board = station.load_board(cfg)
+    _, cfg = config.load_config(args.config)
+    _, board = config.load_board(cfg)
     role = args.robot
     mount = cfg["robots"][role]["mount"]
     r_eff = cfg["scene"]["r_obj"] + cfg["scene"]["place_err"]
-    link = station.connect_robot(cfg, role)
+    link = robot_link.connect(cfg, role)
     try:
         hello = link.hello()
         header, payloads, _ = link.snapshot(None, "start", None)

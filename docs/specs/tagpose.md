@@ -1,6 +1,6 @@
 # tagpose
 
-- 코드: `scan3d/tagpose.py`
+- 코드: `scan3d/robot/tagpose.py`
 - 테스트: `tests/test_tagpose.py`
 - PLAN: 4.1, 5
 - 출처 예제: opencv_contrib 4.11.0 `cv2.aruco.ArucoDetector`, `Board.matchImagePoints`, `cv2.solvePnP`

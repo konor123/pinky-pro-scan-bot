@@ -3,11 +3,11 @@ import math
 import numpy as np
 import pytest
 
-from scan3d.drive import (
+from scan3d.robot.drive import (
     Blocked, Cancelled, Driver, base_from_cam, cam_xy, camera_pose, front_min,
     in_mask, plan_move, view_pose,
 )
-from scan3d.sim2d import Robot, Sim, SimIO, World
+from scan3d.sim.sim2d import Robot, Sim, SimIO, World
 from scan3d.vendor.pinky_commands import parse, wrap_angle
 
 

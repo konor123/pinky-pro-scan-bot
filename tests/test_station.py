@@ -5,9 +5,12 @@ from pathlib import Path
 import pytest
 import yaml
 
-from scan3d import drive, synth
-from scan3d.fake_agent import FakeFleet
-from scan3d.station import Clock, execute
+from scan3d.robot import drive
+
+from scan3d.sim import synth
+from scan3d.sim.fake_agent import FakeFleet
+from scan3d.clock import Clock
+from scan3d.station import execute
 from scan3d.vendor.pinky_commands import wrap_angle
 
 SCALE = 5.0

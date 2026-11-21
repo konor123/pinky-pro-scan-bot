@@ -1,6 +1,6 @@
 # synth
 
-- 코드: `scan3d/synth.py`
+- 코드: `scan3d/sim/synth.py`
 - 테스트: `tests/test_synth.py`
 - PLAN: 5
 - 출처 예제: Open3D v0.20.0 `o3d.t.geometry.RaycastingScene`

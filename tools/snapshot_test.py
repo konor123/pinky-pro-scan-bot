@@ -19,7 +19,10 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scan3d import align, dataset, station  # noqa: E402
+from scan3d import config, dataset  # noqa: E402
+
+from scan3d.robot import align  # noqa: E402
+from scan3d.robot import link as robot_link  # noqa: E402
 
 DOMAIN = {"L": 11, "H": 12}
 ROS_ENV = ("source /opt/ros/jazzy/setup.bash && source ~/pinky_pro/install/local_setup.bash && "
@@ -39,7 +42,7 @@ def start_spin(host, role, seconds):
 def ir_snapshot(link, cfg, role):
     d = cfg["capture"]["depth"]
     req = {"cmd": "snapshot", "ir": True, "n_skip": cfg["capture"]["n_skip"], "depth": [d["w"], d["h"], d["fps"]]}
-    header, payloads = link._request(req, station.SNAPSHOT_TIMEOUT)
+    header, payloads = link._request(req, robot_link.SNAPSHOT_TIMEOUT)
     ir = header["ir"]
     img = np.frombuffer(payloads[0], np.uint8).reshape(ir["h"], ir["w"])
     out = ROOT / "out" / f"ir_{role}.png"
@@ -50,23 +53,23 @@ def ir_snapshot(link, cfg, role):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="스냅샷 반복 시험")
-    ap.add_argument("--robot", required=True, choices=station.ORDER)
+    ap.add_argument("--robot", required=True, choices=config.ORDER)
     ap.add_argument("--count", type=int, default=5)
     ap.add_argument("--save", action="store_true", help="받은 원본을 scans/<id>/<role>/raw/에 저장")
     ap.add_argument("--spin", action="store_true", help="바퀴가 뜬 채 모터를 돌리며 찍고 throttled 확인")
     ap.add_argument("--ir", action="store_true", help="적외선 영상 1장")
     ap.add_argument("--config", default=None)
     args = ap.parse_args(argv)
-    cfg_path, cfg = station.load_config(args.config)
+    cfg_path, cfg = config.load_config(args.config)
     role = args.robot
     host = cfg["robots"][role]["host"]
     raw = None
     if args.save:
-        board_path, _ = station.load_board(cfg)
+        board_path, _ = config.load_board(cfg)
         writer = dataset.ScanWriter(ROOT / cfg["station"]["data_dir"], cfg_path, board_path)
         raw = writer.role(role)
         print(f"저장: {writer.scan_dir}")
-    link = station.connect_robot(cfg, role, raw)
+    link = robot_link.connect(cfg, role, raw)
     try:
         hello = link.hello()
         print(f"{role}: serial {hello['serial']}")
@@ -95,7 +98,7 @@ def main(argv=None):
                 print(f"{i + 1:3d}/{args.count} FAIL {type(e).__name__}: {e}", flush=True)
                 if isinstance(e, (ConnectionError, OSError)):
                     link.close()
-                    link = station.connect_robot(cfg, role, raw)
+                    link = robot_link.connect(cfg, role, raw)
                     hello = link.hello()
         if spin is not None:
             spin.terminate()

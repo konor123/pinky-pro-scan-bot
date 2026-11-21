@@ -15,7 +15,9 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from scan3d import drive, protocol, station  # noqa: E402
+from scan3d import config, protocol  # noqa: E402
+
+from scan3d.robot import drive  # noqa: E402
 
 MASK_NEAR = 0.25     # 이보다 가깝게 늘 보이는 각은 차체에 붙은 것(기둥)으로 본다
 
@@ -71,14 +73,14 @@ def find_mask(scans, mount_yaw_deg):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="odom·LiDAR 스트림 확인")
-    ap.add_argument("--robot", required=True, choices=station.ORDER)
+    ap.add_argument("--robot", required=True, choices=config.ORDER)
     ap.add_argument("--mask", action="store_true")
     ap.add_argument("--seconds", type=float, default=3.0)
     ap.add_argument("--config", default=None)
     args = ap.parse_args(argv)
-    _, cfg = station.load_config(args.config)
+    _, cfg = config.load_config(args.config)
     rc = cfg["robots"][args.robot]
-    counts, scans = collect(station.resolve_host(rc["host"]), rc["stream_port"], args.seconds)
+    counts, scans = collect(config.resolve_host(rc["host"]), rc["stream_port"], args.seconds)
     hz = {k: v / args.seconds for k, v in counts.items()}
     print(f"odom {hz.get('odom', 0):.1f} Hz, scan {hz.get('scan', 0):.1f} Hz")
     if not scans:

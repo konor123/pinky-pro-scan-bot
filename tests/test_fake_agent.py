@@ -5,9 +5,11 @@ import threading
 import numpy as np
 import pytest
 
-from scan3d import drive, protocol
-from scan3d.fake_agent import FakeFleet
-from scan3d.station import Clock
+from scan3d import protocol
+
+from scan3d.robot import drive
+from scan3d.sim.fake_agent import FakeFleet
+from scan3d.clock import Clock
 
 SCALE = 5.0
 
@@ -141,7 +143,7 @@ def test_streams(cfg, fleet_factory):
 
 
 def test_snapshot_pose(cfg, fleet_factory):
-    from scan3d import align, tagpose
+    from scan3d.robot import align, tagpose
 
     fleet, addrs, _ = fleet_factory(roles=("L", "H"))
     board = tagpose.load_board(fleet.board, cfg["board"]["tag_mm"])

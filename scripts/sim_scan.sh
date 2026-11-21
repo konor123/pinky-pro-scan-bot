@@ -52,7 +52,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-VENV_PY="$REPO_ROOT/.venv/bin/python"
+VENV_PY="${SCAN3D_PY:-$REPO_ROOT/.venv/bin/python}"
 BUILD_DIR="$REPO_ROOT/build/sim"
 LOG_DIR="$BUILD_DIR/logs"
 OVERLAY="$REPO_ROOT/build/ros"
@@ -96,7 +96,7 @@ set -u
 read -r PORT STREAM_PORT CAM_Z PITCH_DEG SPAWN_X SPAWN_Y SPAWN_YAW OBS_X OBS_Y OBS_YAW < <(
     PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}" "$VENV_PY" - "$CFG_PATH" "$ROLE" <<'PY'
 import math, sys, yaml
-from scan3d import drive
+from scan3d.robot import drive
 
 cfg = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
 role = sys.argv[2]
