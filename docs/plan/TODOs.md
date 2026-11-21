@@ -91,9 +91,10 @@
 
 ## 3. 온라인 3 — 로봇 원격 설치·확인 [온라인, 로봇 켜진 상태]
 
-- [ ] 스캔 PC → 두 로봇 SSH 키 등록, `~/.ssh/config`에 `pinky1`(L)·`pinky2`(H) 별칭 추가
-  - 명령: `ssh pinky1 hostname`, `ssh pinky2 hostname`
-  - 성공: 호스트 이름 출력
+- [ ] 스캔 PC → 두 로봇 SSH 키 등록, `pinky1`(H)·`pinky2`(L) 별칭. 팀원 노트북도 같은 Wi-Fi에서 이 항목과 다음 "스캔 PC 준비"를 똑같이 하면 두 로봇에 바로 붙는다.
+  - 명령: `cp .env.example .env`(로봇 SSID가 들어 있다. 로봇에 쓸 키가 기본 키가 아니면 그 경로를 `PINKY_KEY`에 적는다) → `scripts/ssh_aliases.sh`(같은 Wi-Fi에서 SSID로 주소를 찾아 `.env`와 별칭을 채운다. 로봇 주소가 바뀌면 다시 실행) → `ssh-copy-id pinky1`, `ssh-copy-id pinky2`(`PINKY_KEY`를 쓰면 `-i <그 키>`, 로봇 비밀번호는 제조사 위키 "초기설정") → `scripts/ssh_aliases.sh` 한 번 더
+  - 성공: `pinky1: pinky_d52c 확인`, `pinky2: pinky_6437 확인`
+  - 한 로봇은 한 번에 한 곳에서만 구동한다. 먼저 `scripts/robot.sh -H pinky1 status`로 본다. 다른 사람이 띄운 구동 스택(LiDAR·모터)이 있으면 `robot.sh start robot|robot_scan|follow`는 시작하지 않고 그 프로세스를 보여 준다. 에이전트 제어 연결도 한 번에 하나라서, 나중에 붙은 쪽은 앞 연결이 끝날 때까지 응답을 받지 못한다.
 - [ ] 스캔 PC 준비: 이 저장소를 clone하고 Python 패키지 설치, `tools/upload.sh`가 보낼 곳 설정
   - 명령: `scripts/setup_station.sh`, `echo 'export SCAN3D_UPLOAD=<사용자@개발PC:저장소 경로>' >> ~/.bashrc`
   - 성공: `station ok`

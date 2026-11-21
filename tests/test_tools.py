@@ -7,7 +7,7 @@ import yaml
 from scan3d import station
 from scan3d.clock import Clock
 from scan3d.sim.fake_agent import FakeFleet
-from tools import drive_check, lidar_view, show_pose, snapshot_test
+from tools import drive_check, led_check, lidar_view, show_pose, snapshot_test
 
 SMALL = {"color": {"w": 640, "h": 360, "fmt": "yuyv", "fps": 15},
          "depth": {"w": 424, "h": 240, "fmt": "z16", "fps": 15}}
@@ -70,3 +70,12 @@ def test_drive_check_tags(site, capsys):
     assert drive_check.main(["--robot", "H", "--config", path]) == 0
     out = capsys.readouterr().out
     assert out.count("PASS") == 3
+
+
+def test_led_check(capsys):
+    fake = "class _Led:\n    def fill(self, rgb): pass\n    def clear(self): pass\nled = _Led()"
+    code = led_check.ROBOT_CODE.format(led=fake)
+    spawn = lambda role, host: [__import__("sys").executable, "-u", "-c", code]  # noqa: E731
+    assert led_check.main(["--cycles", "1", "--hold", "0"], spawn=spawn) == 0
+    out = capsys.readouterr().out
+    assert "L(" in out and "H(" in out and "명령 3개" in out and "두 대 응답 차" in out and "PASS" in out

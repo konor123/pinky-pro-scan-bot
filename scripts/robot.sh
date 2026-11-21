@@ -95,11 +95,18 @@ case "$CMD" in
             done
             PRE_ENV="export ROS_DOMAIN_ID=$DOMAIN_ID ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST && "
         fi
+        GUARD=""
+        case "$NAME" in
+            robot|robot_scan|follow)
+                # LiDAR·모터 직렬 포트는 한 프로세스만 쓴다. 다른 사람이 띄운 구동 스택이 있으면 시작하지 않는다
+                GUARD='{ busy=$(pgrep -af "[s]llidar_node|[m]otor_driver|pinky_bringup/[b]ringup" | cut -c1-150); [ -z "$busy" ] || { echo "이미 구동 스택이 돌고 있다(LiDAR·모터는 한 프로세스만 쓴다). 쓰는 사람과 정한 뒤 끈다:"; echo "$busy"; false; }; } && '
+                ;;
+        esac
         ARGS=""
         if [ "${#LAUNCH_ARGS[@]}" -gt 0 ]; then
             ARGS="$(printf '%q ' "${LAUNCH_ARGS[@]}")"
         fi
-        ssh "$HOST" "$ENV && ${PRE_ENV}if [ -f $NAME.pid ] && kill -0 \$(cat $NAME.pid) 2>/dev/null; then echo '$NAME is already running'; exit 1; fi && (setsid nohup ros2 launch $PKG $NAME.launch.xml $ARGS > $NAME.log 2>&1 < /dev/null & echo \$! > $NAME.pid) && echo started $NAME"
+        ssh "$HOST" "$ENV && ${PRE_ENV}${GUARD}if [ -f $NAME.pid ] && kill -0 \$(cat $NAME.pid) 2>/dev/null; then echo '$NAME is already running'; exit 1; fi && (setsid nohup ros2 launch $PKG $NAME.launch.xml $ARGS > $NAME.log 2>&1 < /dev/null & echo \$! > $NAME.pid) && echo started $NAME"
         ;;
     stop)
         NAME="${1:-}"; [ -n "$NAME" ] || usage

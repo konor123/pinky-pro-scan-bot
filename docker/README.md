@@ -10,7 +10,8 @@
 ## 준비
 
 ```bash
-cp .env.example .env    # 로봇 주소(PINKY1_HOST·PINKY2_HOST) 채우기. .env는 커밋하지 않는다
+cp .env.example .env    # 로봇 SSID가 들어 있다. .env는 커밋하지 않는다
+scripts/ssh_aliases.sh  # 호스트에서: SSID로 로봇 주소를 찾아 .env의 PINKY1_HOST·PINKY2_HOST를 채운다
 docker compose -f docker/compose.yaml build
 ```
 
