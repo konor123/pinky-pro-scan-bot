@@ -57,7 +57,7 @@
 | 낮은 로봇 L | 카메라 높이 약 0.15 m, 아래로 15° |
 | 높은 로봇 H | 카메라 높이 약 0.45 m(본체 약 0.15 m + 알루미늄 프로파일 약 0.30 m), 아래로 37° |
 | 카메라 장착 | 두 로봇 모두 차체 뒤쪽에 세운 기둥 하나(1/4인치 나사 끝) 위, 가로 방향. 진행 방향의 왼쪽 직각을 본다. 반시계로 돌면 물체 중심을 본다. |
-| 스냅샷 | 컬러 1280×720 YUY2(센서 원래 형식) 1장 + 깊이 848×480 Z16 5장, 15 fps 프로파일 |
+| 스냅샷 | 컬러 1280×720 YUY2(센서 원래 형식) 1장 + 깊이 848×480 Z16 3장, 15 fps 프로파일 |
 | 바닥 | 빈 곳 약 2.2 m × 2.2 m(우회 차선 포함) |
 
 값의 근거:
@@ -81,7 +81,7 @@
 | 개발 PC | 표식 판 생성, 합성 데이터, 2D 주행 시뮬레이터, 가짜 에이전트, 테스트 | 신규 |
 | 시뮬레이션 PC | Gazebo 스캔 방(우리 world + D455 옆 장착 xacro), 시뮬레이션용 에이전트 | pinky_sim_examples 기반 |
 
-- **네트워크 양**: 스냅샷 1회에 원본 약 5.9 MB(컬러 1.84 MB + 깊이 0.81 MB × 5)다. 한 바퀴에 두 로봇 48회로 약 285 MB이고, 시점마다 나눠서 오간다. 영상을 15 fps로 계속 받으면 초당 약 69 MB이므로 그 대신이다. Wi-Fi가 느리면 config `capture.compress`로 로봇이 무손실 압축(Python 표준 `zlib`)해 보낸다(기본 끔). odom·LiDAR 스트림은 로봇당 초당 수십 KB다.
+- **네트워크 양**: 스냅샷 1회에 원본 약 4.3 MB(컬러 1.84 MB + 깊이 0.81 MB × 3)다. 로봇이 무손실 압축(Python 표준 `zlib` 수준 1, config `capture.compress`)해 보내 실제 영상에서 약 1.6 MB(컬러 52~60%, 깊이 19~25%)가 된다. 한 바퀴에 두 로봇 48회로 약 80 MB이고, 시점마다 나눠서 오간다. 영상을 15 fps로 계속 받으면 초당 약 69 MB이므로 그 대신이다. odom·LiDAR 스트림은 로봇당 초당 수십 KB다.
 - **ROS 범위**: 로봇의 기존 설정은 그대로 두고, `scripts/robot.sh`가 스캔 스택을 띄울 때 환경에 로봇별 `ROS_DOMAIN_ID`(L 11, H 12)와 `ROS_AUTOMATIC_DISCOVERY_RANGE=LOCALHOST`를 넣어 ROS 통신을 로봇 안에 둔다. 로봇 밖으로는 TCP 메시지만 오간다.
 - 저장소 구조:
 
@@ -112,9 +112,9 @@ docs/specs/          모듈 명세
 
 **시점 사이 이동**
 
-- 다음 목표: 원 위의 다음 각도(+15°), 진행 방향은 반시계 접선. `plan_move`가 `turn a`, `speed s; forward c`, `turn b`를 만들고 하나씩 보낸다(로봇 기준점이 카메라보다 0.08 m 앞서 있어 a 약 15°, b 약 0°, c 약 0.17 m). 움직일 것이 없으면 보내지 않는다.
+- 다음 목표: 원 위의 다음 각도(+15°), 진행 방향은 반시계 접선. 시점 이동은 `plan_move(…, final_turn=False)`로 `turn a`, `speed s; forward c`만 보내고 진행 방향 그대로 선다(a 약 15°, c 약 0.17 m). 표식 자세로 고친 yaw와 계획이 몇 도씩 달라 마지막 회전(5~8°)이 시점마다 한 번 더 들어갔으므로 뺐다. 진입, 거리 보정, 우회 복귀는 마지막 회전까지 한다. 움직일 것이 없으면 보내지 않는다.
 - `command_driver`는 단계마다 약 1 cm·2° 덜 가서 멈춘다. 시점마다 표식 자세로 다시 잡으므로 쌓이지 않는다(시점 허용 오차 2.5 cm·5°).
-- 직진 속도 0.06 m/s(config). 출발 전 장애물 확인을 거친다.
+- 직진 속도 0.10 m/s(config). 출발 전 장애물 확인을 거친다.
 
 **장애물(LiDAR, 스캔 PC 판단)**
 
@@ -169,7 +169,7 @@ docs/specs/          모듈 명세
 
 ### 4.3 주행 접점
 
-- **스캔 PC**: `plan_move(pose, target, speed) -> ["turn a", "speed s; forward c", "turn b"]`(순수 함수, 판 좌표 2D 자세, 0인 부분과 움직임 없는 문장은 뺌), 거리 확인·장애물 판단·우회(3.3). 자세한 것은 `docs/specs/drive.md`
+- **스캔 PC**: `plan_move(pose, target, speed, final_turn=True) -> ["turn a", "speed s; forward c", "turn b"]`(순수 함수, 판 좌표 2D 자세, 0인 부분과 움직임 없는 문장은 뺌), 거리 확인·장애물 판단·우회(3.3). 자세한 것은 `docs/specs/drive.md`
 - **로봇** `move(text)`: `/pinky_command`에 문장을 보내고 `/command_status`에서 `(모든 명령 완료)`가 오면 odom을 돌려준다. 구간 사이에서 `blocked`나 `error`가 오면 실패로 돌려준다.
 - **로봇** `stop`: `/pinky_command`에 `stop`을 보낸다(즉시 정지, 남은 명령 취소). 이때 진행 중이던 `move`는 `{"ok":true,"stopped":true,"odom":[…]}`로 끝난다.
 - **로봇 스트림**: `/odom`, `/scan`을 받은 그대로 보낸다.
@@ -183,7 +183,7 @@ docs/specs/          모듈 명세
 | 요청 | 응답 | 로봇 동작 |
 |---|---|---|
 | `{"cmd":"hello","color":[1280,720,15],"depth":[848,480,15]}` | `{"ok":true,"role":"L","serial":"...","calib":{...}}` | 4.2 `calibration()`, 스냅샷 프로파일 고정, 중단 상태 해제 |
-| `{"cmd":"move","text":"speed 0.06; forward 0.17","timeout_s":60}` | `{"ok":true,"stopped":false,"odom":[x,y,yaw]}` | 4.3 `move`(문장 앞 `speed`는 config `drive.speed`) |
+| `{"cmd":"move","text":"speed 0.10; forward 0.17","timeout_s":60}` | `{"ok":true,"stopped":false,"odom":[x,y,yaw]}` | 4.3 `move`(문장 앞 `speed`는 config `drive.speed`) |
 | `{"cmd":"snapshot","n_depth":5,"n_skip":5,"compress":false,"color":[1280,720,15],"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"color":{"w":1280,"h":720,"fmt":"yuyv","bytes":1843200},"depth":{"w":848,"h":480,"fmt":"z16","n":5,"bytes":4070400}}` + 컬러 바이트 + 깊이 바이트 | 4.2 `snapshot` |
 | `{"cmd":"snapshot","ir":true,"n_skip":5,"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"ir":{"w":848,"h":480,"fmt":"y8","bytes":407040}}` + 바이트 | 4.2 적외선 확인 |
 

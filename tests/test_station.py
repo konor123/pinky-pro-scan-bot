@@ -268,4 +268,4 @@ def test_retake_next_leg(cfg, tmp_path, runs, retake_tags):
     got = state["at6"]
     assert got is not None
     assert math.dist(drive.cam_xy(got, mount), drive.cam_xy(target, mount)) <= 0.025
-    assert abs(math.degrees(wrap_angle(got[2] - target[2]))) <= 5.0
+    assert abs(math.degrees(wrap_angle(got[2] - target[2]))) <= 12.5

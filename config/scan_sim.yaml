@@ -16,13 +16,13 @@ scene:
 capture:
   color: {w: 1280, h: 720, fmt: rgb8, fps: 15}
   depth: {w: 1280, h: 720, fmt: f32, fps: 15}
-  n_depth: 5                     # 스냅샷 한 번의 깊이 장수
+  n_depth: 3                     # 스냅샷 한 번의 깊이 장수
   n_skip: 5                      # 자동 노출용으로 버리는 프레임 세트
   settle_s: 0.3                  # 이동을 마치고 스냅샷까지 기다림
-  compress: false                # 로봇이 zlib 무손실 압축해 보냄
+  compress: true                 # 로봇이 zlib 무손실 압축해 보냄
 
 drive:
-  speed: 0.06                    # 직진 속도 m/s
+  speed: 0.10                    # 직진 속도 m/s
   d_target: 0.45                 # 카메라–물체 거리 목표
   d_min: 0.40
   d_max: 0.55

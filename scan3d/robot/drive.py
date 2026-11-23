@@ -45,14 +45,15 @@ def base_from_cam(T_cam_board, mount):
     return center[0] - dx, center[1] - dy, yaw
 
 
-def view_pose(phi_deg, radius, mount):
+def view_pose(phi_deg, radius, mount, yaw=None):
+    """카메라가 반지름 radius 원의 각 phi에 오는 로봇 자세. yaw가 없으면 반시계 접선."""
     phi = math.radians(phi_deg)
-    yaw = wrap_angle(phi + math.pi/2)
+    yaw = wrap_angle(phi + math.pi/2) if yaw is None else wrap_angle(yaw)
     dx, dy = _rotate(mount["x"], mount["y"], yaw)
     return radius*math.cos(phi) - dx, radius*math.sin(phi) - dy, yaw
 
 
-def plan_move(pose, target, speed):
+def plan_move(pose, target, speed, final_turn=True):
     commands = []
     def turn(angle):
         degrees = math.degrees(wrap_angle(angle))
@@ -71,7 +72,8 @@ def plan_move(pose, target, speed):
         for i in range(count):
             meters = (length + int(i < remainder)) / 1000
             commands.append(f"speed {speed}; forward {meters:.3f}")
-    turn(target[2] - heading)
+    if final_turn or distance < 0.02:
+        turn(target[2] - heading)
     return commands
 
 
@@ -195,10 +197,10 @@ class Driver:
             self.io.sleep(pause)
             leg.waited_s += pause
 
-    def _travel(self, target, leg, mode):
+    def _travel(self, target, leg, mode, final_turn=True):
         while True:
             self._check_cancel()
-            commands = plan_move(self.pose(), target, self._drive["speed"])
+            commands = plan_move(self.pose(), target, self._drive["speed"], final_turn)
             for command in commands:
                 self._check_cancel()
                 guarded = command.startswith("speed ") and self._drive["obstacle"]
@@ -235,8 +237,17 @@ class Driver:
         return leg
 
     def go_to_view(self, k):
+        """시점 k로. 마지막 회전 없이 진행 방향 그대로 서되, 그 yaw로 카메라가 원 위에 오게 간다."""
         leg = Leg(k)
-        if self._travel(self._target(k), leg, "normal"):
+        x, y, _ = self.pose()
+        target = self._target(k)
+        if math.hypot(target[0] - x, target[1] - y) < 0.02:
+            arrive, final_turn = target, True
+        else:
+            heading = math.atan2(target[1] - y, target[0] - x)
+            arrive = view_pose(self._phi0 + k*360/self._views, self._radius, self.mount, yaw=heading)
+            final_turn = False
+        if self._travel(arrive, leg, "normal", final_turn=final_turn):
             return leg
         self._event("bypass", leg)
         lane = self._drive["bypass_lane"]

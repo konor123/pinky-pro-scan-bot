@@ -39,7 +39,7 @@
 
 | 테스트 함수 | 입력 | 통과 조건 |
 |---|---|---|
-| `test_hello_snapshot` | protocol 클라이언트로 `hello`, `snapshot` | 머리말과 바이트 크기가 실물과 같음(1,843,200 + 4,070,400) |
+| `test_hello_snapshot` | protocol 클라이언트로 `hello`, `snapshot` | 머리말과 바이트 크기가 실물과 같음(컬러 1,843,200 + 깊이 814,080 × `n_depth`) |
 | `test_move_stop` | `move("speed 0.06; forward 0.3")` 중 스트림으로 `stop` | 응답 `stopped:true`, `stop_log`에 기록 |
 | `test_streams` | 스트림 연결 `clock` 2 s | odom 32~48개, scan 16~24개 |
 | `test_snapshot_pose` | 스냅샷 → align → tagpose | 참값 자세와 3 mm·1° 안 |

@@ -53,5 +53,5 @@
 | `test_role_serial` | 두 연결의 `role`이 바뀜, `serial`이 같음 | 각각 종료 코드 1, `move` 없음 |
 | `test_failure_stops` | `fail`로 H의 시점 3 이동 문장에 `ok:false`(L이 움직이는 중에 응답) | L이 이동 중이든 기다리는 중이든 2 s 안에 끝남, 두 로봇이 `abort`를 받음, 그 뒤 움직임 없음, 종료 코드 1, `raw/`와 `report.json`(`aborted`) 남음 |
 | `test_only` | `--only L` | 한 대로 24시점 |
-| `test_retake_next_leg` | 시점 5에서 `d` 0.30이 되게 시작 자세를 틀어 놓음. (가) retake에 표식 있음 (나) retake에 표식 없음 | (가) retake 자세로 `set_fix`, (나) odom으로 이어 감. 두 경우 모두 다음 구간 뒤 시점 6 카메라가 목표와 2.5 cm·5° 안 |
+| `test_retake_next_leg` | 시점 5에서 `d` 0.30이 되게 시작 자세를 틀어 놓음. (가) retake에 표식 있음 (나) retake에 표식 없음 | (가) retake 자세로 `set_fix`, (나) odom으로 이어 감. 두 경우 모두 다음 구간 뒤 시점 6 카메라가 목표와 2.5 cm, yaw 12.5° 안(시점 이동은 마지막 회전 없음) |
 | I1 `test_integration` (slow) | `--fake`, `--fake --obstacle 2` | `out/mesh.ply` 생성, 상자 치수 10 mm 안, 면마다 색이 다른 상자의 빨강 면 영역 꼭짓점 색이 빨강(RGB 순서), 역할마다 융합한 k가 시점별 결과(`outcomes.json`)와 같음, `report.txt`에 걸린 시간 |

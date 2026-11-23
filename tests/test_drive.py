@@ -24,9 +24,9 @@ def rig(cfg, role="L", phi=0, noise=None, radius=None, boxes=()):
     return driver, io, mount, events
 
 
-def check_pose(actual, expected, mount):
+def check_pose(actual, expected, mount, yaw_deg=5.0):
     assert math.dist(cam_xy(actual, mount), cam_xy(expected, mount)) <= 0.025
-    assert abs(wrap_angle(actual[2] - expected[2])) <= math.radians(5)
+    assert abs(wrap_angle(actual[2] - expected[2])) <= math.radians(yaw_deg)
 
 
 def fix(driver, io, rng):
@@ -79,6 +79,13 @@ def test_plan_move(cfg):
         assert all(step.value for step in parse(cmd))
         assert io.move(cmd).ok
     check_pose(io.robot.true_pose(), target, mount)
+    skew = (start[0], start[1], start[2] - math.radians(8))
+    open_end = plan_move(skew, target, 0.06, final_turn=False)
+    assert parse(open_end[-1])[-1].kind == "move" and sum(c.startswith("turn") for c in open_end) == 1
+    h = math.radians(phi_deg := 15) + math.pi / 2 - math.radians(7.5)
+    on_circle = cam_xy(view_pose(phi_deg, 0.62, mount, yaw=h), mount)
+    assert math.hypot(*on_circle) == pytest.approx(0.62, abs=1e-9)
+    assert math.degrees(math.atan2(on_circle[1], on_circle[0])) == pytest.approx(15.0, abs=1e-9)
     moves = plan_move((0, 0, 0), (0.51, 0, 0), 0.06)
     distances = [step.value for cmd in moves for step in parse(cmd) if step.kind == "move"]
     assert sum(distances) == pytest.approx(0.51)
@@ -89,10 +96,13 @@ def test_plan_move(cfg):
 def test_full_circle(cfg, rng, role, phi, scale):
     driver, io, mount, _ = rig(cfg, role, phi, {"scale": scale, "yaw_drift_deg_per_m": 2})
     for k in range(24):
+        sent = len(io.move_log)
         leg = driver.go_to_view(k) if k else driver.enter()
         assert leg.view == k and leg.skipped == []
         actual = io.robot.true_pose()
-        check_pose(actual, view_pose(phi+k*15, 0.62, mount), mount)
+        check_pose(actual, view_pose(phi+k*15, 0.62, mount), mount, 5.0 if k == 0 else 12.5)
+        if k:
+            assert sum(cmd.startswith("turn") for _, cmd in io.move_log[sent:]) <= 1
         d = math.hypot(*cam_xy(actual, mount)) - cfg["scene"]["r_obj"] - cfg["scene"]["place_err"]
         assert cfg["drive"]["d_min"] <= d <= cfg["drive"]["d_max"]
         fix(driver, io, rng)
@@ -162,7 +172,7 @@ def test_stop_resume(cfg, rng, monkeypatch):
     assert leg.stops == 1 and leg.skipped == []
     assert sum(cmd == "stop" for _, cmd in io.move_log) == 1
     assert any(e["event"] == "stop" for e in events)
-    check_pose(io.robot.true_pose(), view_pose(30, 0.62, mount), mount)
+    check_pose(io.robot.true_pose(), view_pose(30, 0.62, mount), mount, 12.5)
 
 
 def test_bypass_tail(cfg):

@@ -61,13 +61,14 @@ def test_hello_snapshot(cfg, fleet_factory):
     hello, _ = ch.recv(30)
     assert hello["ok"] and hello["role"] == "L" and hello["serial"] == "FAKE-L"
     assert set(hello["calib"]) == {"color", "depth", "depth_to_color", "depth_scale"}
+    n = cfg["capture"]["n_depth"]
     for compress in (False, True):
         ch.send(_snap_req(cfg, compress))
         hdr, pl = ch.recv(120)
         assert hdr["ok"]
         assert hdr["color"] == {"w": 1280, "h": 720, "fmt": "yuyv", "bytes": 1_843_200}
-        assert hdr["depth"] == {"w": 848, "h": 480, "fmt": "z16", "n": 5, "bytes": 4_070_400}
-        assert [len(p) for p in pl] == [1_843_200, 4_070_400]
+        assert hdr["depth"] == {"w": 848, "h": 480, "fmt": "z16", "n": n, "bytes": 814_080 * n}
+        assert [len(p) for p in pl] == [1_843_200, 814_080 * n]
         assert len(hdr["odom"]) == 3
     ch.send({"cmd": "snapshot", "ir": True, "n_skip": 15, "depth": [848, 480, 15]})
     hdr, _ = ch.recv(30)
