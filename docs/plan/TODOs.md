@@ -209,12 +209,14 @@
 
 동시 촬영이 끝나면 스캔 PC가 L·H 시점을 한 TSDF로 합쳐 `scans/<id>/out/mesh.ply`를 만든다(`scan3d/pair/recon.py`). 여기서는 그 결과를 확인해 고치고, 따로 찍은 두 결과도 합칠 수 있게 한다.
 
-- [ ] 따로 찍은 L·H 결과를 합치는 명령(테스트 먼저): `python -m scan3d.pair.recon scans/<a>/L scans/<b>/H` → `scans/<새 id>/out/mesh.ply`, `report.txt`. 판과 물체를 움직이지 않고 찍은 두 결과만 합친다.
-  - 성공: `tests/test_recon.py`에 합성 L·H 폴더를 명령으로 합치는 테스트 추가, 통과
+- [x] 저장된 L·H를 지금 설정으로 다시 합치는 명령: `python -m scan3d.pair.recon scans/<a>/L scans/<b>/H --out <폴더>`(한 스캔이면 `--out` 없이 `scans/<id>/out_recon/`). 원래 폴더는 바꾸지 않는다. 다른 스캔끼리는 판과 물체를 움직이지 않고 찍은 것만 합친다.
 - [ ] 5장 데이터로 합친 모델 확인
-  - 명령: `scans/<id>/out/mesh.ply`를 Open3D로 열고 `report.txt`를 본다.
+  - 명령: `scans/<id>/out/mesh.ply`를 Open3D 창이나 MeshLab으로 연다(점구름 `cloud.ply`를 작은 점으로 그리면 점 사이로 배경이 비쳐 흰 점처럼 보인다). `report.txt`를 본다.
   - 성공: 기준 상자 치수 ±1 cm, L이 찍은 아래쪽과 H가 찍은 위쪽·윗면이 한 겹으로 이어짐(겹친 벽 없음)
   - 실패하면: `report.txt`의 시점별 `reproj_px`·`n_tags`로 원인(표식 자세, 정렬)을 찾는다. L과 H가 어긋나 벽이 겹치면 L–H 사이 ICP 보정을 테스트 먼저 추가한다.
+- [ ] 색 다시 입히기 비교: 같은 스캔을 `python -m scan3d.pair.recon scans/<id>/L scans/<id>/H --color-opt 100 --out scans/<id>/out_color`로 다시 만들고 `out/mesh.ply`와 나란히 연다.
+  - 성공: 색이 더 또렷하고 물체 가장자리에 흰 점·판 색이 덜 묻음 → config `recon.color_opt_iter`를 100으로
+  - 실패하면: 0으로 둔다.
 - [ ] 5장의 `raw/`를 `tests/data/`에 넣고 재생 테스트를 추가해 고친 것을 고정한다.
 
 완료: 동시 촬영 데이터로 만든 메시에서 기준 상자 치수 ±1 cm, 겹친 벽 없음

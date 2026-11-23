@@ -5,6 +5,7 @@ import shutil
 
 import cv2
 import numpy as np
+import open3d as o3d
 import pytest
 import yaml
 
@@ -135,6 +136,7 @@ def _write_role_dir(role_dir, K, w, h, views, depths):
 
 def test_crop_sparse(tmp_path, repo_root):
     cfg = _load_cfg(repo_root)
+    cfg["recon"].update(voxel=0.003, trunc=0.006, edge_mm=0)
     c = synth.default_calib()["color"]
     K = np.array([[c["fx"], 0, c["ppx"]], [0, c["fy"], c["ppy"]], [0, 0, 1.0]])
     R_bc = np.column_stack([[1.0, 0, 0], [0, -1.0, 0], [0, 0, -1.0]])
@@ -161,3 +163,50 @@ def test_measure():
     m.rotate(m.get_rotation_matrix_from_xyz((0.0, 0.0, math.radians(33))), center=(0.0, 0.0, 0.0))
     w, d, h = recon.measure(m, 0.003)
     assert (w, d, h) == pytest.approx((180.0, 120.0, 150.0), abs=0.01)
+
+
+def test_edge_filter():
+    h, w = 60, 80
+    d = np.full((h, w), 500, np.uint16)
+    d[20:40, 20:40] = 450
+    d[:, 60:] = (500 + 4 * np.arange(20))[None, :]
+    d[10, 10] = 0
+    out = recon.drop_depth_edges(d, 10)
+    removed = (out == 0) & (d != 0)
+    k = np.ones((3, 3), np.uint8)
+    sq = np.zeros((h, w), np.uint8)
+    sq[20:40, 20:40] = 1
+    ring = (cv2.dilate(sq, k) > 0) & ~(cv2.erode(sq, k) > 0)
+    hole = np.zeros((h, w), bool)
+    hole[9:12, 9:12] = True
+    hole[10, 10] = False
+    assert np.array_equal(removed, ring | hole)
+    assert np.array_equal(recon.drop_depth_edges(d, 0), d)
+
+
+@pytest.mark.slow
+def test_recolor(box_scan):
+    sd, cfg = box_scan
+    roles = [sd / "L", sd / "H"]
+    res = recon.reconstruct(roles, cfg)
+    before, n = _red_face_ok(res.mesh)
+    nv, nt = len(res.mesh.vertices), len(res.mesh.triangles)
+    mesh = recon.recolor(o3d.geometry.TriangleMesh(res.mesh), roles, res.used, 20)
+    after, _ = _red_face_ok(mesh)
+    assert len(mesh.vertices) == nv and len(mesh.triangles) == nt
+    assert n > 0 and after >= before - 0.02, (before, after)
+
+
+@pytest.mark.slow
+def test_cli(box_scan):
+    sd, _ = box_scan
+    files = [p for p in sd.rglob("*") if p.is_file()]
+    stamp = {p: p.stat().st_mtime_ns for p in files}
+    assert recon.main([str(sd / "L"), str(sd / "H")]) == 0
+    out = sd / "out_recon"
+    assert (out / "mesh.ply").exists()
+    assert (out / "report.txt").read_text(encoding="utf-8").startswith("dims_mm: w ")
+    other = sd.parent / "recon_opt"
+    assert recon.main([str(sd / "L"), str(sd / "H"), "--color-opt", "5", "--out", str(other)]) == 0
+    assert "color_opt_iter 5" in (other / "report.txt").read_text(encoding="utf-8")
+    assert all(p.stat().st_mtime_ns == t for p, t in stamp.items())

@@ -2,8 +2,13 @@
 
 Open3D v0.20.0 `examples/python/t_reconstruction_system/integrate.py`의 `integrate()`를 따른다.
 외부 파라미터는 시점마다 표식 자세 `T_cam_board`, 내부 파라미터는 왜곡 보정한 컬러 K 하나다.
+색 다시 입히기는 `examples/python/pipelines/color_map_optimization.py`의 `run_rigid_optimizer`를 쓴다.
+
+  python -m scan3d.pair.recon <역할 폴더>... [--config config/scan.yaml] [--out DIR] [--color-opt N]
 """
+import argparse
 import json
+import sys
 from collections import namedtuple
 from pathlib import Path
 
@@ -35,6 +40,21 @@ def _new_grid(voxel):
         block_resolution=BLOCK_RESOLUTION,
         block_count=BLOCK_COUNT,
         device=o3c.Device(DEVICE))
+
+
+def drop_depth_edges(depth, edge_mm):
+    """3×3 이웃의 최대 − 최소가 edge_mm보다 크거나 이웃에 0이 있는 픽셀을 0으로 만든 사본(물체 가장자리의 섞인 깊이)."""
+    if edge_mm <= 0:
+        return depth
+    valid = depth > 0
+    d = depth.astype(np.float32)
+    k = np.ones((3, 3), np.uint8)
+    hi = cv2.dilate(np.where(valid, d, 0.0).astype(np.float32), k)
+    lo = cv2.erode(np.where(valid, d, np.float32(np.inf)).astype(np.float32), k)
+    near_hole = cv2.erode(valid.astype(np.uint8), k) == 0
+    out = depth.copy()
+    out[(hi - lo > edge_mm) | near_hole] = 0
+    return out
 
 
 def crop_depth(depth, K, T_cam_board, scene):
@@ -84,6 +104,7 @@ def reconstruct(role_dirs, cfg):
             k = int(v["k"])
             name = f"{k:06d}"
             depth = cv2.imread(str(role_dir / "depth" / f"{name}.png"), cv2.IMREAD_UNCHANGED)
+            depth = drop_depth_edges(depth, float(rc.get("edge_mm", 0)))
             cut = crop_depth(depth, K, v["T_cam_board"], scene)
             if not cut.any():
                 crop[role][k] = "empty"
@@ -117,8 +138,43 @@ def reconstruct(role_dirs, cfg):
     largest_frac = float(counts[big] / counts.sum())
     mesh.remove_triangles_by_mask(labels != big)
     mesh.remove_unreferenced_vertices()
+    iters = int(rc.get("color_opt_iter", 0))
+    if iters > 0:
+        mesh = recolor(mesh, role_dirs, used, iters)
     dims = measure(mesh, float(scene["floor_cut"]))
     return Result(mesh, cloud, dims, used, crop, largest_frac)
+
+
+def recolor(mesh, role_dirs, used, iters):
+    """융합에 쓴 시점의 사진으로 꼭짓점 색을 다시 구한다(Open3D color map, 강체 자세 다듬기). 모양은 그대로."""
+    images, params = [], []
+    for role_dir in role_dirs:
+        role_dir = Path(role_dir)
+        K, w, h, views = dataset.load(role_dir)
+        intr = o3d.camera.PinholeCameraIntrinsic(w, h, K)
+        ks = set(used.get(role_dir.name, []))
+        for v in views:
+            if int(v["k"]) not in ks:
+                continue
+            name = f"{int(v['k']):06d}"
+            color = o3d.io.read_image(str(role_dir / "color" / f"{name}.jpg"))
+            depth = o3d.io.read_image(str(role_dir / "depth" / f"{name}.png"))
+            images.append(o3d.geometry.RGBDImage.create_from_color_and_depth(
+                color, depth, depth_scale=DEPTH_SCALE, depth_trunc=DEPTH_MAX, convert_rgb_to_intensity=False))
+            p = o3d.camera.PinholeCameraParameters()
+            p.intrinsic = intr
+            p.extrinsic = np.asarray(v["T_cam_board"], float)
+            params.append(p)
+    if not images:
+        return mesh
+    traj = o3d.camera.PinholeCameraTrajectory()
+    traj.parameters = params
+    option = o3d.pipelines.color_map.RigidOptimizerOption(
+        maximum_iteration=int(iters), maximum_allowable_depth=DEPTH_MAX,
+        depth_threshold_for_visibility_check=0.01, depth_threshold_for_discontinuity_check=0.05)
+    with o3d.utility.VerbosityContextManager(o3d.utility.VerbosityLevel.Error):
+        out, _ = o3d.pipelines.color_map.run_rigid_optimizer(mesh, images, traj, option)
+    return out
 
 
 def _fmt(v, spec):
@@ -175,3 +231,53 @@ def write_outputs(scan_dir, result, report):
     lines.append("")
     lines.append(f"elapsed_s: {_fmt(elapsed, '.1f')}")
     (out / "report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _report_lines(result, cfg, role_dirs):
+    lines = ["dims_mm: -" if result.dims_mm is None else
+             "dims_mm: w {:.1f}  d {:.1f}  h {:.1f}".format(*result.dims_mm)]
+    for role_dir in role_dirs:
+        role = Path(role_dir).name
+        ks = result.used.get(role, [])
+        lines.append(f"[{role}] {role_dir}: fused {len(ks)} views: {' '.join(str(k) for k in ks)}")
+    rc, sc = cfg["recon"], cfg["scene"]
+    lines.append(f"recon: voxel {rc['voxel']}  trunc {rc['trunc']}  edge_mm {rc.get('edge_mm', 0)}  "
+                 f"color_opt_iter {rc.get('color_opt_iter', 0)}  floor_cut {sc['floor_cut']}")
+    return lines
+
+
+def main(argv=None):
+    from scan3d.config import ROOT, load_config
+
+    ap = argparse.ArgumentParser(description="저장된 역할 폴더를 지금 설정으로 다시 융합한다(원래 폴더는 그대로)")
+    ap.add_argument("role_dirs", nargs="+", help="scans/<id>/L, scans/<id>/H 같은 역할 폴더")
+    ap.add_argument("--config", default=str(ROOT / "config" / "scan.yaml"))
+    ap.add_argument("--out", help="결과 폴더(기본: 역할 폴더들이 한 스캔 안이면 <스캔>/out_recon)")
+    ap.add_argument("--color-opt", type=int, metavar="N", help="recon.color_opt_iter를 N으로 바꿔 돌린다")
+    args = ap.parse_args(argv)
+    role_dirs = [Path(d).resolve() for d in args.role_dirs]
+    if args.out:
+        out = Path(args.out)
+    elif len({d.parent for d in role_dirs}) == 1:
+        out = role_dirs[0].parent / "out_recon"
+    else:
+        print("역할 폴더가 서로 다른 스캔에 있으면 --out이 필요하다", file=sys.stderr)
+        return 2
+    _, cfg = load_config(args.config)
+    if args.color_opt is not None:
+        cfg["recon"]["color_opt_iter"] = args.color_opt
+    result = reconstruct(role_dirs, cfg)
+    out.mkdir(parents=True, exist_ok=True)
+    if len(result.mesh.triangles) > 0:
+        o3d.io.write_triangle_mesh(str(out / "mesh.ply"), result.mesh)
+    if len(result.cloud.points) > 0:
+        o3d.io.write_point_cloud(str(out / "cloud.ply"), result.cloud)
+    lines = _report_lines(result, cfg, role_dirs)
+    (out / "report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
+    print(f"결과: {out}")
+    return 0 if result.dims_mm is not None else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

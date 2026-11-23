@@ -77,7 +77,7 @@
 | 로봇 | `command_driver`(`stop_distance:=0.0`): 문장 명령 실행 | pinky_sim_examples |
 | 로봇 | `robot_agent`: TCP 서버. 제어 연결(`hello`, `move`, `snapshot`)과 스트림 연결(odom·LiDAR를 그대로 보냄, `stop` 받음) | 신규 |
 | 스캔 PC | `scan_station`: 표식 자세, 주행 판단(3.3), 두 대 엇갈림 진행, 원본 저장, 정렬·중앙값, 재구성 실행, 메시 표시 | 신규 |
-| 스캔 PC | `scan_recon`: 자르기 → TSDF → 메시 → 치수 보고 | 신규(Open3D 예제 기반) |
+| 스캔 PC | `scan_recon`: 가장자리 깊이 지우기 → 자르기 → TSDF → 메시(→ 색 다시 입히기) → 치수 보고 | 신규(Open3D 예제 기반) |
 | 개발 PC | 표식 판 생성, 합성 데이터, 2D 주행 시뮬레이터, 가짜 에이전트, 테스트 | 신규 |
 | 시뮬레이션 PC | Gazebo 스캔 방(우리 world + D455 옆 장착 xacro), 시뮬레이션용 에이전트 | pinky_sim_examples 기반 |
 
@@ -240,7 +240,7 @@ scans/<scan_id>/out/                  mesh.ply, cloud.ply, report.txt(치수, �
 | `drive` | 직진 속도, `d` 목표·하한·상한, `obstacle` 켜기, 진행 부채꼴 반폭(25°), 출발 여유(0.30 m), 이동 중 정지 거리(0.20 m), 기다림(5 s), 우회 차선 폭(0.25 m), 스캔 끊김 한도(0.5 s), 두 로봇 각도 차 허용(30°), 막힘 한도(60 s) |
 | `lidar` | 장착 yaw(`mount_yaw_deg` 180), 가린 각도 `mask`(로봇 기준 `[[from_deg, to_deg], …]`) |
 | `robots.L`, `robots.H` | 호스트, 포트, 장착 변환(앞뒤·좌우·높이·피치), `wheel_radius`·`wheel_separation` |
-| `recon` | 복셀 크기(기본 3 mm), 절단 거리(기본 6 mm) |
+| `recon` | 복셀 크기(2 mm), 절단 거리(6 mm), 가장자리 깊이 지우기 기준(`edge_mm` 10), 색 다시 입히기 반복 수(`color_opt_iter`, 0이면 끔) |
 | `station` | 데이터 폴더, 메시 창 띄우기 |
 
 ## 5. 모듈 명세와 먼저 쓸 테스트
