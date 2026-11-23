@@ -1,0 +1,4 @@
+dims_mm: w 485.8  d 403.8  h 220.0
+[L] /work/scans/20261123-125715/L: fused 24 views: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+[H] /work/scans/20261123-125715/H: fused 24 views: 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+recon: voxel 0.002  trunc 0.006  edge_mm 10  color_opt_iter 0  floor_cut 0.005

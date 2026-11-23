@@ -1,0 +1,21 @@
+{
+ "skipped": {
+  "L": [],
+  "H": []
+ },
+ "stops": {
+  "L": 0,
+  "H": 0
+ },
+ "corrections": {
+  "L": 0,
+  "H": 0
+ },
+ "aborted": null,
+ "elapsed_s": 274.0,
+ "dims_mm": [
+  101.5,
+  90.9,
+  126.0
+ ]
+}

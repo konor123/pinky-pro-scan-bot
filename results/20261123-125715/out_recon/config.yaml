@@ -1,0 +1,76 @@
+board:
+  layout: config/board.json
+  tag_mm: 85
+capture:
+  color:
+    fmt: yuyv
+    fps: 15
+    h: 720
+    w: 1280
+  compress: false
+  depth:
+    fmt: z16
+    fps: 15
+    h: 480
+    w: 848
+  n_depth: 5
+  n_skip: 5
+  settle_s: 0.3
+drive:
+  block_timeout_s: 60
+  bypass_lane: 0.25
+  d_max: 0.55
+  d_min: 0.4
+  d_target: 0.45
+  obstacle: true
+  pair_gap_tol_deg: 30
+  scan_timeout_s: 0.5
+  sector_half_deg: 25
+  speed: 0.06
+  start_clear: 0.3
+  stop_dist: 0.2
+  wait_s: 5.0
+lidar:
+  mask: []
+  mount_yaw_deg: 180
+recon:
+  color_opt_iter: 0
+  edge_mm: 10
+  trunc: 0.006
+  voxel: 0.002
+robots:
+  H:
+    host: pinky1
+    mount:
+      pitch_down_deg: 37
+      x: -0.08
+      y: 0.0
+      yaw_deg: 90
+      z: 0.45
+    port: 7010
+    stream_port: 7011
+    wheel_radius: 0.027
+    wheel_separation: 0.0961
+  L:
+    host: pinky2
+    mount:
+      pitch_down_deg: 15
+      x: -0.08
+      y: 0.0
+      yaw_deg: 90
+      z: 0.15
+    port: 7010
+    stream_port: 7011
+    wheel_radius: 0.027
+    wheel_separation: 0.0961
+scene:
+  R: 0.62
+  crop_margin: 0.03
+  floor_cut: 0.005
+  n_views: 24
+  obj_h: 0.35
+  place_err: 0.03
+  r_obj: 0.3
+station:
+  data_dir: scans
+  show_mesh: true
