@@ -1,6 +1,4 @@
-import json
 import math
-import threading
 
 import numpy as np
 import pytest

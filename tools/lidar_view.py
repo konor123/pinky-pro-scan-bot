@@ -55,7 +55,7 @@ def find_mask(scans, mount_yaw_deg):
     order = np.argsort(ang)
     ang, near = ang[order], near[order]
     step = abs(math.degrees(scans[-1]["angle_inc"]))
-    ranges, start = [], None
+    ranges, start, prev = [], None, None
     for a, b in zip(ang, near):
         if b and start is None:
             start = a

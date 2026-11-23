@@ -14,11 +14,11 @@ import queue
 import threading
 import time
 
+from ..config import ORDER
 from ..robot import drive
 from ..robot.unit import RobotScan, StartError
 from ..vendor.pinky_commands import wrap_angle
 
-ORDER = ("L", "H")
 WAIT_POLL_S = 0.01   # 촬영 차례·앞섬 제한을 기다릴 때 취소를 확인하는 주기(실제 초)
 
 
