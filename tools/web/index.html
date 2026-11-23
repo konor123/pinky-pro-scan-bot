@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scan3d 뷰어</title>
+<style>
+  :root {
+    --bg: #f4f5f7; --panel: rgba(255, 255, 255, 0.92); --text: #1c1f24; --muted: #5f6672;
+    --line: #d9dce2; --accent: #2f6fde; --error: #c0392b;
+    --canvas: rgb(236, 238, 242); --grid: rgba(60, 66, 80, 0.16); --edge: rgba(60, 66, 80, 0.55);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121418; --panel: rgba(28, 31, 37, 0.9); --text: #e8eaee; --muted: #9aa1ad;
+      --line: #343842; --accent: #6ea0ff; --error: #ff7b6b;
+      --canvas: rgb(20, 22, 27); --grid: rgba(220, 226, 240, 0.12); --edge: rgba(220, 226, 240, 0.45);
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 system-ui, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #view:active { cursor: grabbing; }
+  .panel { position: fixed; top: 16px; left: 16px; width: min(320px, calc(100vw - 32px));
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  h1 { font-size: 15px; margin: 0 0 10px; font-weight: 600; letter-spacing: 0.01em; }
+  select { width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line);
+    background: transparent; color: var(--text); font: inherit; }
+  select option { color: #1c1f24; }
+  .dims-label { margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .dims { font-size: 26px; font-weight: 600; margin: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .dims small { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 4px; }
+  dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; margin: 8px 0 10px; color: var(--muted); font-size: 13px; }
+  dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+  .row { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; margin-top: 6px; font-size: 13px; }
+  label { display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+  input { accent-color: var(--accent); }
+  button { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 6px; border: 1px solid var(--line);
+    background: transparent; color: var(--text); cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  a { color: var(--accent); font-size: 13px; }
+  #status { margin-top: 8px; font-size: 13px; color: var(--muted); min-height: 1em; }
+  #status:empty { display: none; }
+  #status.error { color: var(--error); }
+  #empty { margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .hint { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--muted);
+    background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
+    white-space: nowrap; max-width: calc(100vw - 32px); overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 520px) {
+    .panel { top: auto; bottom: 16px; padding: 10px 12px; }
+    .dims { font-size: 22px; }
+    dl .when, .hint { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<section class="panel">
+  <h1>scan3d 뷰어</h1>
+  <select id="scan" aria-label="스캔 결과"></select>
+  <div id="empty" hidden>아직 결과가 없습니다. 스캔이 끝나면 여기에 나타납니다.</div>
+  <div class="dims-label">치수 (가로 × 세로 × 높이)</div>
+  <div class="dims"><span id="dims">–</span><small>mm</small></div>
+  <dl>
+    <dt>모델</dt><dd id="counts">–</dd>
+    <dt>스캔 시간</dt><dd id="elapsed">–</dd>
+    <dt class="when">만든 시각</dt><dd class="when" id="mtime">–</dd>
+  </dl>
+  <div class="row" id="modeRow" hidden>
+    <label><input type="radio" name="mode" value="mesh" checked>메시</label>
+    <label><input type="radio" name="mode" value="cloud">점구름</label>
+  </div>
+  <div class="row">
+    <label><input type="checkbox" id="color" checked>색</label>
+    <label><input type="checkbox" id="grid" checked>판 격자</label>
+    <label><input type="checkbox" id="follow" checked>최신 스캔 자동 표시</label>
+  </div>
+  <div class="row">
+    <button id="home" type="button">처음 시점</button>
+    <a id="report" target="_blank" rel="noopener" hidden>report.txt</a>
+  </div>
+  <div id="status"></div>
+</section>
+<div class="hint">끌기: 회전 · 오른쪽/Shift 끌기: 이동 · 휠/두 손가락: 확대 · 더블클릭: 처음 시점 · 격자 5 cm</div>
+<script src="ply.js"></script>
+<script src="viewer.js"></script>
+</body>
+</html>
