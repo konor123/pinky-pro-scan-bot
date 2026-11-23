@@ -239,7 +239,7 @@ def _report_lines(result, cfg, role_dirs):
     for role_dir in role_dirs:
         role = Path(role_dir).name
         ks = result.used.get(role, [])
-        lines.append(f"[{role}] {role_dir}: fused {len(ks)} views: {' '.join(str(k) for k in ks)}")
+        lines.append(f"[{role}] {Path(role_dir).parent.name}/{role}: fused {len(ks)} views: {' '.join(str(k) for k in ks)}")
     rc, sc = cfg["recon"], cfg["scene"]
     lines.append(f"recon: voxel {rc['voxel']}  trunc {rc['trunc']}  edge_mm {rc.get('edge_mm', 0)}  "
                  f"color_opt_iter {rc.get('color_opt_iter', 0)}  floor_cut {sc['floor_cut']}")

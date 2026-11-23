@@ -208,5 +208,6 @@ def test_cli(box_scan):
     assert (out / "report.txt").read_text(encoding="utf-8").startswith("dims_mm: w ")
     other = sd.parent / "recon_opt"
     assert recon.main([str(sd / "L"), str(sd / "H"), "--color-opt", "5", "--out", str(other)]) == 0
-    assert "color_opt_iter 5" in (other / "report.txt").read_text(encoding="utf-8")
+    text = (other / "report.txt").read_text(encoding="utf-8")
+    assert "color_opt_iter 5" in text and f"{sd.name}/L:" in text and str(sd.parent) not in text
     assert all(p.stat().st_mtime_ns == t for p, t in stamp.items())

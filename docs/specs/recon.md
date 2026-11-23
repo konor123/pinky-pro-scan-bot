@@ -14,7 +14,7 @@ dataset의 시점별 컬러·깊이와 표식 자세 `T_cam_board`로 물체만 
 - `reconstruct(role_dirs, cfg) -> Result(mesh, cloud, dims_mm, used)`: `role_dirs`는 `scans/<id>/L`, `scans/<id>/H` 중 있는 것. 역할마다 자기 `camera_intrinsic.json`과 `views.json`을 쓴다(시점 번호는 빠질 수 있다). `used`는 역할별로 융합에 쓴 k 목록
 - `drop_depth_edges(depth, edge_mm) -> depth`: 3×3 이웃의 최대 − 최소가 `edge_mm`보다 크거나 이웃에 0(값 없음)이 있는 픽셀을 0으로 만든 사본. `edge_mm` ≤ 0이면 그대로
 - `recolor(mesh, role_dirs, used, iters) -> mesh`: 융합에 쓴 시점(`used`)의 컬러·깊이와 표식 자세로 Open3D `pipelines.color_map.run_rigid_optimizer`를 돌려 꼭짓점 색을 다시 구한다. 모양(꼭짓점 위치·삼각형)은 바꾸지 않는다
-- `python -m scan3d.pair.recon <역할 폴더>... [--config config/scan.yaml] [--out DIR] [--color-opt N]`: 저장된 역할 폴더를 지금 설정으로 다시 융합해 `DIR`에 `mesh.ply`, `cloud.ply`, `report.txt`(치수, 역할별 융합한 시점, 쓴 설정)를 쓴다. 원래 폴더는 바꾸지 않는다. `--color-opt N`은 `recon.color_opt_iter`를 N으로 바꿔 돌린다(색 다시 입히기 켜고 끈 결과 비교용). `DIR` 기본값은 역할 폴더들이 한 스캔 폴더 안이면 `<스캔>/out_recon`, 아니면 `--out`이 필요하다. 다른 스캔의 L·H를 합칠 때는 두 촬영 사이에 판과 물체를 움직이지 않았어야 한다.
+- `python -m scan3d.pair.recon <역할 폴더>... [--config config/scan.yaml] [--out DIR] [--color-opt N]`: 저장된 역할 폴더를 지금 설정으로 다시 융합해 `DIR`에 `mesh.ply`, `cloud.ply`, `report.txt`(치수, 역할별 `<스캔>/<역할>`과 융합한 시점, 쓴 설정. 절대 경로는 적지 않는다)를 쓴다. 원래 폴더는 바꾸지 않는다. `--color-opt N`은 `recon.color_opt_iter`를 N으로 바꿔 돌린다(색 다시 입히기 켜고 끈 결과 비교용). `DIR` 기본값은 역할 폴더들이 한 스캔 폴더 안이면 `<스캔>/out_recon`, 아니면 `--out`이 필요하다. 다른 스캔의 L·H를 합칠 때는 두 촬영 사이에 판과 물체를 움직이지 않았어야 한다.
 - `measure(mesh) -> (w, d, h)` mm: 물체 전체 크기. h는 꼭짓점 최대 z, w·d는 `floor_cut` 위 모든 꼭짓점 xy를 감싸는 최소 면적 직사각형(`cv2.minAreaRect`)의 두 변(큰 것이 w)
 - `write_outputs(scan_dir, result, report)`: `out/mesh.ply`, `out/cloud.ply`, `out/report.txt`, 역할별 `outcomes.json`의 `crop`·`fused`
 
