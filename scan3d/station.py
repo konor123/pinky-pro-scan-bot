@@ -76,6 +76,7 @@ def execute(cfg, cfg_path, addrs, clock, roles=ORDER, no_window=True, data_dir=N
     finally:
         for lk in links.values():
             lk.close()
+        writer.close()
     dims = result.dims_mm
     print(f"치수(mm): {dims[0]:.0f} × {dims[1]:.0f} × {dims[2]:.0f}, 걸린 시간 {report['elapsed_s']:.0f} s",
           flush=True)

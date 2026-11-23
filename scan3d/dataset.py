@@ -63,11 +63,14 @@ class RawWriter:
         line["dir"] = direction
         text = json.dumps(line, ensure_ascii=False, separators=(",", ":"))
         with self._lock:
+            if self._stream.closed:   # 닫은 뒤 스트림 스레드가 늦게 넘긴 메시지는 버린다
+                return
             self._stream.write(text + "\n")
             self._stream.flush()
 
     def close(self):
-        self._stream.close()
+        with self._lock:
+            self._stream.close()
 
 
 class ScanWriter:
@@ -92,6 +95,8 @@ class ScanWriter:
     def event(self, obj):
         text = json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
         with self._lock:
+            if self._events.closed:
+                return
             self._events.write(text + "\n")
             self._events.flush()
 
@@ -99,8 +104,10 @@ class ScanWriter:
         _dump(self.scan_dir / "report.json", obj)
 
     def close(self):
-        self._events.close()
-        for w in self._roles.values():
+        with self._lock:
+            self._events.close()
+            writers = list(self._roles.values())
+        for w in writers:
             w.close()
 
 

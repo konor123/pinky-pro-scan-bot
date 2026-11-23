@@ -266,3 +266,17 @@ def test_intrinsic_open3d(scan_dir):
     assert (intr.width, intr.height) == (w, h) == (c["w"], c["h"])
     assert np.allclose(intr.intrinsic_matrix, K)
     assert np.allclose(K, [[c["fx"], 0, c["ppx"]], [0, c["fy"], c["ppy"]], [0, 0, 1]])
+
+
+def test_writer_close_drops_late_lines(tmp_path, repo_root):
+    """닫은 뒤에 스트림 스레드나 이벤트가 늦게 써도 예외 없이 버린다(station이 끝에서 close)."""
+    w = new_scan(tmp_path, repo_root)
+    rw = w.role("L")
+    rw.stream({"type": "odom", "x": 0.0}, "in", 1.0)
+    w.event({"type": "start"})
+    w.close()
+    rw.stream({"type": "odom", "x": 1.0}, "in", 2.0)
+    w.event({"type": "late"})
+    lines = (w.scan_dir / "L" / "raw" / "stream.jsonl").read_text(encoding="utf-8").splitlines()
+    assert [json.loads(x)["x"] for x in lines] == [0.0]
+    assert [json.loads(x)["type"] for x in (w.scan_dir / "events.jsonl").read_text().splitlines()] == ["start"]
