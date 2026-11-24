@@ -9,7 +9,7 @@ import numpy as np
 import open3d as o3d
 
 BOARD_Z = 0.0
-FLOOR_Z = -0.005
+FLOOR_Z = 0.0
 MIN_DEPTH = 0.35
 MAX_DEPTH = 65.0
 INK, PAPER = 30, 225
@@ -165,7 +165,7 @@ def _intr(intr):
 
 
 class Scene:
-    """판(z = 0, `board_mm` 정사각), 판 밖 바닥(z = −0.005), 물체 메시."""
+    """판(z = 0, `board_mm` 정사각), 판 밖 바닥(z = 0, 용지를 바닥에 바로 편다), 물체 메시."""
 
     def __init__(self, board, mesh=None, floor_gray=90):
         self.board = board

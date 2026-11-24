@@ -45,7 +45,7 @@ def test_base_from_cam(cfg, role, phi):
         board = np.linalg.inv(T)
         a = math.radians(phi)
         assert board[:3, 3] == pytest.approx(
-            [0.62 * math.cos(a), 0.62 * math.sin(a), actual["z"] - 0.005])
+            [0.62 * math.cos(a), 0.62 * math.sin(a), actual["z"]])
         assert board[:3, 0] == pytest.approx([-math.sin(a), math.cos(a), 0])
         pitch = math.radians(actual["pitch_down_deg"])
         assert board[:3, 2] == pytest.approx([-math.cos(pitch)*math.cos(a),

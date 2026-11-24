@@ -15,7 +15,7 @@
 - `base_from_cam(T_cam_board, mount) -> Pose2`(판 좌표): 카메라 광축(+z)을 바닥에 내린 방향의 각에서 `mount.yaw_deg`를 뺀 것이 로봇 yaw, 카메라 xy에서 `Rot(yaw)·(mount.x, mount.y)`를 뺀 것이 로봇 xy. 카메라 높이와 피치는 쓰지 않는다.
 - `cam_xy(pose, mount) -> (x, y)`: 위의 역. 표식이 안 보인 시점의 `d` 계산에 쓴다.
 - `view_pose(phi_deg, radius, mount, yaw=None) -> Pose2`: 카메라가 반지름 `radius` 원의 각 `phi`에 오는 로봇 자세. `yaw`가 없으면 phi + 90°(반시계 접선), 있으면 그 yaw로 섰을 때 카메라가 그 자리에 오는 로봇 위치
-- `camera_pose(pose, mount) -> T_cam_board`: 로봇 자세와 장착(높이 `z` − 0.005, 피치 포함)으로 구한 컬러 카메라 자세. `base_from_cam`의 역이고, 테스트와 가짜 에이전트가 쓴다. `synth.pose_on_circle`과 같은 규칙이다.
+- `camera_pose(pose, mount) -> T_cam_board`: 로봇 자세와 장착(높이 `z`, 피치 포함)으로 구한 컬러 카메라 자세. `base_from_cam`의 역이고, 테스트와 가짜 에이전트가 쓴다. `synth.pose_on_circle`과 같은 규칙이다.
 - `Driver.phi_deg(k)`: 시점 k의 목표 각(도, `enter()` 뒤)
 - `plan_move(pose, target, speed, final_turn=True) -> list[str]`: 순서대로 보낼 문장들. `turn a`(목표 위치 방향으로), `speed s; forward c`(0.25 m보다 길면 나눔), `turn b`(목표 yaw로, `final_turn`이 거짓이면 빼서 진행 방향 그대로 선다). 각도 0.1°, 거리 0.001 m로 반올림. |a|·|b| < 1°인 회전, c < 0.005 m인 직진은 뺀다. c < 0.02 m이면 직진 없이 목표 yaw로 `turn` 하나. 할 것이 없으면 빈 목록. 각 문장은 `parse`를 통과한다.
 - `in_mask(angle_deg, mask) -> bool`: 로봇 기준 각이 `lidar.mask`의 어느 범위 안인지

@@ -30,7 +30,7 @@ def camera_pose(pose, mount):
     right = [s, -c, 0.]
     forward = [cp*c, cp*s, -sp]
     rotation = np.array([right, np.cross(forward, right), forward])
-    center = (*cam_xy(pose, mount), mount["z"] - 0.005)
+    center = (*cam_xy(pose, mount), mount["z"])
     transform = np.eye(4)
     transform[:3, :3] = rotation
     transform[:3, 3] = -rotation @ center

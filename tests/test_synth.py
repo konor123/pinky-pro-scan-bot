@@ -27,9 +27,9 @@ def test_depth_plane(board):
     d = synth.Scene(board).render_depth(_down_pose(1.0), intr)
     assert d.shape == (480, 848) and d.dtype == np.uint16
     assert abs(int(d[240, 424]) - 1000) <= 1
-    # 광축 거리 z: 판 안의 비스듬한 광선도 1000, 판 밖 바닥은 1005
+    # 광축 거리 z: 판 안의 비스듬한 광선도 1000, 판 밖 바닥도 1000(용지를 바닥에 바로 편다)
     assert abs(int(d[130, 535]) - 1000) <= 1
-    assert abs(int(d[0, 0]) - 1005) <= 1
+    assert abs(int(d[0, 0]) - 1000) <= 1
 
 
 def test_depth_box_top(board):
@@ -83,7 +83,7 @@ def test_raw_bytes(rng):
 def test_pose_on_circle_geometry():
     T = synth.pose_on_circle(90, 0.62, 0.5, 35)
     pos = -T[:3, :3].T @ T[:3, 3]
-    assert pos == pytest.approx([0.0, 0.62, 0.495], abs=1e-9)
+    assert pos == pytest.approx([0.0, 0.62, 0.5], abs=1e-9)
     z_axis = T[2, :3]  # 광축(판 좌표)
     assert z_axis == pytest.approx([0.0, -np.cos(np.radians(35)), -np.sin(np.radians(35))], abs=1e-9)
     assert T[0, :3] @ np.array([0, 0, 1.0]) == pytest.approx(0.0, abs=1e-12)  # x축 수평
