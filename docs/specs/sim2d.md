@@ -37,7 +37,7 @@
 | 테스트 함수 | 입력 | 통과 조건 |
 |---|---|---|
 | `test_command_status` | `"speed 0.06; turn 7.5; forward 0.17; turn 7.5"` | 상태 문자열 순서와 형식이 `command_driver`와 같음, 마지막에만 `(모든 명령 완료)` |
-| `test_motion` | `"turn 7.5"`, `"turn -30"`, `"speed 0.06; forward 0.17"`, 잡음 없음 | 단계마다 남은 양이 0~1 cm·0~2°에서 멈춤(덜 감), 음수 회전은 시계 방향 |
+| `test_motion` | `"turn 7.5"`, `"turn -30"`, `"speed 0.06; forward 0.17"`, 잡음 없음 | 단계마다 남은 양이 0 ~ 1 cm·0 ~ 2°에서 멈춤(덜 감), 음수 회전은 시계 방향 |
 | `test_speed_only` | `"speed 0.06"` | `accepted: …`, `speed: 0.06 m/s` 두 줄만 나오고 `done`은 없음 |
 | `test_stop` | 직진 중 `stop` | 0.05 s 안에 멈춤, 남은 명령 없음 |
 | `test_bad_text` | `"turn 0"` | `error:`로 시작, 움직이지 않음 |

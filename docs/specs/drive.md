@@ -36,7 +36,7 @@
    4. j가 `n_views − 1`을 넘으면 바깥 차선에서 멈추고 `Leg(view=n_views, skipped=[k…n_views−1])`
 6. **거리 보정** `correct(k)`: `view_pose(phi_k, R)`로 한 번 간다(우회 없음).
 7. **기다림 한도**: 진입·거리 보정·바깥 차선에서 막힌 상태나 스캔 끊김이 `block_timeout_s`를 넘으면 `Blocked` 예외. `io.cancelled()`가 true면 다음 문장을 보내지 않고 `Cancelled` 예외
-8. 시점 위치 오차: `command_driver`가 단계마다 1 cm·2° 남기고 멈추므로 한 구간 끝에서 1~2 cm·2~4°가 남을 수 있다. 시점마다 표식 자세로 다시 잡으므로 쌓이지 않는다.
+8. 시점 위치 오차: `command_driver`가 단계마다 1 cm·2° 남기고 멈추므로 한 구간 끝에서 1 ~ 2 cm·2 ~ 4°가 남을 수 있다. 시점마다 표식 자세로 다시 잡으므로 쌓이지 않는다.
 
 ## 설정
 
@@ -49,10 +49,10 @@
 | `test_base_from_cam` | 참값 자세의 카메라를 피치 5° 틀리게 놓음, L·H, 서로 다른 yaw | 로봇 xy 2 mm, yaw 0.5° 안 |
 | `test_pose_compose` | L(+x 쪽)·H(−x 쪽)에서 odom이 로봇 앞으로 0.1 m | `pose()`가 판 좌표에서 로봇 진행 방향으로 0.1 m |
 | `test_plan_move` | 시점 0 → 1, 이미 목표에 있음, 0.01 m 옆, `final_turn=False` | 모두 `parse` 통과, 0인 부분 없음, 이미 목표면 빈 목록, sim2d 실행 결과가 목표와 2.5 cm·5° 안, `final_turn=False`면 마지막 문장이 직진 |
-| `test_full_circle` | 24시점, odom 잡음(배율 ±2%, yaw 2°/m) | 시점마다 카메라가 목표와 2.5 cm 안, yaw는 진입(시점 0)이 접선과 5°, 그 뒤 시점은 12.5° 안, `d`가 `d_min`~`d_max`, 시점 이동마다 회전 문장 1개 이하 |
+| `test_full_circle` | 24시점, odom 잡음(배율 ±2%, yaw 2°/m) | 시점마다 카메라가 목표와 2.5 cm 안, yaw는 진입(시점 0)이 접선과 5°, 그 뒤 시점은 12.5° 안, `d`가 `d_min` ~ `d_max`, 시점 이동마다 회전 문장 1개 이하 |
 | `test_front_min` | 정면 ±25° 안에 0.15 m 반사(가림 범위 `[[-5, 5]]`)와 0.40 m 반사(안 가림) | 0.40 m가 나옴(가린 0.15 m는 버림) |
 | `test_mask_wrap` | `in_mask(angle_deg, [[170, -170]])` | 175°·−175°는 가림, 165°·0°는 안 가림 |
-| `test_bypass` | 지름 0.10 m 상자를 로봇 원 위 시점 2·3 사이 가운데에 고정 | 출발 안 함 → `wait_s` → 우회 → 반지름 R(± 2.5 cm)로 복귀 → 24시점 마침, `skipped` 1~2개 |
+| `test_bypass` | 지름 0.10 m 상자를 로봇 원 위 시점 2·3 사이 가운데에 고정 | 출발 안 함 → `wait_s` → 우회 → 반지름 R(± 2.5 cm)로 복귀 → 24시점 마침, `skipped` 1 ~ 2개 |
 | `test_stop_resume` | 시점 2로 가는 직진을 시작하고 1 s 뒤 `Sim.at`으로 정면 0.15 m에 상자를 놓고 2 s 뒤 치움 | `stop` 1번, 이어 가서 카메라가 목표와 2.5 cm, yaw 12.5° 안, `skipped` 없음 |
 | `test_bypass_tail` | 시점 22에 도착한 뒤 시점 22·23 기준점 목표 사이 가운데에 0.02 m 상자, 시점 23 안쪽 복귀 경로에 0.05 m 상자(0.10 m 상자는 출발 여유 0.30 m 때문에 한 구간 앞에서 막힌다) | 바깥 차선에서 멈추고 `view = n_views`, `skipped = [23]` |
 | `test_correct` | 시점 k에서 `d` 0.30이 되게 `set_fix` 후 `correct(k)`만 | `d` ≥ `d_min` |

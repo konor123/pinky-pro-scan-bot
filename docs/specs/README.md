@@ -37,7 +37,7 @@
 | 9 | `recon.md` | `scan3d/pair/recon.py` | 5 | `tests/test_recon.py` | synth, dataset |
 | 10 | `fake_agent.md` | `scan3d/sim/fake_agent.py` | 4.2, 4.4 | `tests/test_fake_agent.py` | synth, sim2d, protocol |
 | 11 | `station.md` | `scan3d/station.py`, `robot/link.py`·`robot/unit.py`(로봇 1대), `pair/coordinator.py`(두 대), `clock.py`·`config.py` | 4.4, 5 | `tests/test_station.py`, I1 `tests/test_integration.py` | 전부 |
-| 12 | `robot_agent.md` | `ros/scan3d_robot/` | 4.2~4.4, 7 | `ros/scan3d_robot/test/test_agent.py` | protocol |
+| 12 | `robot_agent.md` | `ros/scan3d_robot/` | 4.2 ~ 4.4, 7 | `ros/scan3d_robot/test/test_agent.py` | protocol |
 | — | Gazebo 시험(TODOs 2장) | `ros/scan3d_sim/`, `scripts/sim_scan.sh`, `tools/make_sim_assets.py`, `config/scan_sim.yaml` | 4.2 | `ros/scan3d_sim/test/test_sim_camera.py`, `tests/test_sim.py` | robot_agent, protocol, synth, drive |
 | — | 현장 도구(TODOs 3·4장) | `tools/snapshot_test.py`, `show_pose.py`, `drive_check.py`, `lidar_view.py`, `scan.sh`, `upload.sh` | — | `tests/test_tools.py`(가짜 에이전트에 붙여 실행) | station, align, tagpose, drive |
 
@@ -97,7 +97,7 @@
 
 ### pinky_sim_examples `1d14183`(`command_driver.py`, `commands.py`)
 
-- **이동 문장**: `forward <m>`·`back <m>`(0 < m ≤ 5), `turn <deg>`(0이 아니고 |deg| ≤ 720, +가 반시계), `speed <m/s>`(0.02~0.25), `stop`을 `;`로 잇는다. 한 부분이라도 틀리면 문장 전체를 거부한다. 그래서 `plan_move`는 0인 `turn`·`forward`를 빼고 만들고, 테스트는 만든 문장을 `parse`에 넣어 본다.
+- **이동 문장**: `forward <m>`·`back <m>`(0 < m ≤ 5), `turn <deg>`(0이 아니고 |deg| ≤ 720, +가 반시계), `speed <m/s>`(0.02 ~ 0.25), `stop`을 `;`로 잇는다. 한 부분이라도 틀리면 문장 전체를 거부한다. 그래서 `plan_move`는 0인 `turn`·`forward`를 빼고 만들고, 테스트는 만든 문장을 `parse`에 넣어 본다.
 - **`/command_status`**: `accepted: <문장> (대기 n단계)`, 단계마다 `done: move +0.17 m`·`done: turn +8 deg`이고 마지막 `done`에만 ` (모든 명령 완료)`가 붙는다. 그 밖에 `speed: 0.06 m/s`, `blocked: …`, `error: …`(해석 실패), `stopped: 남은 명령 취소`(`stop`).
 - **정지**: `stop`과 `blocked`는 남은 명령을 지우고 바로 멈춘다.
 - **속도**: 직진은 끝에 가까우면 남은 거리 × 1.5로 줄인다(최저 0.03 m/s). 회전은 최고 0.8 rad/s, 최저 0.15 rad/s. 허용 오차 1 cm, 2°, 제어 20 Hz. 직진 속도 파라미터 `linear_speed`의 기본값은 0.10 m/s다.

@@ -93,7 +93,7 @@ https://doi.org/10.1007/s42452-026-08326-5
 | 결합 알고리즘 처리율 | 약 27 FPS |
 | YOLO 단독 False Detection Rate | 44.78% |
 | YOLO + Depth False Detection Rate | 33.96% |
-| 일관된 감지 거리 | 0.3~0.8m |
+| 일관된 감지 거리 | 0.3 ~ 0.8m |
 | 검증 환경 | Gazebo 시뮬레이션 |
 
 연구용 데이터셋은 2,062장으로 구성되며 Train/Validation/Test를 70/20/10으로 분할하였다.
@@ -200,7 +200,7 @@ YOLOv8n은 우선 PC에서 실행하여 기존 OpenCV 방식과 비교하고, �
 
 카메라를 추가하지 않는다.
 
-D1~D3에 다음 값을 실측한다.
+D1 ~ D3에 다음 값을 실측한다.
 
 - 실제 Image Resolution 및 FPS
 - Horizontal/Vertical FOV
@@ -805,13 +805,13 @@ Geometry Validation과 Temporal Tracking을 새로 구현한다.
 | P6 | D6 | Geometry·Temporal Validation | 경계 거리 안정화 |
 | P7 | D7 | Safety Supervisor | 자동 감속·정지 |
 | P8 | D8 | Wheel/IMU EKF | Local Odometry |
-| P9 | D9~D10 | ORB-SLAM3 연동 | Visual Tracking |
+| P9 | D9 ~ D10 | ORB-SLAM3 연동 | Visual Tracking |
 | P10 | D11 | Scale Alignment | Metric Pose 추정 |
 | P11 | D12 | AprilTag 평가 | 위치 오차 비교 |
 | P12 | D13 | Coverage Planner | 왕복 경로 생성 |
 | P13 | D14 | Navigation 통합 | 자동 왕복 주행 |
 | P14 | D15 | 최종 평가 | 전체 시연 성공 |
-| 예비 | D16~D20 | 성능 개선 | 미달 항목 보완 |
+| 예비 | D16 ~ D20 | 성능 개선 | 미달 항목 보완 |
 
 ### 주요 Milestone
 

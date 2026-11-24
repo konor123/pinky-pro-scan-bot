@@ -487,7 +487,7 @@ solar-panel-bot/
 | 11-18(수) | `coverage_planner`·`lane_control`·`mission_fsm`·`mission_runner`, LOC-EXT·LOC-LIDAR 프로필, `edge_core` v1과 평가 도구(L2) | **G-LOC**(두 모드), 추가 끝단 bag 수집 | G-LOC |
 | 11-19(목) | `edge_detector` 노드와 gate 연동, 고장 주입 스크립트 | 끝단 감지 실기 1차(정면), Level 1 직선·회전 | — |
 | 11-20(금) | 통합 수정, coverage_evaluator, 끝단 감지 개선 | **G-DRIVE**: Level 1에서 lane 2개 + TURN·SHIFT + 고장 주입 전 종류. **G-EDGE 정면 항목** | G-DRIVE, G-EDGE(정면) |
-| 11-21~22(주말) | 실패 bag 오프라인 분석과 끝단 감지 개선 | — | — |
+| 11-21 ~ 22(주말) | 실패 bag 오프라인 분석과 끝단 감지 개선 | — | — |
 | 11-23(월) | s·A_eff·E 고정 문서, 보고서 생성기 | **G-EDGE 전 항목**(사선·측방·오정지·성능), **G-COV**: Level 1 전체 mission, 실제 모형 재등록·짧은 G-LOC | G-EDGE, G-COV |
 | 11-24(화) | 버그 수정, 끝단 감지 개선 | **G-REPEAT**: 실제 모형 반복 mission + 고장 주입 | G-REPEAT |
 | 11-25(수) | 기능 동결(끝단 감지·안전 수정은 11-26까지 허용), 태그 `v0.9`, 기준 실행 보고서 | 기준 실행 기록 | — |

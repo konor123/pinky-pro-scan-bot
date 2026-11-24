@@ -32,7 +32,7 @@
 4. **진입**: 두 로봇 `enter()`를 동시에(로봇마다 스레드) 실행한다. 끝나면 두 로봇 모두 시점 0이다.
 5. **시점 k = 0…n_views−1**: 로봇마다 스레드로 따로 진행한다. 한 로봇이 찍는 동안 다른 로봇은 다음 시점으로 이동한다(엇갈림).
    1. 지금 시점이 k보다 작으면, 다른 로봇이 시점 k − 1 이상에 도착할 때까지 기다린 뒤 `go_to_view(k)`(앞섬 제한: 한 로봇이 다른 로봇보다 한 시점 넘게 앞서 출발하지 않는다). 우회로 건너뛴 시점에서는 찍지 않는다.
-   2. 지금 시점이 k이면 `settle_s` 기다린 뒤 촬영 차례를 얻는다(한 번에 한 로봇만 카메라를 켠다). `snapshot(k, view, phi_k)` → 자세 → `set_fix`(odom은 스냅샷 머리말 값) → `d`. 자세가 없으면 `drive.pose()`로 `d`를 낸다. `d`가 `d_min`~`d_max` 밖이면 차례를 놓고 `correct(k)` → `settle_s` → 다시 차례를 얻어 `snapshot(k, retake, phi_k)` 한 번 → 자세가 있으면 `set_fix` → `d`.
+   2. 지금 시점이 k이면 `settle_s` 기다린 뒤 촬영 차례를 얻는다(한 번에 한 로봇만 카메라를 켠다). `snapshot(k, view, phi_k)` → 자세 → `set_fix`(odom은 스냅샷 머리말 값) → `d`. 자세가 없으면 `drive.pose()`로 `d`를 낸다. `d`가 `d_min` ~ `d_max` 밖이면 차례를 놓고 `correct(k)` → `settle_s` → 다시 차례를 얻어 `snapshot(k, retake, phi_k)` 한 번 → 자세가 있으면 `set_fix` → `d`.
    3. 구간 결과, 정지, 우회, 건너뜀, 거리 보정(전후 `d`와 그 출처: 표식 또는 odom)을 일어날 때마다 `events.jsonl`에 쓴다. drive의 정지·기다림·우회 결정은 `Driver(on_event=…)`로 받아 그때 쓴다.
 6. **끝**: 두 로봇은 마지막 시점에서 멈춘다. 역할마다 `dataset.build` → `recon.reconstruct`(어느 역할이든 융합한 시점이 없으면 실패) → `out/` → `report.json`(시작부터 `out/`을 쓴 때까지 걸린 시간, `report.txt`와 같은 값) → 치수와 걸린 시간 출력 → `station.show_mesh`이고 `--no-window`가 아니면 Open3D 창
 7. **실패**: 어느 스레드에서든 예외(`ok:false`, 연결 끊김, 요청 한도 초과, `Blocked`)가 나거나 Ctrl-C면 바로 공유 `cancel`을 켜고 연결된 모든 로봇에 `abort`를 보낸다. 스레드의 예외는 끝나는 대로 바로 확인한다(다른 스레드가 끝나기를 기다리지 않는다). 다른 스레드는 다음 `move` 전이나 기다리는 중(앞섬 제한·촬영 차례 기다림 포함)에 `Cancelled`로 끝난다(최대 2 s 기다림). 원인을 `report.json`의 `aborted`와 화면에 남기고 종료 코드 1. 받은 `raw/`는 남는다.
@@ -47,7 +47,7 @@
 |---|---|---|
 | `test_sequence` (slow) | 두 대, 시작 각 0°·180°, 가짜 촬영 시간 `snapshot_s` 2 s | 로봇마다 `hello`가 먼저, 스냅샷 시간 구간이 서로 겹치지 않음, 시점마다 L·H 각도 차 180 ± 10°, 로봇마다 시점 스냅샷 24개, 로봇마다 시점 도착(`leg`)부터 촬영 끝(`view`)까지의 중앙값이 `settle_s` + 1.5 × `snapshot_s` 이하(엇갈림), 로봇이 시점에 도착할 때 다른 로봇이 한 시점 넘게 뒤처져 있지 않음 |
 | `test_gap_kept` (slow) | 시작 각 0°·160° | 시점마다 각도 차가 시작 각도 차 ± 10° |
-| `test_bypass_waits` (slow) | `--obstacle 2`(L의 시점 2·3 기준점 목표 사이 가운데에 한 변 0.10 m 정사각 상자) | H가 시점 k + 1 문장을 받은 시각이 L이 시점 k 이상에 도착한 시각보다 늦음(모든 k), L의 `events.jsonl`에 기다림과 우회가 있음, 두 로봇 모두 끝까지 감, 건너뛴 시점이 로봇마다 1~2개(L은 시점 3 근처, H는 12시점 뒤 같은 상자 근처)이고 나머지 시점은 모두 찍힘, `report.json`과 `events.jsonl`이 같음 |
+| `test_bypass_waits` (slow) | `--obstacle 2`(L의 시점 2·3 기준점 목표 사이 가운데에 한 변 0.10 m 정사각 상자) | H가 시점 k + 1 문장을 받은 시각이 L이 시점 k 이상에 도착한 시각보다 늦음(모든 k), L의 `events.jsonl`에 기다림과 우회가 있음, 두 로봇 모두 끝까지 감, 건너뛴 시점이 로봇마다 1 ~ 2개(L은 시점 3 근처, H는 12시점 뒤 같은 상자 근처)이고 나머지 시점은 모두 찍힘, `report.json`과 `events.jsonl`이 같음 |
 | `test_pair_gap` | 시작 각 0°·120° | 종료 코드 1, 어느 로봇도 `move`를 받지 않음 |
 | `test_no_tags_start` | L을 바깥쪽을 보게 시작(`starts`의 yaw 180°) | 종료 코드 1, `move` 없음 |
 | `test_role_serial` | 두 연결의 `role`이 바뀜, `serial`이 같음 | 각각 종료 코드 1, `move` 없음 |
