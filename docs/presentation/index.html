@@ -327,7 +327,7 @@ html.mode-all #nav{display:none}
     <ul class="rl">
       <li><span class="k">역할</span>로봇: 원자료 전송 · 주행 명령 실행<br>스캔 PC: 영상 처리 · 자세 · 주행 판단 · 융합</li>
       <li><span class="k">영상</span>연속 스트림 대신 요청할 때만 스냅샷<br><span class="sub" style="font-size:16px">연속 스트림 로봇당 초당 약 40 MB ↔ 스냅샷 시점당 약 4.3 MB(압축 약 1.6 MB)</span></li>
-      <li><span class="k">카메라 자세</span>바닥 표식으로 사진마다 구함, 로봇 위치 추정과 무관</li>
+      <li><span class="k">카메라 자세와 로봇 주행</span>3D 융합은 각 사진의 바닥 표식으로 자세 결정<br>주행은 표식을 기준으로 바퀴의 이동·회전량 반영</li>
       <li><span class="k">접점 고정</span>좌표계 · 스냅샷 형식 · TCP 메시지 · 데이터셋 · 설정 파일 하나</li>
       <li><span class="k">출발점 · 공개 예제</span>pinky_pro · command_driver · librealsense · Open3D · OpenCV</li>
     </ul>
