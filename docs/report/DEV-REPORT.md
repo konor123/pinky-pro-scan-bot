@@ -34,7 +34,7 @@
 
 - **태양광 패널 청소 로봇(2026-11-16, `docs/archive/panel-bot/`)**: Pinky Pro 1대의 기본 RGB 카메라로 모형 패널 위에서 단안 Visual SLAM(ORB-SLAM3)·경계 검출·왕복 주행을 하는 계획서 v3.0에서 출발했다. 검토를 거쳐 v4.x와 v5.0을 만들었다. 마지막 SW 계획서 v6.0은 카메라와 SLAM을 빼고, 바닥 IR 3채널 낙하 방지와 IMU·엔코더 기반 평행 왕복 주행으로 단순화했다.
 - **로봇 2대 게임(2026-11-16 ~ 11-17, `docs/archive/two-robot-games/`)**: 술래잡기 v1.0(YOLO·Nav2·초음파)에서 출발했다. 로봇에 `ultralytics`·`torch`·Hailo가 없어 꼬리 LED 추적과 LiDAR 회피를 쓰는 꼬리잡기 v1.0으로 바꿨다. 이어 M5Stack ATOM Lite + IR Unit으로 피격을 판정하는 IR 대전 v1.0을 설계했다.
-- **손 제스처 동기 동작(3D 스캔 직전)**: Hand-gesture 인식 모델을 이용한 Hand synchronized action을 주제 후보로 검토했다. 주제를 고르는 단계에서 3D 스캔으로 정했다.
+- **손 제스처 동기 동작(2026-11-17 ~ 11-18)**: Hand-gesture 인식 모델을 이용한 Hand synchronized action을 과제로 검토했다.
 - **3D 스캔 봇(2026-11-18부터)**: D455를 서로 다른 높이로 단 Pinky Pro 2대로 표식 판 위 물체를 스캔하는 계획서 v2.0(`docs/archive/scan-bot/SCAN-PLAN-v2.0.md`)을 썼다. 다음 날 지금의 개발 계획서(`docs/plan/PLAN.md`)로 다시 정리했다. 달라진 점은 5장 끝에 적었다.
 
 ## 3. 목표와 요구 조건
