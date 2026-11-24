@@ -161,7 +161,7 @@ config/        현장 설정(scan.yaml), 시뮬레이션 설정, 표식 배치
 docker/        스캔 PC 컨테이너
 docs/          계획(plan/), 모듈 명세(specs/), 개발 보고서(report/), 이전 과제(archive/), 참고 예제(reference/)
 out/           표식 판·각도기 PDF, 스캔 결과 사본
-ros/           로봇 구동(pinky_auto), 로봇 에이전트(scan3d_robot), Gazebo 시험(scan3d_sim)
+ros/           로봇 쪽 ROS 2 패키지: 구동(pinky_auto), 에이전트(scan3d_robot), Gazebo 시험(scan3d_sim). ros/README.md
 scan3d/        스캔 PC 코드: 한 로봇(robot/), 두 대 합침(pair/), 가짜 로봇·합성(sim/)
 scripts/       설치, 배포, 로봇 기동, 시뮬레이션 실행
 tests/         스캔 PC 테스트와 재생 테스트

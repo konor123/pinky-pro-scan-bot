@@ -20,7 +20,7 @@
 | 두 대 합침 | `scan3d/pair/` | `coordinator`(두 대 진행 규칙), `recon`(두 데이터셋 융합) |
 | 개발용 가짜 | `scan3d/sim/` | `synth`, `sim2d`, `fake_agent` |
 | 주 프로그램 | `scan3d/station.py` | 연결 → 두 대 진행 → 데이터셋 → 재구성 → 표시 |
-| 로봇에서 도는 것 | `ros/` | `scan3d_robot`(에이전트), `pinky_auto`(구동·순찰·초음파 따라가기), `scan3d_sim`(Gazebo 시험) |
+| 로봇에서 도는 것 | `ros/` | `scan3d_robot`(에이전트), `pinky_auto`(모터·LiDAR 구동. 지도·주행·순찰 런치는 스캔에 쓰지 않음), `scan3d_sim`(Gazebo 시험) |
 
 ## 명세 목록
 

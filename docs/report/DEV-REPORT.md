@@ -88,7 +88,7 @@
 |---|---|---|
 | 로봇 | `ros/scan3d_robot`의 `robot_agent` | D455를 열어 공장 보정값과 촬영 바이트를 보내고, TCP 명령을 로봇 안 ROS 주행 명령으로 전달한다. |
 | 로봇 | `robot_scan.launch.xml` | `pinky_auto`의 로봇 런치, `command_driver`, `robot_agent`를 함께 띄운다. |
-| 로봇 | `ros/pinky_auto` | 모터 드라이버와 LiDAR를 띄운다. 속도 명령이 끊기면 바퀴를 멈춘다. 스캔에 쓰지 않는 순찰·초음파 따라가기 노드도 들어 있다. |
+| 로봇 | `ros/pinky_auto` | 모터 드라이버와 LiDAR를 띄운다. 속도 명령이 끊기면 바퀴를 멈춘다. 이전 과제에서 쓰던 지도 작성·Nav2 주행·순찰 런치도 들어 있으나 스캔에는 쓰지 않는다. |
 | 로봇 | `pinky_sim_examples`의 `command_driver` | `turn`·`forward` 문장 명령을 odom으로 확인하며 실행하고 완료 상태를 보낸다. 스캔 런치는 자체 장애물 정지 거리를 0으로 둔다. |
 | 스캔 PC | `scan3d/station.py`, `protocol.py`, `dataset.py` | 스캔을 시작하고 TCP 메시지와 원자료를 기록한다. 역할별 데이터셋을 만든 뒤 융합을 호출한다. |
 | 스캔 PC | `scan3d/robot/` | `link`가 한 로봇과 통신한다. `align`과 `tagpose`가 깊이 정렬과 자세 추정을, `drive`와 `unit`이 주행·촬영·재촬영을 맡는다. |
@@ -228,7 +228,7 @@ python -m scan3d.pair.recon scans/20261123-211555/L scans/20261123-211555/H
 
 - 로봇 설치 스크립트에 USB 전류 한도 설정을 넣고, 첫 로봇에 D455를 설치했다(`4b4630e`).
 - jaehyeonkim이 스냅샷 전송 끊김을 고치고(`57c2dc6`), macOS에서도 스크립트가 돌게 했다(`1d2389a`). 스캔 PC 코드를 로봇 1대 단위(`scan3d/robot/`)와 두 대 합침(`scan3d/pair/`)으로 나눴다(`de65161`).
-- jaehyeonkim이 스캔 PC Docker 환경을 만들고(`1d28bd3`), `pinky_auto`에 초음파로 앞 로봇을 따라가는 노드를 넣었다(`1a13880`).
+- jaehyeonkim이 스캔 PC Docker 환경을 만들고(`1d28bd3`), `pinky_auto`에 초음파로 앞 로봇을 따라가는 노드를 넣었다(`1a13880`). 스캔에는 쓰지 않아 뒤에 지웠다.
 - 카메라 숙임 각도기를 만들었다(`d618133`). 실과 클립 추로 피치를 읽는 A4 접이식 종이 도구다(`out/angle_gauge_A4.pdf`).
 - 카메라 장착을 확정했다: H = `pinky1`(SSID `pinky_d52c`, 0.45 m·37°), L = `pinky2`(SSID `pinky_6437`, 0.15 m·15°)(`652ea2a`).
 - SSID로 로봇 주소 찾기, 구동 겹침 방지, LED 동시 확인을 넣고 두 로봇을 한 스캔 PC에서 함께 제어했다(`7625910`).
@@ -378,8 +378,8 @@ docs/
 out/                          표식 판·각도기 PDF, 지도, 실행 결과 사본
   scan_20261123-211555/       실제 두 로봇 스캔의 메시·점구름·비교 그림
 ros/
-  pinky_auto/                 모터·LiDAR 구동과 주행 노드
-  scan3d_robot/               실물 로봇 에이전트와 런치
+  pinky_auto/                 로봇 구동(모터·LiDAR·센서 robot 런치), 이전 과제의 지도·주행·순찰 런치
+  scan3d_robot/               로봇 에이전트(TCP 서버, D455 스냅샷)와 robot_scan 런치
   scan3d_sim/                 Gazebo 런치, 방 배치, 로봇 모델과 가상 카메라
 scan3d/                       스캔 실행, 통신 형식, 설정, 데이터셋 입출력
   robot/                      한 로봇의 통신·자세·주행·영상 처리
