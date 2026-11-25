@@ -122,6 +122,14 @@ tools/scan.sh                       # 두 대 한 바퀴 → 메시 창
 .venv/bin/python -m scan3d.pair.recon scans/<id>/L scans/<id>/H --color-opt 100 --out scans/<id>/out_color
 ```
 
+표식 대신 바퀴 주행거리(odom)로 카메라 자세를 잡아 다시 합치면 표식 자세와 얼마나 다른지 저장한 스캔으로 비교한다.
+
+```bash
+.venv/bin/python tools/nomarker_compare.py <출력 폴더> L=scans/<id> H=scans/<id>             # 시점별 위치·방향 어긋남, 두 방식으로 합친 메시
+.venv/bin/python tools/nomarker_fit.py <출력 폴더> L=scans/<id> H=scans/<id> --bounded       # 장착·바퀴 배율을 맞춘 뒤 남는 어긋남
+.venv/bin/python tools/nomarker_plot.py <출력 폴더> L=scans/<id> H=scans/<id>                # 카메라 위치와 겹친 물체 점 그림
+```
+
 ## 현장 점검 도구
 
 | 명령 | 확인하는 것 |
