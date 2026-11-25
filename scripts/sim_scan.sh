@@ -133,7 +133,7 @@ from std_msgs.msg import String
 rclpy.init()
 node = Node("sim_wait_ready")
 got = set()
-cmd_pub = node.create_publisher(String, "/pinky_command", 10)
+cmd_pub = node.create_publisher(String, "/scan3d_sim/pinky_command", 10)
 node.create_subscription(Odometry, "/odom", lambda _m: got.add("odom"), 10)
 node.create_subscription(LaserScan, "/scan", lambda _m: got.add("scan"), qos_profile_sensor_data)
 node.create_subscription(CameraInfo, "/d455/camera_info", lambda _m: got.add("info"), qos_profile_sensor_data)

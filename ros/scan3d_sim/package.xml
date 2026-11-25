@@ -8,6 +8,7 @@
 
   <exec_depend>rclpy</exec_depend>
   <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
   <exec_depend>scan3d_robot</exec_depend>
   <exec_depend>pinky_description</exec_depend>
   <exec_depend>pinky_gz_sim</exec_depend>
