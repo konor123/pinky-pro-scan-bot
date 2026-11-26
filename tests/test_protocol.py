@@ -215,3 +215,14 @@ def test_concurrent_send():
     assert seen == {"a": n, "b": n}
     a.close()
     b.close()
+
+
+def test_parse_arc():
+    assert protocol.parse_arc("speed 0.10; arc 0.615 15.00") == (0.10, 0.615, 15.0)
+    assert protocol.parse_arc("arc 0.62 -90") == (None, 0.62, -90.0)
+    for text in ("turn 15", "speed 0.1; forward 0.17", "stop"):
+        assert protocol.parse_arc(text) is None
+    for text in ("arc 0.62", "arc 0.01 15", "arc 0.62 0", "arc 0.62 400", "arc 3 120",
+                 "turn 5; arc 0.62 15", "speed 0.5; arc 0.62 15", "arc 0.62 15; turn 5", "arc x 15"):
+        with pytest.raises(ValueError):
+            protocol.parse_arc(text)

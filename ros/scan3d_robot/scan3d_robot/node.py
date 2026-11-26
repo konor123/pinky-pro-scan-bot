@@ -7,6 +7,7 @@ import threading
 import time
 
 import rclpy
+from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
@@ -36,12 +37,19 @@ class RosBus(Node):
         self._status_q: queue.Queue[str] = queue.Queue()
 
         self._cmd_pub = self.create_publisher(String, "/pinky_command", 10)
+        self._twist_pub = self.create_publisher(Twist, "/cmd_vel", 10)
         self.create_subscription(Odometry, "/odom", self._on_odom, 10)
         self.create_subscription(LaserScan, "/scan", self._on_scan, qos_profile_sensor_data)
         self.create_subscription(String, "/command_status", self._on_status, 10)
 
     def publish_command(self, text: str) -> None:
         self._cmd_pub.publish(String(data=str(text)))
+
+    def publish_twist(self, linear: float, angular: float) -> None:
+        msg = Twist()
+        msg.linear.x = float(linear)
+        msg.angular.z = float(angular)
+        self._twist_pub.publish(msg)
 
     def command_subscribers(self) -> int:
         return int(self._cmd_pub.get_subscription_count())

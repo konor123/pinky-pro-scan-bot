@@ -20,7 +20,9 @@
 | `{"cmd":"snapshot","ir":true,"n_skip":5,"depth":[848,480,15]}` | `{"ok":true,"t":…,"odom":[…],"ir":{"w":848,"h":480,"fmt":"y8","bytes":407040}}` + 바이트. `t`·`odom`은 그 적외선 프레임을 받은 순간 |
 
 - 실패 응답: `{"ok":false,"error":"…"}`. `move`에서 `blocked: …`·`error: …`가 오거나 `timeout_s`가 지나도 실패다.
-- `move`의 `text`는 drive `plan_move`가 만든 문장 하나(회전 하나 또는 `speed s; forward c` 하나)다. 움직임이 없는 문장(`speed`만)은 보내지 않는다.
+- `move`의 `text`는 drive `plan_move`·`plan_orbit`이 만든 문장 하나(회전 하나, `speed s; forward c` 하나, 또는 `speed s; arc r θ` 하나)다. 움직임이 없는 문장(`speed`만)은 보내지 않는다.
+- `parse_arc(text) -> (속도 또는 None, 반지름 m, 각도 °) | None`: 원호 문장 `[speed s;] arc <반지름> <각도>`를 읽는다(양수 각도는 왼쪽으로 도는 반시계). 원호 문장이 아니면 None. 다른 문장과 섞였거나 속도 0.02 ~ 0.25 m/s·반지름 0.05 m 이상·각도 0이 아닌 360° 이하·길이 5 m 이하를 벗어나면 ValueError. 로봇 에이전트, sim2d, 스캔 PC가 같이 쓴다.
+- `hello` 응답의 `arc`(true): 원호 문장을 아는 에이전트. 없으면 스캔 PC가 원호 문장을 보내지 않는다.
 - 스냅샷의 `t`(로봇 시계, 초)와 `odom`은 남긴 첫 컬러 프레임을 받은 순간의 값이다. `hello`와 스냅샷 요청의 `color`·`depth`는 `[폭, 높이, fps]`이고 config `capture`에서 온다. 스냅샷 요청의 프로파일이 `hello`와 다르면 `{"ok":false,"error":"profile"}`. 형식은 컬러 YUY2, 깊이 Z16, 적외선 Y8로 고정이다.
 - `calib`: `{"color":{"w","h","fx","fy","ppx","ppy","model","coeffs":[5]},"depth":{…같은 키…},"depth_to_color":{"rotation":[9],"translation":[3]},"depth_scale":0.001}`. `model`은 librealsense `distortion.name`(`none`, `brown_conrady`, `inverse_brown_conrady`, `modified_brown_conrady`), `rotation`은 librealsense 순서(열 우선) 그대로, `translation`은 m. 픽셀 중심은 정수 좌표다(librealsense·OpenCV와 같음).
 - 바이트 길이: 머리말의 `color`, `depth`, `ir` 중 있는 것의 `bytes`를 이 순서로 더한 만큼 뒤따른다.

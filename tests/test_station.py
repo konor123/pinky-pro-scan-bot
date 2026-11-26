@@ -207,11 +207,21 @@ def test_failure_stops(cfg, tmp_path, runs, after, nth):
 
 
 @pytest.mark.slow
-def test_only(cfg, tmp_path, runs):
-    run = scan(cfg, tmp_path, roles=("L",))
+@pytest.mark.parametrize("mode", ["arc", "old_agent", "arc_off"])
+def test_only(cfg, tmp_path, runs, mode):
+    """원호(기본), 원호를 모르는 에이전트, `drive.arc` 끔: 모두 한 바퀴를 마치고, 원호 문장은 첫 경우에만 간다."""
+    cfg["drive"]["arc"] = mode != "arc_off"
+    run = scan(cfg, tmp_path, roles=("L",), arc=mode != "old_agent")
     runs.append(run)
     assert run.code == 0
     assert run.view_ks("L") == list(range(24))
+    texts = [text for _, text, _ in run.fleet.move_log]
+    arcs = sum("arc" in text for text in texts)
+    if mode == "arc":
+        assert arcs >= 20 and sum(text.startswith("turn") for text in texts) <= 8
+    else:
+        assert arcs == 0
+    assert run.events("L", "hello")[0]["arc"] is (mode == "arc")
     assert not (run.dir / "H").exists() or not list((run.dir / "H").glob("raw/*.json"))
 
 

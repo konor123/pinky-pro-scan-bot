@@ -25,7 +25,7 @@
 ## 동작
 
 1. sim2d는 별도 스레드에서 `clock`에 맞춰 진행한다(`clock`의 1 s = sim2d 1 s). 스냅샷을 렌더링하는 동안은 `clock.hold()`로 시계를 멈춘다(렌더링 시간이 주행 시간을 먹지 않게, 실물에서 스냅샷 동안 로봇이 서 있는 것과 같다).
-2. `hello`: `role`, `serial` `"FAKE-<role>"`, `calib` = `synth.default_calib()`(요청 프로파일 크기). 중단 상태를 푼다.
+2. `hello`: `role`, `serial` `"FAKE-<role>"`, `calib` = `synth.default_calib()`(요청 프로파일 크기), `arc`(`FakeFleet(arc=True)`가 기본. 거짓이면 원호를 모르는 에이전트를 흉내 낸다). 중단 상태를 푼다. 원호 문장은 sim2d가 실행한다.
 3. `move`: 문장을 sim2d 로봇에 넣고 `(모든 명령 완료)`면 `stopped:false`, `stopped:`면 `stopped:true`, `error:`면 실패, `timeout_s`가 지나면 sim2d에 `stop`을 넣고 실패
 4. `snapshot`: 요청의 해상도로, 로봇 참값 자세와 `mount`(높이, 피치 포함)로 구한 컬러 카메라 자세를 synth로 렌더링한다. 깊이는 `n_depth`장을 서로 다른 잡음(σ 2 mm at 1 m)으로 만든다. 형식은 `yuyv`·`z16`, `compress`면 zlib. `t`·`odom`은 렌더링을 시작할 때의 값. `ir` 요청은 `ok:false`(실물에서만 쓰는 기능)
 5. 스트림: odom 20 Hz, scan 10 Hz(`clock` 기준), 상태 문자열, `stop`을 받으면 sim2d에 `stop`, `abort`를 받으면 robot_agent와 같이 sim2d에 `stop`을 넣고 진행 중인 `move`를 `aborted`로 실패시키며, 다음 `hello`까지 모든 `move`를 거절

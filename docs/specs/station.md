@@ -26,7 +26,7 @@
 
 ## 동작
 
-1. **준비**: `ScanWriter`로 `scans/<scan_id>/`를 만든다. `robots.<role>.host`를 `ssh -G <host>`의 `hostname`으로 바꾼다(스캔 PC `~/.ssh/config`의 `pinky1`·`pinky2` 별칭). `--fake`면 `FakeFleet`을 같은 프로세스에 띄워 그 포트를 쓴다. 각 로봇 `hello`(config `capture` 프로파일, → `calib.json`), 스트림 연결. 응답의 `role`이 config의 역할과 같고 두 로봇의 `serial`이 다른지 확인하고, 아니면 종료 코드 1(움직이지 않음)
+1. **준비**: `ScanWriter`로 `scans/<scan_id>/`를 만든다. `robots.<role>.host`를 `ssh -G <host>`의 `hostname`으로 바꾼다(스캔 PC `~/.ssh/config`의 `pinky1`·`pinky2` 별칭). `--fake`면 `FakeFleet`을 같은 프로세스에 띄워 그 포트를 쓴다. 각 로봇 `hello`(config `capture` 프로파일, → `calib.json`), 스트림 연결. 응답의 `role`이 config의 역할과 같고 두 로봇의 `serial`이 다른지 확인하고, 아니면 종료 코드 1(움직이지 않음). `drive.arc`가 켜져 있어도 응답에 `arc`가 없는 로봇은 시점 이동을 회전 + 직진으로 하고 화면에 알린다. 로봇마다 `hello` 이벤트(`arc`: 원호로 가는지)를 `events.jsonl`에 쓴다
 2. **출발 위치**: L, H 차례로 `snapshot(use=start)` → `align.prepare` → `tagpose.estimate` → `drive.base_from_cam` → `set_fix`. 표식이 안 보이면 어느 로봇인지 출력하고 종료 코드 1(움직이지 않음)
 3. **각도 차**(두 대일 때): `|wrap(phi_H − phi_L)|`가 180 ± `pair_gap_tol_deg` 밖이면 어느 로봇을 몇 도 옮길지 출력하고 종료 코드 1(움직이지 않음). 받아들인 각도 차는 한 바퀴 내내 유지된다.
 4. **진입**: 두 로봇 `enter()`를 동시에(로봇마다 스레드) 실행한다. 끝나면 두 로봇 모두 시점 0이다.
@@ -52,6 +52,6 @@
 | `test_no_tags_start` | L을 바깥쪽을 보게 시작(`starts`의 yaw 180°) | 종료 코드 1, `move` 없음 |
 | `test_role_serial` | 두 연결의 `role`이 바뀜, `serial`이 같음 | 각각 종료 코드 1, `move` 없음 |
 | `test_failure_stops` | `fail`로 H의 시점 3 이동 문장에 `ok:false`(L이 움직이는 중에 응답) | L이 이동 중이든 기다리는 중이든 2 s 안에 끝남, 두 로봇이 `abort`를 받음, 그 뒤 움직임 없음, 종료 코드 1, `raw/`와 `report.json`(`aborted`) 남음 |
-| `test_only` | `--only L` | 한 대로 24시점 |
+| `test_only` (slow) | `--only L`을 원호(기본), 원호를 모르는 에이전트, `drive.arc` 끔으로 | 모두 한 대로 24시점. 원호 문장은 첫 경우에만 가고(20개 이상, 회전 문장 8개 이하) `hello` 이벤트의 `arc`가 그것과 같음 |
 | `test_retake_next_leg` | 시점 5에서 `d` 0.30이 되게 시작 자세를 틀어 놓음. (가) retake에 표식 있음 (나) retake에 표식 없음 | (가) retake 자세로 `set_fix`, (나) odom으로 이어 감. 두 경우 모두 다음 구간 뒤 시점 6 카메라가 목표와 2.5 cm, yaw 12.5° 안(시점 이동은 마지막 회전 없음) |
 | I1 `test_integration` (slow) | `--fake`, `--fake --obstacle 2` | `out/mesh.ply` 생성, 상자 치수 10 mm 안, 면마다 색이 다른 상자의 빨강 면 영역 꼭짓점 색이 빨강(RGB 순서), 역할마다 융합한 k가 시점별 결과(`outcomes.json`)와 같음, `report.txt`에 걸린 시간 |

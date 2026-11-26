@@ -53,6 +53,16 @@ def view_pose(phi_deg, radius, mount, yaw=None):
     return radius*math.cos(phi) - dx, radius*math.sin(phi) - dy, yaw
 
 
+def arc_yaw(phi_deg, radius, mount):
+    """카메라가 반지름 radius 원의 각 phi에 있고 판 중심 둘레의 원호로 달릴 수 있는 로봇 yaw.
+
+    두 바퀴 로봇은 바퀴 축의 연장선 위의 점을 중심으로만 돈다. 그 선이 판 중심을 지나려면 로봇 방향이
+    로봇 기준점이 그리는 원의 접선이어야 한다. 카메라가 기준점보다 뒤(mount.x < 0)에 있으면 카메라 원의
+    접선보다 안쪽으로 조금 더 돈 방향이다(0.08 m, 반지름 0.62 m에서 7.4°).
+    """
+    return wrap_angle(math.radians(phi_deg) + math.acos(max(-1., min(1., mount["x"] / radius))))
+
+
 def plan_move(pose, target, speed, final_turn=True):
     commands = []
     def turn(angle):
@@ -75,6 +85,41 @@ def plan_move(pose, target, speed, final_turn=True):
     if final_turn or distance < 0.02:
         turn(target[2] - heading)
     return commands
+
+
+ORBIT_POLE = 0.5                    # 원호마다 남기는 오차 비율(작을수록 빨리 고치고 자세 잡음에 민감하다)
+ORBIT_MAX_OFF = 0.05                # 원에서 이보다 멀거나
+ORBIT_MAX_YAW = math.radians(20.0)  # 방향이 이보다 틀어져 있으면 회전 + 직진으로 자리를 다시 잡는다
+ORBIT_MIN_RADIUS = 0.10
+ORBIT_STRAIGHT = 20.0               # 반지름이 이보다 크면 직진
+
+
+def plan_orbit(pose, target, speed):
+    """판 중심 둘레의 원 위 자세 `target`(`arc_yaw` 방향)까지 원호 하나로 가는 문장: `speed s; arc r θ`.
+
+    기준 경로는 판 중심 둘레, 목표의 기준점 반지름 r의 원이다. 지금 자세가 그 원에서 벗어난 만큼(반지름 방향
+    δ, 바깥이 양수)과 방향이 접선에서 틀어진 만큼(e, 왼쪽이 양수)을 원호의 휨으로 조금씩 고친다:
+        휨 = 1/r + k1·δ − k2·e,   k1 = (1 − p)² / s²,   k2 = (3 + p)(1 − p) / (2s)
+    s는 목표까지의 원호 길이, p는 `ORBIT_POLE`이다(한 번에 다 고치려 하면 몇 mm의 자세 잡음이 몇 도의
+    방향 변화로 번진다). 원호 길이는 s, 문장의 각도는 s × 휨이다. 회전 문장을 쓰지 않는다.
+    목표가 2 cm 안이거나 뒤쪽이거나, 원에서 5 cm·20° 넘게 벗어나 있으면 `plan_move`의 문장을 돌려준다.
+    """
+    radius = math.hypot(target[0], target[1])
+    here = math.hypot(pose[0], pose[1])
+    sweep = wrap_angle(math.atan2(target[1], target[0]) - math.atan2(pose[1], pose[0]))
+    length = radius * sweep
+    off = here - radius
+    yaw_err = wrap_angle(pose[2] - (math.atan2(pose[1], pose[0]) + math.pi/2))
+    if length < 0.02 or abs(off) > ORBIT_MAX_OFF or abs(yaw_err) > ORBIT_MAX_YAW:
+        return plan_move(pose, target, speed)
+    k1 = (1 - ORBIT_POLE)**2 / length**2
+    k2 = (3 + ORBIT_POLE) * (1 - ORBIT_POLE) / (2*length)
+    bend = 1/radius + k1*off - k2*yaw_err
+    if abs(bend) < 1/ORBIT_STRAIGHT:
+        return [f"speed {speed}; forward {length:.3f}"]
+    if abs(bend) > 1/ORBIT_MIN_RADIUS:
+        return plan_move(pose, target, speed)
+    return [f"speed {speed}; arc {1/abs(bend):.3f} {math.degrees(length*bend):.2f}"]
 
 
 def in_mask(angle_deg, mask):
@@ -137,6 +182,8 @@ class Driver:
         self._radius = cfg["scene"]["R"]
         self._views = cfg["scene"]["n_views"]
         self._on_event = on_event
+        # 시점 이동을 원호로(끄면 회전 + 직진). 로봇의 에이전트가 원호 문장을 모르면 unit이 끈다.
+        self.arc = bool(self._drive.get("arc", False))
         self._phi0 = None
         self._fix = None
 
@@ -165,7 +212,10 @@ class Driver:
         return math.degrees(math.atan2(y, x))
 
     def _target(self, k, lane=0):
-        return view_pose(self._phi0 + k*360/self._views, self._radius + lane, self.mount)
+        phi, radius = self._phi0 + k*360/self._views, self._radius + lane
+        if self.arc:
+            return view_pose(phi, radius, self.mount, yaw=arc_yaw(phi, radius, self.mount))
+        return view_pose(phi, radius, self.mount)
 
     def _check_cancel(self):
         if self.io.cancelled():
@@ -197,10 +247,13 @@ class Driver:
             self.io.sleep(pause)
             leg.waited_s += pause
 
-    def _travel(self, target, leg, mode, final_turn=True):
+    def _travel(self, target, leg, mode, final_turn=True, arc=False):
         while True:
             self._check_cancel()
-            commands = plan_move(self.pose(), target, self._drive["speed"], final_turn)
+            if arc:
+                commands = plan_orbit(self.pose(), target, self._drive["speed"])
+            else:
+                commands = plan_move(self.pose(), target, self._drive["speed"], final_turn)
             for command in commands:
                 self._check_cancel()
                 guarded = command.startswith("speed ") and self._drive["obstacle"]
@@ -237,18 +290,27 @@ class Driver:
         return leg
 
     def go_to_view(self, k):
-        """시점 k로. 마지막 회전 없이 진행 방향 그대로 서되, 그 yaw로 카메라가 원 위에 오게 간다."""
+        """시점 k로. 판 중심 둘레의 원호 하나로 간다(`drive.arc`, 서는 방향은 `arc_yaw`).
+
+        원호를 끄면 마지막 회전 없이 진행 방향 그대로 서되, 그 yaw로 카메라가 원 위에 오게 간다.
+        """
         leg = Leg(k)
         x, y, _ = self.pose()
         target = self._target(k)
-        if math.hypot(target[0] - x, target[1] - y) < 0.02:
-            arrive, final_turn = target, True
+        if self.arc:
+            done = self._travel(target, leg, "normal", arc=True)
+        elif math.hypot(target[0] - x, target[1] - y) < 0.02:
+            done = self._travel(target, leg, "normal")
         else:
             heading = math.atan2(target[1] - y, target[0] - x)
             arrive = view_pose(self._phi0 + k*360/self._views, self._radius, self.mount, yaw=heading)
-            final_turn = False
-        if self._travel(arrive, leg, "normal", final_turn=final_turn):
+            done = self._travel(arrive, leg, "normal", final_turn=False)
+        if done:
             return leg
+        return self._bypass(k, leg)
+
+    def _bypass(self, k, leg):
+        """바깥 차선으로 비켜 가 시점 k부터 돌아갈 수 있는 첫 시점에 선다(회전 + 직진)."""
         self._event("bypass", leg)
         lane = self._drive["bypass_lane"]
         outer = view_pose(self._angle(), self._radius + lane, self.mount)

@@ -19,6 +19,31 @@ MAX_LINE = 16 * 1024 * 1024
 SEND_TIMEOUT = 30.0
 
 
+def parse_arc(text):
+    """원호 문장 `[speed <m/s>;] arc <반지름 m> <각도 °>` → (속도 또는 None, 반지름, 각도).
+
+    양수 각도는 왼쪽으로 도는 반시계, 음수는 시계 방향. 원호 문장이 아니면 None, 값이 틀리면 ValueError.
+    `command_driver`의 문장(`turn`, `forward` …)과 섞어 쓰지 않는다.
+    """
+    parts = [p.split() for p in str(text).split(";") if p.strip()]
+    if not any(p[0] == "arc" for p in parts):
+        return None
+    speed = None
+    if len(parts) == 2 and parts[0][0] == "speed" and len(parts[0]) == 2:
+        speed = float(parts[0][1])
+        if not (math.isfinite(speed) and 0.02 <= speed <= 0.25):
+            raise ValueError(f"speed 0.02~0.25 m/s: {text!r}")
+        parts = parts[1:]
+    if len(parts) != 1 or parts[0][0] != "arc" or len(parts[0]) != 3:
+        raise ValueError(f"원호 문장은 '[speed s;] arc <반지름> <각도>': {text!r}")
+    radius, angle = float(parts[0][1]), float(parts[0][2])
+    if not (math.isfinite(radius) and math.isfinite(angle)):
+        raise ValueError(f"arc 값이 숫자가 아님: {text!r}")
+    if radius < 0.05 or angle == 0 or abs(angle) > 360 or radius * math.radians(abs(angle)) > 5.0:
+        raise ValueError(f"arc 반지름 0.05 m 이상, 각도 0 아님·360° 이하, 길이 5 m 이하: {text!r}")
+    return speed, radius, angle
+
+
 def _payload_items(obj):
     """머리말에서 바이트가 뒤따르는 항목 (키, dict)를 순서대로."""
     for key in PAYLOAD_KEYS:

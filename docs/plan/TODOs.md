@@ -7,7 +7,7 @@
   - **(sudo)** 로봇이나 스캔 PC의 sudo 비밀번호가 필요한 일. 원격 터미널에서 해도 된다.
 - 현장 명령은 모두 스캔 PC의 저장소 폴더에서 실행한다. 로봇 이름 `pinky1`(H, SSID pinky_d52c), `pinky2`(L, SSID pinky_6437)는 스캔 PC의 `~/.ssh/config`에 만드는 SSH 별칭이다(3번 묶음).
 - 각 묶음은 앞 묶음이 끝난 뒤에 한다.
-- 지금: 두 대 엇갈림 스캔 1회 성공(`scans/20261123-211555`, 241 s, 결과 `out/scan_20261123-211555/`). 남은 일: 기준 상자 2회와 시연 물체 스캔(5장), 합친 모델 치수 확인과 재생 테스트(6장).
+- 지금: 두 대 엇갈림 스캔 1회 성공(`scans/20261123-211555`, 241 s, 결과 `out/scan_20261123-211555/`). 남은 일: 기준 상자 2회와 시연 물체 스캔(5장), 합친 모델 치수 확인과 재생 테스트(6장), 원호 시점 이동의 로봇 배포와 현장 확인(6-1장).
 - 실패하면 적힌 일을 한 번 해 보고, 안 되면 로그와 데이터를 남기고 다음 항목으로 간다.
 
 ## 정확해야 하는 것과 대충이어도 되는 것
@@ -226,6 +226,32 @@
 
 완료: 동시 촬영 데이터로 만든 메시에서 기준 상자 치수 ±1 cm, 겹친 벽 없음
 
+## 6-1. 남은 일 3 — 스캔 시점 이동을 원호로 [온라인 → 현장]
+
+시점 사이를 회전 + 직진 대신 원호 하나로 간다(PLAN 3.3). 코드는 들어 있고, 로봇에 새 에이전트를 배포해야 원호로 간다. 배포 전의 로봇에는 스캔 PC가 알아서 회전 + 직진을 보낸다. 리허설(7장) 전에 한다.
+
+- [x] 원호 문장 `arc <반지름> <각도>`: `scan3d/protocol.py`(`parse_arc`), 로봇 에이전트 실행(`ros/scan3d_robot/`), 2D 주행 시뮬레이터, 가짜 에이전트
+- [x] 스캔 PC: `plan_orbit`(벗어난 만큼 원호의 휨을 바꿈, 회전 문장 없음), 원호로 달릴 수 있는 서는 방향(`arc_yaw`), 시점 이동, 원호를 모르는 에이전트면 회전 + 직진, config `drive.arc`
+- [x] 테스트: 원호 모드 한 바퀴·우회·도중 정지(`tests/test_drive.py`), 에이전트(`ros/scan3d_robot/test/test_agent.py`), 한 대 한 바퀴를 세 경우로(`tests/test_station.py`), 확인 도구(`tools/drive_check.py --arc`)
+- [ ] Gazebo에서 L 한 바퀴 [온라인, 시뮬레이션 PC]
+  - 명령: `scripts/sim_scan.sh L`
+  - 성공: 시점 이동이 원호로 가고(`events.jsonl`의 `hello`에 `arc: true`) 한 바퀴를 마침, 물체 치수 1 cm 안
+  - 실패하면: `config/scan_sim.yaml`과 `config/scan.yaml`의 `drive.arc`를 함께 false로 두고 기록한다.
+- [ ] 두 로봇에 배포 [온라인, 로봇 켜진 상태](10분)
+  - 명령: `scripts/deploy.sh pinky1`, `scripts/robot.sh -H pinky1 stop`, `scripts/robot.sh -H pinky1 start robot_scan`(`pinky2`도 같이) → 스캔 PC에서 `git pull` → `tools/scan.sh --hello`
+  - 성공: `L: role L`, `H: role H`
+- [ ] 원호 확인: 로봇을 원 위에 카메라가 판을 보게 놓는다 [현장](두 로봇 10분)
+  - 명령: `tools/drive_check.py --robot L --arc 15`, 이어서 `--arc 45`(H도 같이)
+  - 성공: `PASS`(도착 자리 차 2 ~ 4 cm 안, 돈 각 ± 3° 안), 판 중심에서의 거리가 거의 그대로
+  - 실패하면: `에이전트가 원호 문장을 모름`이면 배포를 다시 한다. 반지름이 한쪽으로 벗어나면 config `robots.<역할>.wheel_separation`을 `tools/drive_check.py --robot <역할>`의 제안값으로 맞춘다.
+- [ ] 원호로 한 바퀴: L, H, 두 대 [현장](30분)
+  - 명령: `tools/scan.sh --only L`, `tools/scan.sh --only H`, `tools/scan.sh`
+  - 성공: 시작할 때 `원호 문장을 모릅니다` 안내가 없음, 시점 사이에 제자리 회전 없이 원호로만 감, 24시점 모두 융합, `report.txt`의 모든 시점 `d` 0.40 ~ 0.55 m, 메시에 겹친 벽 없음. 걸린 시간을 이전(두 대 241 s)과 견주어 적는다.
+  - 실패하면: config `drive.arc: false`로 두고 다시 실행한다(이전의 회전 + 직진). 로그·데이터를 남긴다.
+- [ ] 원호 모드에서 장애물 우회 1회 [현장](10분)
+  - 명령: L의 원 경로 위에 상자를 놓고 `tools/scan.sh --only L`
+  - 성공: 상자 앞에서 멈춤 → 바깥 차선으로 비켜 감 → 한 바퀴 마침
+
 ## 7. 리허설 [현장]
 
 - [ ] 시연 순서대로 처음부터 끝까지(9장 체크리스트, 60분)
@@ -286,7 +312,7 @@
 - [ ] 스트림·앞 카메라 스냅샷 테스트 먼저, 구현: `scan3d/protocol.py`, `scan3d/robot/link.py`, `ros/scan3d_robot/`(`node.py`·`agent.py`·`camera.py`·`robot_scan.launch.xml`), `scan3d/sim/sim2d.py`·`fake_agent.py`
 - [ ] 앞 카메라 방향 테스트(`tests/test_tagpose.py`): 원 위에서 물체를 볼 때 표식 2장 이상, 방향 오차 1° 안
 - [ ] `viewplan` 테스트 먼저, 구현 → `scan3d/closeup/viewplan.py`, `tests/test_viewplan.py`
-- [ ] `drive`의 `go_to_angle` 테스트 먼저, 구현(기존 `tests/test_drive.py`는 그대로 통과)
+- [ ] `drive`의 `go_to_angle`(6-1의 원호 문장 하나로 한 번에, 도중 표식 확인 없음) 테스트 먼저, 구현(기존 `tests/test_drive.py`는 그대로 통과)
 - [ ] 확인 도구 `tools/approach_check.py`(`tests/test_tools.py`에 가짜 에이전트로 추가)
   - `--listen`: 스트림별 주기, 앞 카메라 사진 한 장(`out/front_<역할>.jpg`, 보인 표식 수)
   - `--turn`: 원 위에서 `turn 45`·`turn -45`를 표식·IMU·odom으로 잰 값, 60 s 서 있는 동안 IMU 방향 변화
@@ -326,10 +352,14 @@
 
 반나절을 넘기면 멈추고 다음 묶음으로 간다.
 
-### 10-7. 현장 측정 [현장] — 약 1시간
+### 10-7. 현장 측정 [현장] — 약 1시간 10분
 
 결과는 config `closeup`에 적는다. 물체와 표식 판을 스캔 때처럼 놓는다.
 
+- [ ] 긴 원호: L을 원 위에 D455가 판을 보게 놓는다. 원 둘레 바닥을 비운다(10분)
+  - 명령: `tools/drive_check.py --robot L --arc 90`, 이어서 `--arc 180`, `--arc -90`(H도 같이)
+  - 성공: `PASS`, 멈춤 없이 한 번에 감
+  - 실패하면: 반지름이 한쪽으로 계속 벗어나면 config `robots.<역할>.wheel_separation`을 `tools/drive_check.py`로 다시 맞춘다. 오차가 남으면 도착 보정에 맡긴다.
 - [ ] 앞 카메라 방향: L을 원 위에 D455가 판을 보게 놓는다. 판의 변 쪽, 모서리 쪽, 그 사이 세 자리에서(15분)
   - 명령: `tools/approach_check.py --robot L --face`(H도 같이)
   - 성공: 자리마다 앞 카메라에 표식 2장 이상, (앞 카메라 방향 − D455 방향 − 90°)가 세 자리에서 1.5° 안으로 고름 → 그 중앙값을 config `robots.L.front_cam.yaw_offset_deg`에 적는다.
@@ -366,7 +396,7 @@
   - 실패하면: `ready: false`인 로봇은 카메라가 판을 보게 돌려 놓는다. 연결이 안 되면 `tools/scan.sh --hello`
 - [ ] 옆면의 낮은 점 하나(높이 0.10 m 근처)(10분)
   - 명령: `curl -X POST -H 'Content-Type: application/json' -d '{"point":[x,y,z]}' http://localhost:8080/api/closeup` → `curl http://localhost:8080/api/closeup/1`
-  - 성공: `done`, `scans/<id>/closeup/jobs/1/closeup.jpg`에 고른 부분이 있고 고리가 그 지점에서 5 cm 안, `center_source: lidar`, 3분 안. `result.json`의 돌아와서 잰 자세 차가 3 cm·3° 안
+  - 성공: 원 위를 서지 않고 원호로 한 번에 감, `done`, `scans/<id>/closeup/jobs/1/closeup.jpg`에 고른 부분이 있고 고리가 그 지점에서 5 cm 안, `center_source: lidar`, 3분 안. `result.json`의 돌아와서 잰 자세 차가 3 cm·3° 안
   - 실패하면: 물체에 너무 붙거나 덜 가면 `events.jsonl`의 정면 거리 기록을 보고 `closeup.front_sensor`를 바꿔 본다. 고른 부분이 사진 밖이면 `full.jpg`와 `plan.json`을 남기고 config 장착 변환(높이·피치) 확인
 - [ ] 높이로 로봇이 갈리는지: 옆면의 높이 0.10 m 점, 0.18 m 점, 윗면 점을 차례로(20분)
   - 성공: 0.10 m는 L, 0.18 m와 윗면은 H가 가서 찍음, 고른 부분이 자른 사진 안

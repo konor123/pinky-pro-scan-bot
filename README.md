@@ -139,6 +139,7 @@ tools/scan.sh                       # 두 대 한 바퀴 → 메시 창
 | `tools/lidar_view.py --robot L [--mask]` | odom·LiDAR 수신, 카메라 기둥에 가린 각도 |
 | `tools/show_pose.py --robot L` | 표식으로 구한 카메라·로봇 위치 |
 | `tools/drive_check.py --robot L` | `forward`·`turn` 이동이 표식으로 잰 값과 맞는지 |
+| `tools/drive_check.py --robot L --arc 15` | 원호 주행이 표식으로 잰 값과 맞는지 |
 | `tools/find_robots.py` | SSID로 로봇 주소 찾기 |
 | `tools/upload.sh` | 스캔 PC의 `scans/`를 개발 PC로 보내기 |
 
@@ -153,7 +154,7 @@ tools/scan.sh                       # 두 대 한 바퀴 → 메시 창
 | `board` | 인쇄한 표식 한 변 `tag_mm`(판을 재서 고친다) |
 | `scene` | 물체 반지름 `r_obj`, 원 반지름 `R` 0.62 m, 시점 수 24, 바닥 자르기 `floor_cut` |
 | `capture` | 해상도, 깊이 장수 `n_depth`, 버림 프레임 `n_skip`, 멈춘 뒤 대기 `settle_s`, 압축 `compress` |
-| `drive` | 직진 속도, 거리 목표·범위, 장애물 부채꼴·거리, 우회 차선 |
+| `drive` | 직진 속도, 시점 이동을 원호로(`arc`), 거리 목표·범위, 장애물 부채꼴·거리, 우회 차선 |
 | `lidar` | 장착 방향, 가린 각도 `mask` |
 | `robots` | 역할별 SSH 별칭, 포트, 카메라 장착 위치·높이·피치 |
 | `recon` | 복셀 크기, 가장자리 깊이 지우기 `edge_mm`, 색 다시 입히기 `color_opt_iter` |

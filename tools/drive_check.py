@@ -3,6 +3,7 @@
 
   tools/drive_check.py --robot L --odom-only   바퀴가 뜬 채: odom으로 forward 0.1, turn 30, 이동 중 stop
   tools/drive_check.py --robot L               판 옆에서: 표식으로 잰 forward 0.2, turn 45, turn -45
+  tools/drive_check.py --robot L --arc 15      원 위에서: 표식으로 잰 원호 주행(판 중심 둘레로 15°)
 """
 import argparse
 import math
@@ -77,10 +78,37 @@ def with_tags(link, calib, board, mount, speed, wheel_radius, wheel_separation):
     return ok
 
 
+def with_arc(link, hello, calib, board, mount, speed, angle):
+    """지금 자리의 로봇 기준점 반지름으로 `arc`를 보내고, 표식으로 잰 도착 자리를 계산한 원호의 끝과 비교한다."""
+    if not hello.get("arc"):
+        print("FAIL arc: 로봇 에이전트가 원호 문장을 모름(scripts/deploy.sh로 새 에이전트를 배포)")
+        return False
+    x, y, yaw = tag_pose(link, calib, board, mount)
+    radius = math.hypot(x, y)
+    # 원호의 중심은 로봇 왼쪽(오른쪽으로 돌면 오른쪽) radius 거리의 점이다.
+    side = 1.0 if angle > 0 else -1.0
+    cx, cy = x - side*radius*math.sin(yaw), y + side*radius*math.cos(yaw)
+    t0 = link.now()
+    link.move(f"speed {speed}; arc {radius:.3f} {angle:.2f}")
+    seconds = link.now() - t0
+    link.sleep(1.0)
+    bx, by, byaw = tag_pose(link, calib, board, mount)
+    a = math.radians(angle)
+    ex = cx + (x - cx)*math.cos(a) - (y - cy)*math.sin(a)
+    ey = cy + (x - cx)*math.sin(a) + (y - cy)*math.cos(a)
+    miss = math.hypot(bx - ex, by - ey)
+    turned = math.degrees(wrap_angle(byaw - yaw))
+    ok = line(f"arc {angle:g}", miss <= 0.02 + 0.01*abs(angle)/15 and abs(turned - angle) <= 2.5 + abs(angle)/30,
+              f"도착 자리 차 {miss*1000:.0f} mm, 돈 각 {turned:+.1f}°, 판 중심에서 {radius:.3f} → "
+              f"{math.hypot(bx, by):.3f} m, {seconds:.1f} s")
+    return ok
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="이동 확인")
     ap.add_argument("--robot", required=True, choices=config.ORDER)
     ap.add_argument("--odom-only", action="store_true")
+    ap.add_argument("--arc", type=float, metavar="DEG", help="원호 주행 확인(각도 °, 음수는 시계 방향)")
     ap.add_argument("--config", default=None)
     args = ap.parse_args(argv)
     _, cfg = config.load_config(args.config)
@@ -93,6 +121,12 @@ def main(argv=None):
         link.wait_streams()
         if args.odom_only:
             ok = odom_only(link, speed)
+        elif args.arc:
+            _, board = config.load_board(cfg)
+            try:
+                ok = with_arc(link, hello, hello["calib"], board, rc["mount"], speed, args.arc)
+            except RuntimeError as exc:
+                ok = line(f"arc {args.arc:g}", False, str(exc))
         else:
             _, board = config.load_board(cfg)
             ok = with_tags(link, hello["calib"], board, rc["mount"], speed,

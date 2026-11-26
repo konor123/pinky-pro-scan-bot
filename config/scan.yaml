@@ -23,6 +23,7 @@ capture:
 
 drive:
   speed: 0.10                    # 직진 속도 m/s
+  arc: true                      # 시점 이동을 원호 하나로(false면 회전 + 직진). 로봇 에이전트가 원호를 모르면 자동으로 회전 + 직진
   d_target: 0.45                 # 카메라–물체 거리 목표
   d_min: 0.40
   d_max: 0.55

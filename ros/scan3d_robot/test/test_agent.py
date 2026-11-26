@@ -30,6 +30,7 @@ class FakeBus:
         self.subscribers = subscribers
         self.on_publish = on_publish
         self.published: list[tuple[float, str]] = []
+        self.twists: list[tuple[float, float, float]] = []
         self._status_q: queue.Queue[str] = queue.Queue()
         self._odom_cbs = []
         self._scan_cbs = []
@@ -48,6 +49,10 @@ class FakeBus:
     def command_subscribers(self) -> int:
         with self._lock:
             return self.subscribers
+
+    def publish_twist(self, linear: float, angular: float) -> None:
+        with self._lock:
+            self.twists.append((time.monotonic(), float(linear), float(angular)))
 
     def set_subscribers(self, n: int) -> None:
         with self._lock:
@@ -782,3 +787,102 @@ def test_agent_imports_without_ros_or_realsense():
     )
     res = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True)
     assert res.returncode == 0, res.stderr
+
+
+class DrivingBus(FakeBus):
+    """마지막 `cmd_vel`대로 odom을 적분하는 버스(원호 실행 테스트용, 실제 시간의 `rate`배로 움직인다)."""
+
+    def __init__(self, rate: float = 4.0, **kw):
+        super().__init__(**kw)
+        self.rate = rate
+        self._run = True
+        self._pose = [0.0, 0.0, 0.0]
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def _loop(self):
+        last = time.monotonic()
+        while self._run:
+            time.sleep(0.002)
+            now = time.monotonic()
+            dt, last = (now - last) * self.rate, now
+            with self._lock:
+                v, w = self.twists[-1][1:] if self.twists else (0.0, 0.0)
+            x, y, yaw = self._pose
+            self._pose = [x + v * dt * math.cos(yaw + w * dt / 2), y + v * dt * math.sin(yaw + w * dt / 2),
+                          yaw + w * dt]
+            self.emit_odom(now, *self._pose)
+
+    def close(self):
+        self._run = False
+        self._thread.join(1.0)
+
+
+def _arc_move(agent, text, timeout_s=20.0, during=None):
+    ch = protocol.connect("127.0.0.1", agent.port)
+    st = protocol.connect("127.0.0.1", agent.stream_port)
+    try:
+        ch.send({"cmd": "hello", "color": COLOR_PROFILE, "depth": DEPTH_PROFILE})
+        hello, _ = ch.recv(5.0)
+        ch.send({"cmd": "move", "text": text, "timeout_s": timeout_s})
+        if during is not None:
+            during(st)
+        resp, _ = ch.recv(timeout_s + 5.0)
+        return hello, resp
+    finally:
+        ch.close()
+        st.close()
+
+
+@pytest.mark.parametrize("angle", [15.0, -15.0])
+def test_arc(angle):
+    bus = DrivingBus()
+    try:
+        with _running_agent(bus=bus) as (agent, _cam, _bus):
+            hello, resp = _arc_move(agent, f"speed 0.10; arc 0.62 {angle}")
+        assert hello["arc"] is True
+        assert resp["ok"] is True and resp["stopped"] is False
+        assert bus.published == []                      # /pinky_command로 보내지 않는다
+        moving = [(v, w) for _, v, w in bus.twists if v > 0]
+        assert moving and all(w / v == pytest.approx(math.copysign(1 / 0.62, angle)) for v, w in moving)
+        assert max(v for v, _ in moving) == pytest.approx(0.10)
+        assert bus.twists[-1][1:] == (0.0, 0.0)         # 끝나면 0을 보낸다
+        x, y, yaw = resp["odom"]
+        length = 0.62 * math.radians(15)
+        assert length - 0.012 <= abs(yaw) * 0.62 <= length + 0.005
+        assert yaw * angle > 0
+        centre_y = math.copysign(0.62, angle)
+        assert math.hypot(x, y - centre_y) == pytest.approx(0.62, abs=0.003)
+    finally:
+        bus.close()
+
+
+def test_arc_stop_abort_timeout_bad():
+    bus = DrivingBus()
+    try:
+        with _running_agent(bus=bus) as (agent, _cam, _bus):
+            def stop_soon(st):
+                time.sleep(0.3)
+                st.send({"type": "stop"})
+            _, resp = _arc_move(agent, "arc 0.62 180", during=stop_soon)
+            assert resp["ok"] is True and resp["stopped"] is True
+            assert bus.twists[-1][1:] == (0.0, 0.0)
+            assert abs(resp["odom"][2]) < math.radians(90)
+
+            def abort_soon(st):
+                time.sleep(0.3)
+                st.send({"type": "abort"})
+            _, resp = _arc_move(agent, "arc 0.62 180", during=abort_soon)
+            assert resp == {"ok": False, "error": "aborted"}
+            assert bus.twists[-1][1:] == (0.0, 0.0)
+
+            _, resp = _arc_move(agent, "arc 0.62 180", timeout_s=0.3)   # 새 hello로 중단 상태가 풀린다
+            assert resp == {"ok": False, "error": "timeout"}
+            assert bus.twists[-1][1:] == (0.0, 0.0)
+
+            n = len(bus.twists)
+            _, resp = _arc_move(agent, "turn 5; arc 0.62 15")
+            assert resp["ok"] is False and resp["error"].startswith("error:")
+            assert all(tw[1:] == (0.0, 0.0) for tw in bus.twists[n:])
+    finally:
+        bus.close()

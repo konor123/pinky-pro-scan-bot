@@ -13,15 +13,16 @@
 
 - `Agent(role, camera, bus, port=7010, stream_port=7011)`: `serve_forever()`, `shutdown()`
 - `camera`(`camera.py`가 pyrealsense2로 구현): `serial() -> str`, `calibration(color_profile, depth_profile) -> dict`(protocol `calib`, `model`은 `intrinsics.model.name`), `snapshot(color_profile, depth_profile, n_depth, n_skip) -> (t, color_hdr, color_bytes, depth_hdr, depth_bytes)`, `snapshot_ir(depth_profile, n_skip) -> (t, ir_hdr, ir_bytes)`. 프로파일은 `[폭, 높이, fps]`
-- `bus`(node.py가 rclpy로 구현): `publish_command(text)`, `command_subscribers() -> int`, `next_status(timeout) -> str | None`(move 대기용 큐, 스트림 전송과 따로), `odom() -> (t, x, y, yaw)`, 콜백 `on_odom(fn)`, `on_scan(fn)`(LaserScan의 `angle_min`, `angle_increment`, `range_min`, `range_max`, `ranges`), `on_status(fn)`. 콜백의 `t`는 로봇 시계로 받은 시각
+- `bus`(node.py가 rclpy로 구현): `publish_command(text)`, `publish_twist(linear, angular)`(`/cmd_vel`), `command_subscribers() -> int`, `next_status(timeout) -> str | None`(move 대기용 큐, 스트림 전송과 따로), `odom() -> (t, x, y, yaw)`, 콜백 `on_odom(fn)`, `on_scan(fn)`(LaserScan의 `angle_min`, `angle_increment`, `range_min`, `range_max`, `ranges`), `on_status(fn)`. 콜백의 `t`는 로봇 시계로 받은 시각
 - 로봇 실행: `robot_scan.launch.xml role:=L` = `pinky_auto` robot 런치 + `command_driver`(`stop_distance:=0.0`) + `ExecuteProcess`(`~/scan3d_venv/bin/python -m scan3d_robot.node --role L`, `PYTHONPATH`에 `~/scan3d_lib`)
 - `scripts/deploy.sh`가 `scan3d/__init__.py`, `scan3d/protocol.py`를 로봇 `~/scan3d_lib/scan3d/`에 복사한다. `scripts/setup_robot.sh`가 `~/scan3d_venv`(`--system-site-packages`)에 `pyrealsense2`를 넣는다.
 
 ## 동작
 
 1. 제어 연결은 한 번에 하나만 받고 요청을 차례로 처리한다.
-2. `hello`: 요청의 프로파일을 이 연결의 스냅샷 프로파일로 정하고, `serial`과 `camera.calibration(프로파일)`(파이프라인을 열어 읽고 닫는다)을 돌려준다. 중단 상태를 푼다.
+2. `hello`: 요청의 프로파일을 이 연결의 스냅샷 프로파일로 정하고, `serial`과 `camera.calibration(프로파일)`(파이프라인을 열어 읽고 닫는다), `"arc": true`(원호 문장을 안다)를 돌려준다. 중단 상태를 푼다.
 3. `move`: 상태 대기열을 비우고, `/pinky_command` 구독자가 생길 때까지(최대 5 s) 기다린 뒤 문장을 보낸다. 문장 발행과 `abort` 처리는 같은 잠금 안에서 하고, 발행 직전에 중단 상태면 보내지 않고 `aborted`로 실패한다. `done: … (모든 명령 완료)`면 `ok`, `stopped:`면 `ok`·`stopped:true`, `blocked:`·`error:`면 실패, `timeout_s`가 지나면 `stop`을 보내고 실패. 응답의 `odom`은 그때 마지막 odom
+   `move`의 원호 문장(`protocol.parse_arc`가 받는 `[speed s;] arc <반지름> <각도>`)은 `/pinky_command`로 보내지 않고 직접 실행한다. `cmd_vel`에 `linear.x = v`, `angular.z = ±v / 반지름`(양수 각도는 왼쪽)을 20 Hz로 보내며, `v`는 `min(속도, 1.5 × 남은 거리)`이고 최저 0.03 m/s다. odom 위치 변화를 더한 이동 거리가 `반지름 × |각도|`에서 3 mm 안으로 남으면 0을 보내고 `ok`. 스트림의 `stop`이면 0을 보내고 `stopped:true`, `abort`면 `aborted`, `timeout_s`가 지나면 0을 보내고 실패. `speed`가 없으면 0.10 m/s. 값이 틀린 원호 문장은 움직이지 않고 `error: …`로 실패한다.
 4. `snapshot`: 요청의 프로파일로 파이프라인 시작(컬러 YUY2, 깊이 Z16) → `n_skip`세트 버림 → 다음 세트의 컬러 1장과 깊이, 이어지는 세트의 깊이로 `n_depth`장 → 정지. 프레임 바이트는 그대로 보낸다. `compress`면 `zlib`. `t`는 남긴 첫 세트를 받은 순간의 로봇 시계, `odom`은 9번
 5. `snapshot(ir=true)`: 이 카메라의 투사기를 끄고 왼쪽 적외선(Y8) 1장을 찍은 뒤 투사기를 원래대로 켠다.
 6. `abort`(스트림): 잠금 안에서 중단 상태를 켜고 `/pinky_command`에 `stop`을 보낸다. 진행 중인 `move`는 `aborted`로 끝난다. 다음 `hello`에서 풀린다.
@@ -47,3 +48,5 @@
 | `test_abort_order` | `abort`가 (가) 구독자를 기다리는 `move`보다 먼저 (나) 이동 중 (다) 완료 뒤에 옴 | (가) 문장을 발행하지 않음 (나) `stop` 발행, `aborted` 실패 (다) 다음 `move` 거절. 새 `hello` 뒤에는 받음 |
 | `test_profile_mismatch` | `hello`와 다른 프로파일의 스냅샷 요청 | `error: profile` |
 | `test_snapshot_odom` | 스냅샷 중 odom이 바뀜 | 머리말 `odom`이 첫 세트 시각의 값 |
+| `test_arc` | `cmd_vel`대로 odom을 적분하는 가짜 bus, `speed 0.10; arc 0.62 15`와 `−15` | `hello`에 `arc`, `/pinky_command` 발행 없음, 회전/직진 비 ±1/0.62, 최고 0.10 m/s, 이동 거리 0.16 m에서 0을 보내고 `ok`, 반지름 0.62 m 원 위 |
+| `test_arc_stop_abort_timeout_bad` | 원호 중 `stop`, `abort`, 짧은 `timeout_s`, `turn 5; arc 0.62 15` | 각각 `stopped:true`, `aborted`, `timeout`, `error:`이고 모두 마지막 `cmd_vel`이 0 |

@@ -95,3 +95,42 @@ def test_move_timeout(robot):
     stamp, text = io.move_log[-1]
     assert stamp == pytest.approx(0.25) and text == "stop"
     assert robot.true_pose() == (0, 0, 0)
+
+
+def test_arc(robot):
+    # 원 중심 (0, 0.62) 둘레를 반시계로 15°: 로봇은 원 위에 남고 방향이 15° 돈다.
+    text = "speed 0.10; arc 0.62 15"
+    statuses = run(robot, text, 5)
+    assert statuses[0] == f"accepted: {text} (대기 2단계)"
+    assert statuses[-1] == "done: arc 0.620 m +15.0 deg (모든 명령 완료)"
+    x, y, yaw = robot.true_pose()
+    assert math.hypot(x, y - 0.62) == pytest.approx(0.62, abs=0.002)
+    moved = math.atan2(x, 0.62 - y)
+    assert 0 <= 0.62 * (math.radians(15) - moved) <= 0.01
+    assert yaw == pytest.approx(moved, abs=math.radians(0.5))
+    assert robot.odom() == pytest.approx(robot.true_pose(), abs=1e-6)
+
+
+def test_arc_clockwise_and_stop(robot):
+    run(robot, "arc 0.5 -30", 5)
+    x, y, yaw = robot.true_pose()
+    assert yaw < 0 and y < 0
+    assert math.hypot(x, y + 0.5) == pytest.approx(0.5, abs=0.002)
+    start = robot.true_pose()
+    robot.command("arc 0.62 90")
+    for _ in range(20):
+        robot.step(0.05)
+    robot.command("stop")
+    robot.statuses()
+    here = robot.true_pose()
+    assert math.dist(start[:2], here[:2]) > 0.05
+    for _ in range(20):
+        robot.step(0.05)
+    assert robot.true_pose() == here and not robot.busy()
+
+
+@pytest.mark.parametrize("text", ["arc 0.62", "arc 0.01 15", "arc 0.62 0", "turn 5; arc 0.62 15",
+                                  "speed 0.5; arc 0.62 15"])
+def test_arc_bad_text(robot, text):
+    assert run(robot, text, 1)[0].startswith("error:")
+    assert robot.true_pose() == (0, 0, 0)

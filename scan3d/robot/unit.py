@@ -49,6 +49,11 @@ class RobotScan:
             raise StartError(f"{self.role} 자리의 로봇이 role {reply.get('role')}로 응답함(config robots 확인)")
         self.serial = reply.get("serial")
         self.calib = reply["calib"]
+        if self.driver.arc and not reply.get("arc"):
+            # 원호 문장을 모르는 에이전트(배포 전)에는 보내지 않는다.
+            self.driver.arc = False
+            self.link.say("로봇 에이전트가 원호 문장을 모릅니다. 시점 이동을 회전 + 직진으로 합니다")
+        self.emit("hello", arc=self.driver.arc)
         return reply
 
     def wait_streams(self):

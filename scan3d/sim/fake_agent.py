@@ -60,8 +60,10 @@ class _Bot:
 
 class FakeFleet:
     def __init__(self, cfg, clock, mesh=None, board=None, roles=("L", "H"), starts=None,
-                 obstacle=None, fail=None, rng_seed=0, serials=None, hosts=None, ports=None, snapshot_s=0.0):
+                 obstacle=None, fail=None, rng_seed=0, serials=None, hosts=None, ports=None, snapshot_s=0.0,
+                 arc=True):
         self.cfg = cfg
+        self.arc = bool(arc)                   # hello 응답의 `arc`(원호 문장을 아는 에이전트인지)
         self.clock = clock
         self.snapshot_s = float(snapshot_s)   # 스냅샷 하나에 걸리는 clock 초(실물 약 3.3 s)
         self.board = board if board is not None else json.loads((ROOT / cfg["board"]["layout"]).read_text())
@@ -307,7 +309,8 @@ class FakeFleet:
                 bot.aborted = False
                 bot.profile = (list(req["color"]), list(req["depth"]))
             calib = scale_calib(self.calib, req["color"], req["depth"])
-            return {"ok": True, "role": bot.role, "serial": self.serials[bot.role], "calib": calib}, []
+            return {"ok": True, "role": bot.role, "serial": self.serials[bot.role], "calib": calib,
+                    "arc": self.arc}, []
         if cmd == "move":
             self._log(self.move_log, (bot.role, req["text"], self.clock.now()))
             if self._injected(bot, cmd):

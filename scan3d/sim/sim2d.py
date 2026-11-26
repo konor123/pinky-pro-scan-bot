@@ -2,17 +2,19 @@
 
 import heapq
 import math
-from collections import deque
+from collections import deque, namedtuple
 from itertools import count
 
 import numpy as np
 
-from ..vendor.pinky_commands import parse, wrap_angle
+from ..protocol import parse_arc
+from ..vendor.pinky_commands import Step, parse, wrap_angle
 
 
 _RADIUS = 0.07
 _PERIOD = 0.05
 _BEAMS = np.arange(720) * math.tau / 720
+_Arc = namedtuple("_Arc", "kind radius angle")   # 원호 단계: 반지름 m, 각도 rad(양수 반시계)
 
 
 class World:
@@ -74,10 +76,17 @@ class Robot:
         self._active = None
         self._messages = []
         self._linear = self._angular = self._tick_left = 0.
+        self._turned = self._travelled = 0.
 
     def command(self, text):
         try:
-            steps = parse(text)
+            arc = parse_arc(text)
+            if arc is None:
+                steps = parse(text)
+            else:
+                speed, radius, angle = arc
+                steps = [Step("speed", speed)] if speed is not None else []
+                steps.append(_Arc("arc", radius, math.radians(angle)))
         except ValueError as exc:
             self._messages.append(f"error: {exc}")
             return
@@ -114,7 +123,7 @@ class Robot:
             else:
                 self._active = step
                 self._start_xy = self._odom[:2]
-                self._turned = 0.
+                self._turned = self._travelled = 0.
         step = self._active
         if step is None:
             return
@@ -131,6 +140,14 @@ class Robot:
                 self._angular = math.copysign(max(0.15, min(0.8, 2*abs(remaining))), remaining)
                 return
             what = f"turn {math.degrees(step.value):+.0f} deg"
+        elif step.kind == "arc":
+            # robot_agent의 원호 실행과 같다: odom 이동 거리가 반지름 × 각도에 이르면 끝.
+            remaining = step.radius * abs(step.angle) - self._travelled
+            if remaining > 0.003:
+                self._linear = max(0.03, min(self.linear_speed, 1.5*remaining))
+                self._angular = math.copysign(self._linear / step.radius, step.angle)
+                return
+            what = f"arc {step.radius:.3f} m {math.degrees(step.angle):+.1f} deg"
         else:
             return
         self._messages.append("done: " + what + ("" if self._queue else " (모든 명령 완료)"))
@@ -146,17 +163,19 @@ class Robot:
             self._tick_left -= part
             x, y, yaw = self._pose
             distance = part * self._linear
-            dx, dy = _rotate(distance, 0, yaw)
+            turn = part * self._angular
+            dx, dy = _rotate(distance, 0, yaw + turn/2)
             if distance and self.world._overlaps(x + dx, y + dy, self):
                 continue
-            turn = part * self._angular
             self._pose = x + dx, y + dy, wrap_angle(yaw + turn)
             ox, oy, heading = self._odom
             drift = self._drift * abs(distance)
-            dx, dy = _rotate(distance * self._scale, 0, heading + drift/2)
+            dx, dy = _rotate(distance * self._scale, 0, heading + (drift + turn)/2)
             self._odom = ox + dx, oy + dy, wrap_angle(heading + drift + turn)
             if turn:
                 self._turned += turn
+            if distance:
+                self._travelled += abs(distance * self._scale)
 
     def scan(self):
         x, y, yaw = self._pose

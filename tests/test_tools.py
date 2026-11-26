@@ -72,6 +72,14 @@ def test_drive_check_tags(site, capsys):
     assert out.count("PASS") == 3
 
 
+@pytest.mark.slow
+def test_drive_check_arc(site, capsys):
+    path, _, fleet = site
+    assert drive_check.main(["--robot", "L", "--arc", "15", "--config", path]) == 0
+    assert capsys.readouterr().out.count("PASS") == 1
+    assert any("arc" in text for _, text, _ in fleet.move_log)
+
+
 def test_led_check(capsys):
     fake = "class _Led:\n    def fill(self, rgb): pass\n    def clear(self): pass\nled = _Led()"
     code = led_check.ROBOT_CODE.format(led=fake)

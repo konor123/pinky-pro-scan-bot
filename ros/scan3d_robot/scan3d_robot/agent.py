@@ -3,6 +3,7 @@
 rclpy와 pyrealsense2를 import하지 않으며, 개발 PC 테스트에서는 가짜 camera·bus로 검증한다.
 """
 from collections import deque
+import math
 import select
 import socket
 import threading
@@ -11,6 +12,10 @@ import time
 from scan3d import protocol
 
 _DONE_SUFFIX = "(모든 명령 완료)"
+_ARC_PERIOD = 0.05        # cmd_vel 20 Hz(모터 드라이버의 명령 끊김 정지 0.5 s 안)
+_ARC_SPEED = 0.10         # 문장에 speed가 없을 때 m/s
+_ARC_MIN_SPEED = 0.03
+_ARC_TOL = 0.003          # 남은 거리가 이보다 작으면 끝
 
 
 def _listen_sock(host: str, port: int) -> socket.socket:
@@ -76,6 +81,7 @@ class Agent:
         self._cmd_lock = threading.Lock()
         self._aborted = False
         self._abort_event = threading.Event()
+        self._arc_stop = threading.Event()
 
         self._odom_lock = threading.Lock()
         self._odom_hist: deque[tuple[float, float, float, float]] = deque()
@@ -179,12 +185,14 @@ class Agent:
                 mtype = msg.get("type")
                 if mtype == "stop":
                     with self._cmd_lock:
+                        self._arc_stop.set()
                         self._bus.publish_command("stop")
                 elif mtype == "abort":
                     # abort 상태 설정과 stop 발행을 같은 잠금 안에서 처리해 늦은 move를 막는다.
                     with self._cmd_lock:
                         self._aborted = True
                         self._abort_event.set()
+                        self._arc_stop.set()
                         self._bus.publish_command("stop")
         finally:
             with self._stream_lock:
@@ -197,6 +205,13 @@ class Agent:
         if not isinstance(text, str) or not text.strip():
             return {"ok": False, "error": "empty move text"}
         timeout_s = float(req.get("timeout_s", 60.0))
+
+        try:
+            arc = protocol.parse_arc(text)
+        except ValueError as exc:
+            return {"ok": False, "error": f"error: {exc}"}
+        if arc is not None:
+            return self._handle_arc(arc, timeout_s)
 
         with self._cmd_lock:
             if self._aborted:
@@ -253,6 +268,44 @@ class Agent:
                 return {"ok": False, "error": status}
         return None
 
+    def _handle_arc(self, arc, timeout_s: float) -> dict | None:
+        """원호 문장을 직접 실행한다. `command_driver`는 직진·제자리 회전만 하므로 `/pinky_command`로 보내지 않는다.
+
+        `cmd_vel`에 직진 속도와 회전 속도(직진 속도 / 반지름)를 함께 보내고, odom 이동 거리가 반지름 × 각도에 이르면 선다.
+        """
+        speed, radius, angle = arc
+        speed = _ARC_SPEED if speed is None else speed
+        length = radius * math.radians(abs(angle))
+        sign = 1.0 if angle > 0 else -1.0
+        with self._cmd_lock:
+            if self._aborted:
+                return {"ok": False, "error": "aborted"}
+            self._arc_stop.clear()
+        _, x, y, _ = self._bus.odom()
+        travelled = 0.0
+        deadline = self._clock() + timeout_s
+        try:
+            while not self._stop_event.is_set():
+                with self._cmd_lock:
+                    if self._aborted:
+                        return {"ok": False, "error": "aborted"}
+                    if self._arc_stop.is_set():
+                        return {"ok": True, "stopped": True, "odom": self._latest_odom()}
+                    _, nx, ny, _ = self._bus.odom()
+                    travelled += math.hypot(nx - x, ny - y)
+                    x, y = nx, ny
+                    remaining = length - travelled
+                    if remaining <= _ARC_TOL:
+                        return {"ok": True, "stopped": False, "odom": self._latest_odom()}
+                    if self._clock() >= deadline:
+                        return {"ok": False, "error": "timeout"}
+                    v = max(_ARC_MIN_SPEED, min(speed, 1.5 * remaining))
+                    self._bus.publish_twist(v, sign * v / radius)
+                self._abort_event.wait(_ARC_PERIOD)
+        finally:
+            self._bus.publish_twist(0.0, 0.0)
+        return None
+
     def _handle_ctrl_conn(self, conn: socket.socket) -> None:
         try:
             conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
@@ -293,6 +346,7 @@ class Agent:
                             "role": self.role,
                             "serial": serial,
                             "calib": calib,
+                            "arc": True,
                         })
                     elif cmd == "move":
                         resp = self._handle_move(req, conn)

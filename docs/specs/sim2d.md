@@ -22,9 +22,10 @@
 
 ## 동작
 
-1. `command`는 `parse`로 해석한다. 틀리면 `error: …`, `stop`이면 남은 명령을 지우고 `stopped: 남은 명령 취소`, 아니면 큐에 넣고 `accepted: <문장> (대기 n단계)`
+1. `command`는 원호 문장이면 `protocol.parse_arc`로, 아니면 `parse`로 해석한다. 틀리면 `error: …`, `stop`이면 남은 명령을 지우고 `stopped: 남은 명령 취소`, 아니면 큐에 넣고 `accepted: <문장> (대기 n단계)`
 2. `speed`는 직진 속도를 바꾸고 `speed: x.xx m/s`
 3. `command_driver.control()`을 20 Hz로 그대로 따른다. 직진은 남은 거리 × 1.5로 줄이며(최저 0.03 m/s) 남은 거리 1 cm 이하면 끝, 회전은 `max(0.15, min(0.8, 2 × |남은 각|))` rad/s에 남은 각의 부호로 돌고 2° 이하면 끝. 그래서 단계마다 약 1 cm·2° 덜 간다. 단계가 끝날 때마다 `done: move +0.17 m`·`done: turn +8 deg`, 큐가 비면 끝에 ` (모든 명령 완료)`. `speed`만 있는 문장은 `speed:` 뒤에 아무것도 내지 않는다(실물과 같음).
+   원호(`arc r θ`)는 로봇 에이전트의 실행과 같다: 직진 속도 `max(0.03, min(속도, 1.5 × 남은 거리))`와 회전 속도 `±직진 속도 / r`로 가고, odom 이동 거리가 `r × |θ|`에서 3 mm 안으로 남으면 `done: arc 0.620 m +15.0 deg`.
 4. 로봇은 장애물을 뚫고 지나가지 않는다. 다음 위치가 장애물과 겹치면 그 자리에 선다(문장은 끝나지 않는다).
 5. odom 잡음: `odom_noise={"scale": 0.02, "yaw_drift_deg_per_m": 2.0}`이면 이동 거리 배율과 직진 중 yaw 누적 오차를 더한다.
 
@@ -43,3 +44,6 @@
 | `test_bad_text` | `"turn 0"` | `error:`로 시작, 움직이지 않음 |
 | `test_scan_front` | 앞면이 로봇 중심에서 정면 0.5 m인 상자 | `sector_min(ranges, angle_min, angle_inc, 0, 25°, mount_yaw=π)`가 0.517 ± 0.01 m(LiDAR가 중심 뒤 0.017 m) |
 | `test_other_robot` | 두 로봇이 마주 봄 | 서로의 스캔에 보임 |
+| `test_arc` | `speed 0.10; arc 0.62 15` | 상태 문자열, 같은 중심의 원 위(2 mm 안), 1 cm 안으로 덜 감, 방향이 간 각만큼 돎 |
+| `test_arc_clockwise_and_stop` | `arc 0.5 -30`, 원호 중 `stop` | 오른쪽으로 돎, 바로 멈추고 남은 명령 없음 |
+| `test_arc_bad_text` | 값이 빠짐, 반지름 0.01, 각도 0, `turn`과 섞임, 속도 0.5 | `error:`로 시작, 움직이지 않음 |
