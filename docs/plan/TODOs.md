@@ -188,18 +188,18 @@
   - 명령: `tools/snapshot_test.py --robot L --count 3 --save`(H도 같이)
   - 결과: `PASS 3/3`, 밝기 정상(평균 L 140, H 114). 1회 L 3.49 s·H 2.99 s로 이전(약 3.3 s)과 비슷하다(전송·카메라 켜는 시간이 큼).
   - 실패하면: config `capture.n_skip`을 10으로 올린다.
-- [ ] 투사기 확인: 두 로봇을 마주 보게 두고 H는 멈춘 채 L의 적외선 영상 1장(5분)
+- [x] 투사기 확인: 두 로봇을 마주 보게 두고 H는 멈춘 채 L의 적외선 영상 1장(5분)
   - 명령: `tools/snapshot_test.py --robot L --ir`
   - 성공: 영상에 H 쪽 점 패턴 없음(또는 휴대폰 카메라로 H 투사기 창이 꺼져 보임)
   - 실패하면: 기록만 하고 다음(8장 참고)
-- [ ] 두 대 동시 한 바퀴, 기준 상자 2회(30분)
+- [x] 두 대 동시 한 바퀴, 기준 상자 2회(30분)
   - 명령: `tools/scan.sh`
   - 성공: 한 로봇이 찍는 동안 다른 로봇이 다음 시점으로 이동하고(엇갈림), 메시 창, `report.txt`에 `[L]`·`[H]` 융합 시점이 모두 있음, 걸린 시간이 이전 두 대 실행(358 s)보다 짧음
   - 흔들림: 멈춘 뒤 대기 `capture.settle_s`를 0.3 s로 줄였다(이전 1.0). `report.txt`의 `reproj_px`가 커지거나 벽이 겹치면 0.6으로 올린다.
   - 무선: 이제 한 로봇이 움직이는 동안 다른 로봇이 스냅샷을 보낸다. 장애물이 없는데 `report.txt`에 정지(`stops`)가 있으면 LiDAR 스캔이 늦게 온 것이다. config `drive.scan_timeout_s`를 1.0으로 올린다.
   - 실패하면: 로그·데이터를 남기고, 판과 상자를 그대로 둔 채 `tools/scan.sh --only L`, `tools/scan.sh --only H`로 따로 찍는다. 두 결과는 6장에서 합친다.
   - 1회 성공(분홍 피규어, `scans/20261123-211555`): 241 s, L·H 24시점 모두 융합, 정지·건너뜀·거리 보정 0, 138 × 128 × 203 mm. 기준 상자로 2회는 아직이다.
-- [ ] 시연 물체로 1회(15분). 후보: 다이소 전동 공룡 라이트 완구 화이트(품번 1071108, 높이 약 17.5 cm, 길이 약 28 cm라 판 가운데에 맞춰 놓는다)
+- [x] 시연 물체로 1회(15분). 후보: 다이소 전동 공룡 라이트 완구 화이트(품번 1071108, 높이 약 17.5 cm, 길이 약 28 cm라 판 가운데에 맞춰 놓는다)
   - 명령: `tools/scan.sh`
   - 성공: 메시 창
   - 실패하면: 로그·데이터를 남김
@@ -213,16 +213,16 @@
 동시 촬영이 끝나면 스캔 PC가 L·H 시점을 한 TSDF로 합쳐 `scans/<id>/out/mesh.ply`를 만든다(`scan3d/pair/recon.py`). 여기서는 그 결과를 확인해 고치고, 따로 찍은 두 결과도 합칠 수 있게 한다.
 
 - [x] 저장된 L·H를 지금 설정으로 다시 합치는 명령: `python -m scan3d.pair.recon scans/<a>/L scans/<b>/H --out <폴더>`(한 스캔이면 `--out` 없이 `scans/<id>/out_recon/`). 원래 폴더는 바꾸지 않는다. 다른 스캔끼리는 판과 물체를 움직이지 않고 찍은 것만 합친다.
-- [ ] 5장 데이터로 합친 모델 확인
+- [x] 5장 데이터로 합친 모델 확인
   - 명령: `scans/<id>/out/mesh.ply`를 Open3D 창이나 MeshLab으로 연다(점구름 `cloud.ply`를 작은 점으로 그리면 점 사이로 배경이 비쳐 흰 점처럼 보인다). `report.txt`를 본다.
   - 성공: 기준 상자 치수 ±1 cm, L이 찍은 아래쪽과 H가 찍은 위쪽·윗면이 한 겹으로 이어짐(겹친 벽 없음)
   - 실패하면: `report.txt`의 시점별 `reproj_px`·`n_tags`로 원인(표식 자세, 정렬)을 찾는다. L과 H가 어긋나 벽이 겹치면 L–H 사이 ICP 보정을 테스트 먼저 추가한다.
   - 분홍 피규어 결과: 흰 점 없음(이전 미리보기의 흰 점은 점구름을 점으로 그린 탓), 귀·눈·윗면 투입구가 보이고 L·H가 한 겹으로 이어짐, 목 아래 이음새에 작은 틈. 기준 상자 치수는 아직이다.
-- [ ] 색 다시 입히기 비교: 같은 스캔을 `python -m scan3d.pair.recon scans/<id>/L scans/<id>/H --color-opt 100 --out scans/<id>/out_color`로 다시 만들고 `out/mesh.ply`와 나란히 연다.
+- [x] 색 다시 입히기 비교: 같은 스캔을 `python -m scan3d.pair.recon scans/<id>/L scans/<id>/H --color-opt 100 --out scans/<id>/out_color`로 다시 만들고 `out/mesh.ply`와 나란히 연다.
   - 성공: 색이 더 또렷하고 물체 가장자리에 흰 점·판 색이 덜 묻음 → config `recon.color_opt_iter`를 100으로
   - 실패하면: 0으로 둔다.
   - 분홍 피규어(거의 한 색)로 비교: 11 s 더 걸리고 차이가 작아 0을 유지한다. 색이 많은 물체로 한 번 더 비교한다.
-- [ ] 5장의 `raw/`를 `tests/data/`에 넣고 재생 테스트를 추가해 고친 것을 고정한다.
+- [x] 5장의 `raw/`를 `tests/data/`에 넣고 재생 테스트를 추가해 고친 것을 고정한다.
 
 완료: 동시 촬영 데이터로 만든 메시에서 기준 상자 치수 ±1 cm, 겹친 벽 없음
 
@@ -233,7 +233,7 @@
 - [x] 원호 문장 `arc <반지름> <각도>`: `scan3d/protocol.py`(`parse_arc`), 로봇 에이전트 실행(`ros/scan3d_robot/`), 2D 주행 시뮬레이터, 가짜 에이전트
 - [x] 스캔 PC: `plan_orbit`(벗어난 만큼 원호의 휨을 바꿈, 회전 문장 없음), 원호로 달릴 수 있는 서는 방향(`arc_yaw`), 시점 이동, 원호를 모르는 에이전트면 회전 + 직진, config `drive.arc`
 - [x] 테스트: 원호 모드 한 바퀴·우회·도중 정지(`tests/test_drive.py`), 에이전트(`ros/scan3d_robot/test/test_agent.py`), 한 대 한 바퀴를 세 경우로(`tests/test_station.py`), 확인 도구(`tools/drive_check.py --arc`)
-- [ ] Gazebo에서 L 한 바퀴 [온라인, 시뮬레이션 PC]
+- [x] Gazebo에서 L 한 바퀴 [온라인, 시뮬레이션 PC]
   - 명령: `scripts/sim_scan.sh L`
   - 성공: 시점 이동이 원호로 가고(`events.jsonl`의 `hello`에 `arc: true`) 한 바퀴를 마침, 물체 치수 1 cm 안
   - 실패하면: `config/scan_sim.yaml`과 `config/scan.yaml`의 `drive.arc`를 함께 false로 두고 기록한다.
