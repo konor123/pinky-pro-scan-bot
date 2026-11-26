@@ -4,6 +4,7 @@
 - 시연: 2026-11-28(토)
 - 장비: Pinky Pro 2대(Raspberry Pi 5 2 GB, Ubuntu 24.04, ROS 2 Jazzy), D455 2대, 개발 PC, 스캔 PC(Ubuntu 노트북), 시뮬레이션 PC(Ubuntu 24.04 + ROS 2 Jazzy + Gazebo)
 - 할 일 목록(온라인·현장): `docs/plan/TODOs.md`
+- 이어지는 기능: 메시에서 고른 지점 근접 촬영 `docs/plan/CLOSEUP-PLAN.md`
 - 작성: 2026-11-19
 
 ## 1. 목표

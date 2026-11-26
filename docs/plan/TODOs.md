@@ -1,6 +1,6 @@
 # 3D Scan Bot — TODOs
 
-- 계획서: `docs/plan/PLAN.md`
+- 계획서: `docs/plan/PLAN.md`, 근접 촬영(10장)은 `docs/plan/CLOSEUP-PLAN.md`
 - 표기
   - **[온라인]** 사람이 로봇 옆에 없어도 되는 일: 개발 PC 작업, 시뮬레이션 PC 작업, 켜 둔 로봇·스캔 PC에 원격 작업
   - **[현장]** 사람이 로봇 옆에 있어야 하는 일
@@ -255,3 +255,94 @@
 - [ ] `scripts/robot.sh -H pinky1 start robot_scan`, `scripts/robot.sh -H pinky2 start robot_scan`
 - [ ] `tools/scan.sh` → 메시 창
 - [ ] 안 되면 `demo_backup/`의 결과를 띄운다.
+
+## 10. 근접 촬영 — 메시에서 고른 지점을 가까이서 찍기
+
+계획서: `docs/plan/CLOSEUP-PLAN.md`. 스캔(5장)이 되는 상태에서 시작한다. 로봇에 새로 배포할 것은 없다.
+
+### 10-1. 접점 확정과 측정 준비 [온라인, 개발 PC]
+
+- [ ] `docs/specs/closeup_api.md`(계획서 4.1)를 써서 `mesh.html`을 만드는 사람에게 전달
+  - 확인받을 것: 화면을 여는 주소, 보내는 점의 좌표(메시 파일 좌표 그대로), 메시를 서버에서 받는 것, 상태를 1초마다 묻는 방식
+  - 확인받을 것: 화면의 PLY 읽기가 `out/scan_20261123-211555/mesh.ply`(꼭짓점 `double`, 색 `uchar`)를 색과 함께 그리는지
+- [ ] `tools/drive_check.py --forward-only`: 회전 없이 표식으로 잰 `forward 0.2`만(10-2의 판 위 주행 확인용)
+
+### 10-2. 현장 측정 [현장] — 약 30분
+
+10-3과 함께 진행한다. 결과는 config `closeup`에 적는다.
+
+- [ ] 컬러 선명도와 거리: 물체에 작은 글씨(2 mm 높이)가 인쇄된 종이를 붙이고, L을 카메라에서 종이까지 0.45, 0.35, 0.25, 0.20 m가 되게 차례로 놓는다(카메라가 판을 보게)(15분)
+  - 명령: `tools/show_pose.py --robot L` → `out/pose_L.jpg`를 거리마다 이름을 바꿔 둔다. H도 한 번
+  - 성공: 글씨가 읽히는 가장 가까운 거리를 `closeup.standoff`에 적는다(0.20 m보다 작게 하지 않는다).
+  - 실패하면: 0.35 m에서도 흐리면 `closeup.approach`를 끄고 원 위에서 찍어 자르기로 간다.
+- [ ] 표식 판 위 주행: H를 원 위에 세워 두고, L을 판 가장자리 테이프를 비스듬히 넘어 판 위로 0.2 m 가게 놓는다(15분)
+  - 명령: `tools/show_pose.py --robot H` → `tools/drive_check.py --robot L --forward-only` → `tools/show_pose.py --robot H`
+  - 성공: H의 카메라 위치가 앞뒤로 5 mm 안에서 같고, 용지에 주름·들뜸이 없고, `drive_check`의 `forward 0.2`가 2 cm 안 → `closeup.on_sheet: true`
+  - 실패하면: `closeup.on_sheet: false`(판 밖에서만 찍음). 테이프를 더 붙이고 한 번 더 해 본다.
+
+### 10-3. 온라인 A — 시점 정하기와 주행 [온라인, 개발 PC]
+
+- [ ] 명세: `docs/specs/viewplan.md`, `docs/specs/drive.md`에 `go_to_angle`·`pass_to`·`pass_out` 추가, config `closeup` 묶음
+- [ ] 근접 자세 표식 테스트(`tests/test_tagpose.py`): L·H, 판의 변 쪽·모서리 쪽, 접근 거리 0.20 ~ 0.30 m에서 표식 2장 이상·위치 오차 5 mm 안
+- [ ] `viewplan` 테스트 먼저, 구현 → `scan3d/closeup/viewplan.py`, `tests/test_viewplan.py`
+- [ ] `drive` 추가 테스트 먼저, 구현(기존 `tests/test_drive.py`는 그대로 통과)
+
+완료: `pytest -q` 전부 통과
+
+### 10-4. 온라인 B — 한 건 진행과 서버 [온라인, 개발 PC]
+
+- [ ] 명세: `docs/specs/closeup.md`(`mission`, 데이터 폴더)
+- [ ] `mission` 1차: 원 위 이동 → 자세 다시 잡기 → 그 자리에서 찍어 자르기(`closeup.approach: false`) → `scan3d/closeup/mission.py`, `tests/test_closeup.py`
+- [ ] `mission` 2차: 직선으로 지나가며 찍기(`closeup.approach: true`)
+- [ ] `fake_agent`: 가짜 장면의 메시를 `mesh.ply`로 내주기
+- [ ] `server`와 `tools/closeup.sh [--scan scans/<id>] [--fake]` → `scan3d/closeup/server.py`, `tests/test_closeup_server.py`
+- [ ] `docker/README.md` 표에 근접 촬영 서버 줄(`run --rm -p 8080:8080 station tools/closeup.sh`)
+- [ ] C1: `tools/closeup.sh --fake`에 옆면의 낮은 점, 옆면의 높은 점, 윗면 점, 가려진 점을 차례로 보내 네 건이 `done`(낮은 점은 L, 높은 점과 윗면은 H)
+- [ ] `tools/closeup.sh --fake`와 계획서 4.1의 curl 예를 `mesh.html`을 만드는 사람에게 전달
+
+완료: `pytest -q` 전부 통과, C1 통과
+
+### 10-5. 온라인 C — Gazebo [온라인, 시뮬레이션 PC] — 반나절
+
+- [ ] C2: `scripts/sim_scan.sh`로 한 바퀴 뒤 근접 촬영 서버를 띄워 옆면 점 하나 → 직선에서 잘못된 정지 없이 `done`
+
+반나절을 넘기면 멈추고 다음 묶음으로 간다.
+
+### 10-6. 현장 A — 로봇으로 근접 촬영 [현장] — 약 1시간
+
+스캔 한 번(`tools/scan.sh`)을 마친 뒤 물체와 판을 그대로 두고 한다. 점 좌표는 `scans/<id>/out/mesh.ply`를 MeshLab으로 열어 읽는다.
+
+- [ ] 서버 켜기(5분)
+  - 명령: `tools/closeup.sh` → 다른 터미널에서 `curl http://localhost:8080/api/state`
+  - 성공: `L`, `H` 모두 `ready: true`, 카메라 위치가 실제 자리와 맞음
+  - 실패하면: `ready: false`인 로봇은 카메라가 판을 보게 돌려 놓는다. 연결이 안 되면 `tools/scan.sh --hello`
+- [ ] 옆면의 낮은 점 하나(높이 0.10 m 근처)(10분)
+  - 명령: `curl -X POST -H 'Content-Type: application/json' -d '{"point":[x,y,z]}' http://localhost:8080/api/closeup` → `curl http://localhost:8080/api/closeup/1`
+  - 성공: `done`, `scans/<id>/closeup/jobs/1/closeup.jpg`에 고른 부분이 고리 안에 있음, `center_source: tag`, 3분 안
+  - 실패하면: 직선에서 멈춰 서면 config `closeup.clear_obj`를 0.20으로. 고른 부분이 사진 밖이면 `full.jpg`와 `plan.json`을 남기고 config 장착 변환(높이·피치) 확인
+- [ ] 높이로 로봇이 갈리는지: 옆면의 높이 0.10 m 점, 0.18 m 점, 윗면 점을 차례로(20분)
+  - 성공: 0.10 m는 L, 0.18 m와 윗면은 H가 가서 찍음, 고른 부분이 고리 안
+  - 실패하면: 0.15 m 근처에서 고른 부분이 사진 끝에 걸리면 config `closeup.split_z`를 0.02 m씩 옮긴다. 로그·데이터를 남기고 다음
+- [ ] 이어서 3곳, 그중 하나는 서 있는 다른 로봇 쪽 면(15분)
+  - 성공: 서버를 다시 띄우지 않고 세 건 `done`, 다른 로봇을 피해 감
+  - 실패하면: `failed`의 `message`를 남긴다. 다른 로봇이 길을 막았다고 나오면 그 로봇을 원 위의 다른 자리로 옮긴다.
+- [ ] 이동 중 세우기(5분)
+  - 명령: 이동 중 `curl -X POST http://localhost:8080/api/stop`
+  - 성공: 로봇이 바로 서고 건이 `stopped`, 다음 요청을 받음
+- [ ] 판이 밀리지 않았는지(5분)
+  - 명령: 근접 촬영 전후로 `tools/closeup.sh`를 끈 상태에서 `tools/show_pose.py --robot <서 있던 로봇>`
+  - 성공: 카메라 위치 차 5 mm 안
+  - 실패하면: `closeup.on_sheet: false`
+- [ ] 데이터 올리기(5분)
+  - 명령: `tools/upload.sh`
+
+### 10-7. 현장 B — 웹 화면과 함께 [현장] — 약 30분
+
+- [ ] `mesh.html`을 `docs/presentation/`에 넣고 스캔 PC에서 `tools/closeup.sh`, 브라우저로 `http://<스캔 PC 주소>:8080/mesh.html`(10분)
+  - 성공: 방금 스캔한 메시가 뜸
+  - 실패하면: 브라우저 개발자 도구의 네트워크 탭에서 `/api/mesh.ply` 응답을 본다.
+- [ ] 화면에서 점을 눌러 3곳(20분)
+  - 성공: 계획서 1장 완료 기준
+  - 실패하면: 누른 점과 다른 곳을 찍으면 화면이 보낸 `point`(`scans/<id>/closeup/jobs/<n>/request.json`)를 MeshLab 좌표와 비교한다. 다르면 화면의 좌표 되돌리기를 고친다.
+
+완료: 계획서 1장 완료 기준
