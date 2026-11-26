@@ -258,43 +258,61 @@
 
 ## 10. 근접 촬영 — 메시에서 고른 지점을 가까이서 찍기
 
-계획서: `docs/plan/CLOSEUP-PLAN.md`. 스캔(5장)이 되는 상태에서 시작한다. 로봇에 새로 배포할 것은 없다.
+계획서: `docs/plan/CLOSEUP-PLAN.md`. 스캔(5장)이 되는 상태에서 시작한다. 로봇에는 에이전트와 런치를 한 번 다시 배포한다(10-4).
 
-### 10-1. 접점 확정과 측정 준비 [온라인, 개발 PC]
+### 10-1. 접점 확정 [온라인, 개발 PC]
 
 - [ ] `docs/specs/closeup_api.md`(계획서 4.1)를 써서 `mesh.html`을 만드는 사람에게 전달
   - 확인받을 것: 화면을 여는 주소, 보내는 점의 좌표(메시 파일 좌표 그대로), 메시를 서버에서 받는 것, 상태를 1초마다 묻는 방식
   - 확인받을 것: 화면의 PLY 읽기가 `out/scan_20261123-211555/mesh.ply`(꼭짓점 `double`, 색 `uchar`)를 색과 함께 그리는지
-- [ ] `tools/drive_check.py --forward-only`: 회전 없이 표식으로 잰 `forward 0.2`만(10-2의 판 위 주행 확인용)
 
-### 10-2. 현장 측정 [현장] — 약 30분
+### 10-2. 로봇 확인 [온라인, 로봇 켜진 상태] — 약 20분
 
-10-3과 함께 진행한다. 결과는 config `closeup`에 적는다.
+- [ ] IMU 노드: 로봇에서 `robot_scan`을 띄운 채 다른 터미널로
+  - 명령: `ssh pinky1`로 들어가 `ros2 run pinky_imu_bno055 main_node`, 또 다른 터미널에서 `ros2 topic hz /imu_raw`와 `ros2 topic echo /imu_raw --once`(로봇의 `ROS_DOMAIN_ID`는 `scripts/robot.sh`가 넣는 값과 같게)
+  - 성공: 약 100 Hz, `orientation`에 값이 있음. `pinky2`도 같다.
+  - 실패하면: 패키지가 없으면 로봇의 `~/pinky_pro`에서 `colcon build --packages-select pinky_imu_bno055`. 그래도 안 되면 config `closeup.use_imu: false`로 진행한다.
+- [ ] 초음파 값: `ros2 topic echo /us_sensor/range --once`를 앞에 손바닥을 0.3 m에 대고
+  - 성공: `range`가 약 0.3
+  - 실패하면: config `closeup.front_sensor: lidar`
+- [ ] 앞 카메라: 로봇을 원 위에서 물체를 정면으로 보게 놓고(표식 판까지 약 0.3 m) 한 장
+  - 명령: 로봇에서 `~/scan3d_venv/bin/python -c "from picamera2 import Picamera2; c=Picamera2(); c.configure(c.create_still_configuration(main={'size':(1296,972),'format':'RGB888'})); c.start(); c.capture_file('/tmp/front.jpg'); c.stop()"` → 사진을 스캔 PC로 가져와 본다.
+  - 성공: import가 되고, 사진(180° 뒤집힘)에 표식이 2장 이상 온전히 보임
+  - 실패하면: import가 안 되면 에이전트를 시스템 Python 경로로 띄울 수 있는지 본다. 표식이 2장에 못 미치면 카메라 기울기를 아래로 조금 숙여 다시 찍고, 그래도 안 되면 config `closeup.use_front_cam: false`
 
-- [ ] 컬러 선명도와 거리: 물체에 작은 글씨(2 mm 높이)가 인쇄된 종이를 붙이고, L을 카메라에서 종이까지 0.45, 0.35, 0.25, 0.20 m가 되게 차례로 놓는다(카메라가 판을 보게)(15분)
-  - 명령: `tools/show_pose.py --robot L` → `out/pose_L.jpg`를 거리마다 이름을 바꿔 둔다. H도 한 번
-  - 성공: 글씨가 읽히는 가장 가까운 거리를 `closeup.standoff`에 적는다(0.20 m보다 작게 하지 않는다).
-  - 실패하면: 0.35 m에서도 흐리면 `closeup.approach`를 끄고 원 위에서 찍어 자르기로 간다.
-- [ ] 표식 판 위 주행: H를 원 위에 세워 두고, L을 판 가장자리 테이프를 비스듬히 넘어 판 위로 0.2 m 가게 놓는다(15분)
-  - 명령: `tools/show_pose.py --robot H` → `tools/drive_check.py --robot L --forward-only` → `tools/show_pose.py --robot H`
-  - 성공: H의 카메라 위치가 앞뒤로 5 mm 안에서 같고, 용지에 주름·들뜸이 없고, `drive_check`의 `forward 0.2`가 2 cm 안 → `closeup.on_sheet: true`
-  - 실패하면: `closeup.on_sheet: false`(판 밖에서만 찍음). 테이프를 더 붙이고 한 번 더 해 본다.
+### 10-3. 온라인 A — 스트림, 시점 정하기, 원 위 이동 [온라인, 개발 PC]
 
-### 10-3. 온라인 A — 시점 정하기와 주행 [온라인, 개발 PC]
-
-- [ ] 명세: `docs/specs/viewplan.md`, `docs/specs/drive.md`에 `go_to_angle`·`pass_to`·`pass_out` 추가, config `closeup` 묶음
-- [ ] 근접 자세 표식 테스트(`tests/test_tagpose.py`): L·H, 판의 변 쪽·모서리 쪽, 접근 거리 0.20 ~ 0.30 m에서 표식 2장 이상·위치 오차 5 mm 안
+- [ ] 명세: PLAN 4.4와 `docs/specs/protocol.md`·`robot_agent.md`·`fake_agent.md`·`sim2d.md`에 `imu`·`range` 스트림과 앞 카메라 스냅샷, `docs/specs/viewplan.md`, `docs/specs/drive.md`에 `go_to_angle`, config `closeup` 묶음
+- [ ] 스트림·앞 카메라 스냅샷 테스트 먼저, 구현: `scan3d/protocol.py`, `scan3d/robot/link.py`, `ros/scan3d_robot/`(`node.py`·`agent.py`·`camera.py`·`robot_scan.launch.xml`), `scan3d/sim/sim2d.py`·`fake_agent.py`
+- [ ] 앞 카메라 방향 테스트(`tests/test_tagpose.py`): 원 위에서 물체를 볼 때 표식 2장 이상, 방향 오차 1° 안
 - [ ] `viewplan` 테스트 먼저, 구현 → `scan3d/closeup/viewplan.py`, `tests/test_viewplan.py`
-- [ ] `drive` 추가 테스트 먼저, 구현(기존 `tests/test_drive.py`는 그대로 통과)
+- [ ] `drive`의 `go_to_angle` 테스트 먼저, 구현(기존 `tests/test_drive.py`는 그대로 통과)
+- [ ] 확인 도구 `tools/approach_check.py`(`tests/test_tools.py`에 가짜 에이전트로 추가)
+  - `--listen`: 스트림별 주기, 앞 카메라 사진 한 장(`out/front_<역할>.jpg`, 보인 표식 수)
+  - `--turn`: 원 위에서 `turn 45`·`turn -45`를 표식·IMU·odom으로 잰 값, 60 s 서 있는 동안 IMU 방향 변화
+  - `--face`: 원 위에서 D455로 방향을 잰 뒤 `turn 90`, 앞 카메라·IMU·odom으로 잰 방향과 표식 수, `turn -90`으로 되돌아옴
+  - `--front`: 물체를 정면으로 보고 0.10 m씩 세 번 전진하며 LiDAR·초음파·odom 값
+  - `--pivot`: 표식 없이 `turn 90`·`turn -90`, IMU·odom으로 잰 값
 
 완료: `pytest -q` 전부 통과
 
-### 10-4. 온라인 B — 한 건 진행과 서버 [온라인, 개발 PC]
+### 10-4. 로봇 배포 [온라인, 로봇 켜진 상태] — 약 20분
 
-- [ ] 명세: `docs/specs/closeup.md`(`mission`, 데이터 폴더)
+- [ ] 두 로봇에 배포하고 다시 띄우기
+  - 명령: `scripts/deploy.sh pinky1`, `scripts/robot.sh -H pinky1 stop`, `scripts/robot.sh -H pinky1 start robot_scan`(`pinky2`도 같이) → `tools/scan.sh --hello`
+  - 성공: `L: role L`, `H: role H`
+- [ ] 스트림 확인
+  - 명령: `tools/approach_check.py --robot L --listen`(H도 같이)
+  - 성공: `imu` 약 20 Hz, `range` 약 20 Hz, `scan` 약 10 Hz, `odom` 약 20 Hz, 앞 카메라 사진이 저장됨
+  - 실패하면: `imu`가 없으면 로봇에서 `scripts/robot.sh -H <로봇> status`와 로그를 보고, 안 되면 `closeup.use_imu: false`
+- [ ] 스캔이 전과 같이 되는지: `tools/snapshot_test.py --robot L --count 3`(H도 같이) → `PASS 3/3`
+
+### 10-5. 온라인 B — 근접 구간, 한 건 진행, 서버 [온라인, 개발 PC]
+
+- [ ] 명세: `docs/specs/closeup.md`(`approach`, `mission`, 데이터 폴더)
 - [ ] `mission` 1차: 원 위 이동 → 자세 다시 잡기 → 그 자리에서 찍어 자르기(`closeup.approach: false`) → `scan3d/closeup/mission.py`, `tests/test_closeup.py`
-- [ ] `mission` 2차: 직선으로 지나가며 찍기(`closeup.approach: true`)
-- [ ] `fake_agent`: 가짜 장면의 메시를 `mesh.ply`로 내주기
+- [ ] `approach` 테스트 먼저, 구현: 자세 추정(odom + IMU), 앞 카메라 표식으로 방향 확인, 한 번에 전진한 뒤 정면 거리로 확인·보정, 돌아가기 → `scan3d/closeup/approach.py`, `tests/test_approach.py`
+- [ ] `mission` 2차: 근접 구간을 넣음(`closeup.approach: true`)
 - [ ] `server`와 `tools/closeup.sh [--scan scans/<id>] [--fake]` → `scan3d/closeup/server.py`, `tests/test_closeup_server.py`
 - [ ] `docker/README.md` 표에 근접 촬영 서버 줄(`run --rm -p 8080:8080 station tools/closeup.sh`)
 - [ ] C1: `tools/closeup.sh --fake`에 옆면의 낮은 점, 옆면의 높은 점, 윗면 점, 가려진 점을 차례로 보내 네 건이 `done`(낮은 점은 L, 높은 점과 윗면은 H)
@@ -302,13 +320,43 @@
 
 완료: `pytest -q` 전부 통과, C1 통과
 
-### 10-5. 온라인 C — Gazebo [온라인, 시뮬레이션 PC] — 반나절
+### 10-6. 온라인 C — Gazebo [온라인, 시뮬레이션 PC] — 반나절
 
-- [ ] C2: `scripts/sim_scan.sh`로 한 바퀴 뒤 근접 촬영 서버를 띄워 옆면 점 하나 → 직선에서 잘못된 정지 없이 `done`
+- [ ] C2: `scripts/sim_scan.sh`로 한 바퀴 뒤 근접 촬영 서버를 띄워 옆면 점 하나(`closeup.use_imu: false`) → 정면 거리 전진이 도는 자리에서 서고 `done`
 
 반나절을 넘기면 멈추고 다음 묶음으로 간다.
 
-### 10-6. 현장 A — 로봇으로 근접 촬영 [현장] — 약 1시간
+### 10-7. 현장 측정 [현장] — 약 1시간
+
+결과는 config `closeup`에 적는다. 물체와 표식 판을 스캔 때처럼 놓는다.
+
+- [ ] 앞 카메라 방향: L을 원 위에 D455가 판을 보게 놓는다. 판의 변 쪽, 모서리 쪽, 그 사이 세 자리에서(15분)
+  - 명령: `tools/approach_check.py --robot L --face`(H도 같이)
+  - 성공: 자리마다 앞 카메라에 표식 2장 이상, (앞 카메라 방향 − D455 방향 − 90°)가 세 자리에서 1.5° 안으로 고름 → 그 중앙값을 config `robots.L.front_cam.yaw_offset_deg`에 적는다.
+  - 실패하면: 표식이 모자라거나 값이 흩어지면 `closeup.use_front_cam: false`(IMU로만 확인)
+- [ ] IMU 회전각: L을 원 위에 D455가 판을 보게 놓는다(10분)
+  - 명령: `tools/approach_check.py --robot L --turn`(H도 같이)
+  - 성공: 표식으로 잰 회전각과 IMU 값의 차가 1.5° 안, 왼쪽으로 돌 때 IMU yaw가 늚, 60 s 서 있는 동안 IMU 방향 변화 0.5° 안
+  - 실패하면: `closeup.use_imu: false`. 부호가 반대면 기록하고 코드에서 뒤집는다.
+- [ ] 정면 거리: L을 원 위에서 물체를 정면으로 보게 놓는다(로봇 앞에서 물체까지 줄자로 약 0.55 m)(15분)
+  - 명령: `tools/approach_check.py --robot L --front`(H도 같이)
+  - 성공: 0.10 m 전진마다 줄어든 양이 줄자와 1 cm 안. LiDAR와 초음파 각각 본다.
+  - 정하기: 둘 다 되면 `closeup.front_sensor: auto`, LiDAR만 되면 `lidar`, 초음파만 되면 `ultrasonic`, 둘 다 안 되면 `none`(odom만)
+  - 초음파가 물체 대신 바닥이나 판 가장자리를 잡으면(값이 물체보다 가깝게 나옴) `lidar`로 둔다.
+- [ ] 컬러 선명도와 거리: 물체에 작은 글씨(2 mm 높이)가 인쇄된 종이를 붙이고, L을 카메라에서 종이까지 0.45, 0.35, 0.25, 0.20 m가 되게 차례로 놓는다(카메라가 판을 보게)(15분)
+  - 명령: `tools/show_pose.py --robot L` → `out/pose_L.jpg`를 거리마다 이름을 바꿔 둔다. H도 한 번
+  - 성공: 글씨가 읽히는 가장 가까운 거리를 `closeup.standoff`에 적는다(0.20 m보다 작게 하지 않는다).
+  - 실패하면: 0.35 m에서도 흐리면 `closeup.approach`를 끄고 원 위에서 찍어 자르기로 간다.
+- [ ] 표식 판 위 회전: H를 원 위에 세워 두고, L을 손으로 바퀴가 판 가장자리 테이프에 걸치게 놓는다. 다음에는 판 안쪽(물체에서 0.25 m)에 놓는다(15분)
+  - 명령: `tools/show_pose.py --robot H` → `tools/approach_check.py --robot L --pivot` → `tools/show_pose.py --robot H`. 자리마다 한 번씩
+  - 성공: H의 카메라 위치가 앞뒤로 5 mm 안에서 같고, 용지에 주름·들뜸이 없고, IMU로 잰 회전각이 90 ± 3° → `closeup.on_sheet: true`
+  - 실패하면: 판 안쪽에서 밀리면 `closeup.on_sheet: false`(판 밖에서만 돎). 테이프 위에서만 밀리면 그대로 둔다(계획이 테이프 위 회전을 피한다). 테이프를 더 붙이고 한 번 더 해 본다.
+- [ ] 판 가장자리 넘기: L을 0.2 m 전진하면 테이프를 넘도록 놓는다(카메라가 판의 표식을 보는 방향)(5분)
+  - 명령: `tools/show_pose.py --robot H` → `tools/drive_check.py --robot L` → `tools/show_pose.py --robot H`
+  - 성공: H의 카메라 위치가 5 mm 안에서 같고 `forward 0.2`가 2 cm 안
+  - 실패하면: `closeup.on_sheet: false`
+
+### 10-8. 현장 A — 로봇으로 근접 촬영 [현장] — 약 1시간
 
 스캔 한 번(`tools/scan.sh`)을 마친 뒤 물체와 판을 그대로 두고 한다. 점 좌표는 `scans/<id>/out/mesh.ply`를 MeshLab으로 열어 읽는다.
 
@@ -318,10 +366,10 @@
   - 실패하면: `ready: false`인 로봇은 카메라가 판을 보게 돌려 놓는다. 연결이 안 되면 `tools/scan.sh --hello`
 - [ ] 옆면의 낮은 점 하나(높이 0.10 m 근처)(10분)
   - 명령: `curl -X POST -H 'Content-Type: application/json' -d '{"point":[x,y,z]}' http://localhost:8080/api/closeup` → `curl http://localhost:8080/api/closeup/1`
-  - 성공: `done`, `scans/<id>/closeup/jobs/1/closeup.jpg`에 고른 부분이 고리 안에 있음, `center_source: tag`, 3분 안
-  - 실패하면: 직선에서 멈춰 서면 config `closeup.clear_obj`를 0.20으로. 고른 부분이 사진 밖이면 `full.jpg`와 `plan.json`을 남기고 config 장착 변환(높이·피치) 확인
+  - 성공: `done`, `scans/<id>/closeup/jobs/1/closeup.jpg`에 고른 부분이 있고 고리가 그 지점에서 5 cm 안, `center_source: lidar`, 3분 안. `result.json`의 돌아와서 잰 자세 차가 3 cm·3° 안
+  - 실패하면: 물체에 너무 붙거나 덜 가면 `events.jsonl`의 정면 거리 기록을 보고 `closeup.front_sensor`를 바꿔 본다. 고른 부분이 사진 밖이면 `full.jpg`와 `plan.json`을 남기고 config 장착 변환(높이·피치) 확인
 - [ ] 높이로 로봇이 갈리는지: 옆면의 높이 0.10 m 점, 0.18 m 점, 윗면 점을 차례로(20분)
-  - 성공: 0.10 m는 L, 0.18 m와 윗면은 H가 가서 찍음, 고른 부분이 고리 안
+  - 성공: 0.10 m는 L, 0.18 m와 윗면은 H가 가서 찍음, 고른 부분이 자른 사진 안
   - 실패하면: 0.15 m 근처에서 고른 부분이 사진 끝에 걸리면 config `closeup.split_z`를 0.02 m씩 옮긴다. 로그·데이터를 남기고 다음
 - [ ] 이어서 3곳, 그중 하나는 서 있는 다른 로봇 쪽 면(15분)
   - 성공: 서버를 다시 띄우지 않고 세 건 `done`, 다른 로봇을 피해 감
@@ -336,7 +384,7 @@
 - [ ] 데이터 올리기(5분)
   - 명령: `tools/upload.sh`
 
-### 10-7. 현장 B — 웹 화면과 함께 [현장] — 약 30분
+### 10-9. 현장 B — 웹 화면과 함께 [현장] — 약 30분
 
 - [ ] `mesh.html`을 `docs/presentation/`에 넣고 스캔 PC에서 `tools/closeup.sh`, 브라우저로 `http://<스캔 PC 주소>:8080/mesh.html`(10분)
   - 성공: 방금 스캔한 메시가 뜸
