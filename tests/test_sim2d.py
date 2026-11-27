@@ -27,6 +27,19 @@ def test_command_status(robot):
     assert robot.statuses() == []
 
 
+def test_stop_inside_sentence(robot):
+    """문장 중간의 stop은 남은 명령을 지우고 멈춘다(맨 앞 stop과 같게). 영원히 busy로 남지 않는다."""
+    msgs = run(robot, "forward 0.1; stop; forward 0.1", 5)
+    assert msgs[-1] == "stopped: 남은 명령 취소" and not robot.busy()
+    assert math.isclose(robot.odom()[0], 0.1, abs_tol=0.015)
+
+
+def test_done_suffix_after_trailing_speed(robot):
+    """뒤에 speed만 남았어도 마지막 동작에 (모든 명령 완료)를 붙인다."""
+    msgs = run(robot, "forward 0.1; speed 0.1", 5)
+    assert "done: move +0.10 m (모든 명령 완료)" in msgs and not robot.busy()
+
+
 def test_motion(robot):
     for angle in [7.5, -30]:
         start = robot.true_pose()[2]

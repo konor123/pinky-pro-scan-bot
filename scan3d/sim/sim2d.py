@@ -8,6 +8,7 @@ from itertools import count
 import numpy as np
 
 from ..protocol import parse_arc
+from ..robot.drive import _rotate
 from ..vendor.pinky_commands import Step, parse, wrap_angle
 
 
@@ -48,11 +49,6 @@ class World:
         return False
 
 
-def _rotate(x, y, yaw):
-    c, s = math.cos(yaw), math.sin(yaw)
-    return c*x - s*y, s*x + c*y
-
-
 def _slab(origin, direction, half):
     parallel = np.abs(direction) < 1e-14
     safe = np.where(parallel, 1, direction)
@@ -91,13 +87,16 @@ class Robot:
             self._messages.append(f"error: {exc}")
             return
         if steps[0].kind == "stop":
-            self._queue.clear()
-            self._active = None
-            self._linear = self._angular = 0.
-            self._messages.append("stopped: 남은 명령 취소")
+            self._stop()
             return
         self._queue.extend(steps)
         self._messages.append(f"accepted: {text} (대기 {len(self._queue)}단계)")
+
+    def _stop(self):
+        self._queue.clear()
+        self._active = None
+        self._linear = self._angular = 0.
+        self._messages.append("stopped: 남은 명령 취소")
 
     def statuses(self):
         messages, self._messages = self._messages, []
@@ -120,6 +119,9 @@ class Robot:
             if step.kind == "speed":
                 self.linear_speed = step.value
                 self._messages.append(f"speed: {step.value:.2f} m/s")
+            elif step.kind == "stop":       # 문장 중간의 stop도 맨 앞 stop처럼 남은 명령을 지운다
+                self._stop()
+                return
             else:
                 self._active = step
                 self._start_xy = self._odom[:2]
@@ -150,7 +152,8 @@ class Robot:
             what = f"arc {step.radius:.3f} m {math.degrees(step.angle):+.1f} deg"
         else:
             return
-        self._messages.append("done: " + what + ("" if self._queue else " (모든 명령 완료)"))
+        last = all(s.kind == "speed" for s in self._queue)   # 뒤에 speed만 남았으면 이 동작이 마지막
+        self._messages.append("done: " + what + (" (모든 명령 완료)" if last else ""))
         self._active = None
 
     def step(self, dt):
