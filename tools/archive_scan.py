@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-TOP_FILES = ("config.yaml", "board.json", "events.jsonl", "report.json")
+TOP_FILES = ("config.yaml", "board.json", "events.jsonl", "report.json", "recipe.json", "judge.json")
 OUT_FILES = ("mesh.ply", "report.txt")
 ROLE_FILES = ("views.json", "outcomes.json", "camera_intrinsic.json", "raw/calib.json")
 OUT_DIR = re.compile(r"out(_[\w-]+)?")   # out/, 다시 합친 out_recon/·out_color/ 등

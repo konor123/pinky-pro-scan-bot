@@ -18,8 +18,14 @@ dependencies = [
 [project.optional-dependencies]
 test = ["pytest>=7.4"]
 
+[project.scripts]
+scan3d-web = "scan3d.web.__main__:main"
+
 [tool.setuptools.packages.find]
 include = ["scan3d*"]
+
+[tool.setuptools.package-data]
+"scan3d.web" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests", "ros/pinky_auto/test", "ros/scan3d_robot/test", "ros/scan3d_sim/test"]

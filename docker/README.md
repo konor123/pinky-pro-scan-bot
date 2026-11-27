@@ -39,6 +39,7 @@ alias s3d='docker compose -f docker/compose.yaml run --rm station'
 | 현장 도구 | `s3d tools/snapshot_test.py --robot L --count 24 --save`, `s3d tools/lidar_view.py --robot L` |
 | 로봇 연결 확인 | `s3d tools/scan.sh --hello` |
 | 스캔 | `s3d tools/scan.sh --only L --no-window` → `scans/<id>/out/mesh.ply` |
+| 웹 화면(연결·맞추기·스캔·보강 촬영) | `tools/webui.sh --docker [--fake]` → http://127.0.0.1:8080 |
 
 - 결과(`scans/`)는 마운트된 저장소에 그대로 남는다. 남길 결과는 `tools/archive_scan.py`로 `results/`에 고른다(`results/README.md`).
 - 메시 창: 컨테이너에는 화면이 없으니 `--no-window`로 돌리고 호스트에서 `tools/view_web.py --open`(표준 라이브러리만 쓰므로 호스트 python3로 된다)으로 브라우저에서 보거나 `scans/<id>/out/mesh.ply`를 연다.
