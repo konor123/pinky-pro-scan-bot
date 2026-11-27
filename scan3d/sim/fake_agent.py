@@ -222,7 +222,10 @@ class FakeFleet:
                     for m in lst:
                         ch.send(m)
                 except OSError:
-                    self.bots[role].stream = None
+                    # 그사이 다시 붙은 새 연결이면 지우지 않는다
+                    if self.bots[role].stream is ch:
+                        self.bots[role].stream = None
+                    ch.close()
             time.sleep(0.004)
 
     def _serve_stream(self, bot, srv):
@@ -330,9 +333,11 @@ class FakeFleet:
         with bot.lock:
             if bot.aborted:
                 return {"ok": False, "error": "aborted"}
-            with bot.cond:
-                bot.statuses.clear()
             with self._sim_lock:
+                # 실제 에이전트처럼 보내기 직전에 쌓인 상태를 모두 버린다(늦게 온 stop의 stopped: 포함)
+                bot.robot.statuses()
+                with bot.cond:
+                    bot.statuses.clear()
                 bot.robot.command(text)
         deadline = self.clock.now() + timeout_s
         result = None
