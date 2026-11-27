@@ -9,7 +9,7 @@ odom/<역할>/views.json(바퀴 주행거리 자세)
 """
 import sys, json, math, os, shutil
 from pathlib import Path
-import numpy as np, yaml, cv2
+import numpy as np, yaml
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from scan3d import dataset

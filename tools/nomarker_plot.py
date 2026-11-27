@@ -7,7 +7,7 @@
 출력: fig_camera_paths.png, fig_points_side.png. --title을 주면 한글 제목·범례를 붙인 figure.png도 만든다
 (Pillow와 Noto Sans CJK 글꼴 필요).
 """
-import sys, json, os
+import sys, json
 from pathlib import Path
 import numpy as np, cv2, yaml
 ROOT = Path(__file__).resolve().parents[1]
