@@ -33,7 +33,9 @@ class RawWriter:
         self.raw = self.role_dir / "raw"
         self.raw.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
-        self._n = 0
+        # 이미 있는 폴더에 더 쓸 때(보강 촬영) 번호를 이어서 매긴다
+        done = [int(p.stem) for p in self.raw.glob("[0-9]" * 6 + ".json")]
+        self._n = max(done) + 1 if done else 0
         self._stream = open(self.raw / "stream.jsonl", "a", encoding="utf-8")
 
     def calib(self, hello):

@@ -8,6 +8,7 @@ Open3D v0.20.0 `examples/python/t_reconstruction_system/integrate.py`의 `integr
 """
 import argparse
 import json
+import os
 import sys
 from collections import namedtuple
 from pathlib import Path
@@ -246,12 +247,33 @@ def _report_lines(result, cfg, role_dirs):
     return lines
 
 
+def write_dir(out, result, cfg, role_dirs, extra_lines=()):
+    """다시 합친 결과를 out에 쓴다: mesh.ply, cloud.ply, report.txt. → report.txt 줄 목록."""
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    # 임시 이름에 쓴 뒤 바꿔 넣는다(쓰는 중인 파일을 화면이 읽지 않게). 비었으면 지난 결과를 지운다
+    for name, ok, write in (("mesh.ply", len(result.mesh.triangles) > 0,
+                             lambda p: o3d.io.write_triangle_mesh(p, result.mesh)),
+                            ("cloud.ply", len(result.cloud.points) > 0,
+                             lambda p: o3d.io.write_point_cloud(p, result.cloud))):
+        if ok:
+            tmp = out / f".{name[:-4]}.tmp.ply"
+            write(str(tmp))
+            os.replace(tmp, out / name)
+        else:
+            (out / name).unlink(missing_ok=True)
+    lines = _report_lines(result, cfg, role_dirs) + list(extra_lines)
+    (out / "report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return lines
+
+
 def main(argv=None):
     from scan3d.config import ROOT, load_config
 
-    ap = argparse.ArgumentParser(description="저장된 역할 폴더를 지금 설정으로 다시 융합한다(원래 폴더는 그대로)")
+    ap = argparse.ArgumentParser(description="저장된 역할 폴더를 다시 융합한다(원래 폴더는 그대로, 설정은 기본으로 그 스캔의 config.yaml)")
     ap.add_argument("role_dirs", nargs="+", help="scans/<id>/L, scans/<id>/H 같은 역할 폴더")
-    ap.add_argument("--config", default=str(ROOT / "config" / "scan.yaml"))
+    ap.add_argument("--config", default=None,
+                    help="설정(기본: 역할 폴더들이 한 스캔 안이면 그 스캔의 config.yaml, 아니면 config/scan.yaml)")
     ap.add_argument("--out", help="결과 폴더(기본: 역할 폴더들이 한 스캔 안이면 <스캔>/out_recon)")
     ap.add_argument("--color-opt", type=int, metavar="N", help="recon.color_opt_iter를 N으로 바꿔 돌린다")
     args = ap.parse_args(argv)
@@ -263,17 +285,15 @@ def main(argv=None):
     else:
         print("역할 폴더가 서로 다른 스캔에 있으면 --out이 필요하다", file=sys.stderr)
         return 2
-    _, cfg = load_config(args.config)
+    config = args.config
+    if config is None:
+        same = len({d.parent for d in role_dirs}) == 1 and (role_dirs[0].parent / "config.yaml").is_file()
+        config = role_dirs[0].parent / "config.yaml" if same else ROOT / "config" / "scan.yaml"
+    _, cfg = load_config(config)
     if args.color_opt is not None:
         cfg["recon"]["color_opt_iter"] = args.color_opt
     result = reconstruct(role_dirs, cfg)
-    out.mkdir(parents=True, exist_ok=True)
-    if len(result.mesh.triangles) > 0:
-        o3d.io.write_triangle_mesh(str(out / "mesh.ply"), result.mesh)
-    if len(result.cloud.points) > 0:
-        o3d.io.write_point_cloud(str(out / "cloud.ply"), result.cloud)
-    lines = _report_lines(result, cfg, role_dirs)
-    (out / "report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    lines = write_dir(out, result, cfg, role_dirs)
     print("\n".join(lines))
     print(f"결과: {out}")
     return 0 if result.dims_mm is not None else 1
