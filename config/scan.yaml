@@ -66,3 +66,9 @@ recon:
 station:
   data_dir: scans
   show_mesh: true
+
+webui:                           # 웹 화면(python -m scan3d.web, docs/specs/webui.md)
+  split_z: 0.15                  # 보강 촬영: 이 높이 이상이거나 위를 향한 면이면 H가 찍는다
+  up_deg: 45                     # 법선이 수평에서 이보다 위면 위를 향한 면
+  focus_offsets_deg: [-10, 0, 10]   # 보강 촬영 각(마커를 보는 각 기준)
+  crop_px: [480, 360]            # 보강 사진에서 마커 둘레를 자르는 크기

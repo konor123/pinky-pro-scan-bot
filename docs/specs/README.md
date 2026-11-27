@@ -20,6 +20,7 @@
 | 두 대 합침 | `scan3d/pair/` | `coordinator`(두 대 진행 규칙), `recon`(두 데이터셋 융합) |
 | 개발용 가짜 | `scan3d/sim/` | `synth`, `sim2d`, `fake_agent` |
 | 주 프로그램 | `scan3d/station.py` | 연결 → 두 대 진행 → 데이터셋 → 재구성 → 표시 |
+| 웹 화면 | `scan3d/web/` | 연결 상태, 자리 맞추기, 스캔 제어, 3D 모델, 보강 촬영(`python -m scan3d.web`) |
 | 로봇에서 도는 것 | `ros/` | `scan3d_robot`(에이전트), `pinky_auto`(모터·LiDAR 구동. 지도·주행·순찰 런치는 스캔에 쓰지 않음), `scan3d_sim`(Gazebo 시험) |
 
 ## 명세 목록
@@ -38,6 +39,7 @@
 | 10 | `fake_agent.md` | `scan3d/sim/fake_agent.py` | 4.2, 4.4 | `tests/test_fake_agent.py` | synth, sim2d, protocol |
 | 11 | `station.md` | `scan3d/station.py`, `robot/link.py`·`robot/unit.py`(로봇 1대), `pair/coordinator.py`(두 대), `clock.py`·`config.py` | 4.4, 5 | `tests/test_station.py`, I1 `tests/test_integration.py` | 전부 |
 | 12 | `robot_agent.md` | `ros/scan3d_robot/` | 4.2 ~ 4.4, 7 | `ros/scan3d_robot/test/test_agent.py` | protocol |
+| 13 | `webui.md` | `scan3d/web/`, `tools/webui.sh`, `tools/view_web.py` | 4.4, 4.5 | `tests/test_webui.py`, `tests/test_view_web.py` | station, coordinator, unit, dataset, recon, fake_agent |
 | — | Gazebo 시험(TODOs 2장) | `ros/scan3d_sim/`, `scripts/sim_scan.sh`, `tools/make_sim_assets.py`, `config/scan_sim.yaml` | 4.2 | `ros/scan3d_sim/test/test_sim_camera.py`, `tests/test_sim.py` | robot_agent, protocol, synth, drive |
 | — | 현장 도구(TODOs 3·4장) | `tools/snapshot_test.py`, `show_pose.py`, `drive_check.py`, `lidar_view.py`, `scan.sh`, `upload.sh` | — | `tests/test_tools.py`(가짜 에이전트에 붙여 실행) | station, align, tagpose, drive |
 

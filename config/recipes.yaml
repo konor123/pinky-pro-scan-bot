@@ -1,0 +1,19 @@
+# 레시피: 부품 종류마다 config/scan.yaml 값을 덮고, 기준 치수가 있으면 스캔 뒤 OK/NG 판정을 한다(docs/specs/webui.md).
+# 웹 화면에서 고른다. 덮을 수 있는 값: scene.{r_obj, place_err, obj_h, R, n_views, crop_margin, floor_cut},
+# drive.{d_target, d_min, d_max}, recon.{voxel, trunc, edge_mm}
+# 물체 반지름(r_obj + place_err)은 판의 표식 안쪽(0.1875 m) 안이어야 한다(서버가 띄울 때 검사한다)
+# spec_mm: [가로, 세로, 높이] mm(가로 ≥ 세로, 순서는 report의 dims_mm와 같다), tol_mm: 허용 오차(한 값 또는 세 값)
+
+default:
+  label: 기본(지름 28 cm·높이 20 cm 이하)
+
+pig_doll:
+  label: 돼지 인형
+  scene: {obj_h: 0.23}
+  spec_mm: [138, 128, 201]        # results/20261123-123251·130957, out/scan_20261123-211555 세 번의 평균
+  tol_mm: 5
+
+sim_box:
+  label: 시험 상자(가짜 로봇)
+  spec_mm: [180, 140, 160]        # scan3d/sim/fake_agent.py BOX
+  tol_mm: 10
