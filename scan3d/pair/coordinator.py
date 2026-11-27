@@ -68,6 +68,9 @@ class PairScan:
         self.roles = [r for r in ORDER if r in links]
         self.clock_link = links[self.roles[0]]
         self.units = {r: RobotScan(r, links[r], cfg, board, self._emitter(r)) for r in self.roles}
+        self.phase = "idle"               # hello → start → enter → views → done(웹 화면 진행 표시)
+        self.paused = threading.Event()   # 켜 있으면 이동 앞·촬영 앞에서 선다
+        self.holding = {}                 # {role: True} 일시정지로 서 있는 로봇
 
     # ---- 이벤트 ----
     def event(self, role, typ, **kw):
@@ -97,6 +100,18 @@ class PairScan:
         if self.cancel.is_set():
             raise drive.Cancelled("취소됨")
 
+    def hold(self, role=None):
+        """일시정지 중이면 풀릴 때까지 선다(취소는 바로 올린다). 이미 보낸 이동은 끝까지."""
+        if not self.paused.is_set():
+            return
+        self.holding[role] = True
+        try:
+            while self.paused.is_set():
+                self._check_cancel()
+                time.sleep(WAIT_POLL_S * 5)
+        finally:
+            self.holding.pop(role, None)
+
     def views(self):
         """로봇마다 스레드로 시점 0…n−1. 촬영 차례와 앞섬 제한으로 두 로봇이 엇갈려 찍고 이동한다."""
         n = self.cfg["scene"]["n_views"]
@@ -121,11 +136,13 @@ class PairScan:
                     while not others_reached(role, k - 1):
                         self._check_cancel()
                         time.sleep(WAIT_POLL_S)
+                    self.hold(role)
                     u.go_to_view(k)
                 if not u.at_view(k):
                     continue
                 u.link.sleep(settle)
                 self._check_cancel()
+                self.hold(role)
                 u.capture(k, turn)
 
         run_parallel({r: (lambda r=r, u=u: walk(r, u)) for r, u in self.units.items()})
@@ -145,7 +162,13 @@ class PairScan:
 
     def run(self):
         """hello → 출발 자세 → 진입 → 24시점. 실패하면 두 대 모두 중단하고 예외를 올린다."""
+        self.phase = "hello"
         self.hello()
+        self.phase = "start"
         self.start_poses()
+        self.hold()
+        self.phase = "enter"
         self.enter()
+        self.phase = "views"
         self.views()
+        self.phase = "done"

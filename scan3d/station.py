@@ -19,11 +19,14 @@ from .robot import link as robot_link
 from .robot.unit import StartError
 
 
-def run(cfg, links, writer, board, cancel=None, t0=None):
-    """links로 스캔 한 번. 성공하면 (scan_dir, recon 결과, 보고서)."""
+def run(cfg, links, writer, board, cancel=None, t0=None, pair=None):
+    """links로 스캔 한 번. 성공하면 (scan_dir, recon 결과, 보고서).
+
+    pair를 주면 그 PairScan으로 진행(웹 화면이 진행 표시·일시정지용으로 미리 만든다).
+    """
     cancel = cancel or threading.Event()
     t0 = time.monotonic() if t0 is None else t0
-    pair = PairScan(cfg, links, writer, board, cancel)
+    pair = pair or PairScan(cfg, links, writer, board, cancel)
     try:
         pair.run()
     except BaseException as e:
