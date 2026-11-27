@@ -87,7 +87,8 @@ case "$CMD" in
                 # macOS bash 3.2는 set -u에서 빈 배열 "${a[@]}"를 unbound로 본다
                 LAUNCH_ARGS=("role:=$ROLE" ${LAUNCH_ARGS[@]+"${LAUNCH_ARGS[@]}"})
             fi
-            for arg in $(wheel_args "$ROLE"); do
+            wheel="$(wheel_args "$ROLE")"   # 따로 대입해야 실패하면 set -e로 멈춘다
+            for arg in $wheel; do
                 case " ${LAUNCH_ARGS[*]} " in
                     *" ${arg%%:=*}:="*) ;;
                     *) LAUNCH_ARGS+=("$arg") ;;

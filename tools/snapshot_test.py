@@ -63,7 +63,7 @@ def main(argv=None):
     cfg_path, cfg = config.load_config(args.config)
     role = args.robot
     host = cfg["robots"][role]["host"]
-    raw = None
+    raw = writer = None
     if args.save:
         board_path, _ = config.load_board(cfg)
         writer = dataset.ScanWriter(ROOT / cfg["station"]["data_dir"], cfg_path, board_path)
@@ -111,6 +111,8 @@ def main(argv=None):
         return 0 if ok == args.count else 1
     finally:
         link.close()
+        if writer is not None:
+            writer.close()
 
 
 if __name__ == "__main__":
