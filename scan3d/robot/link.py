@@ -33,6 +33,7 @@ class RobotLink:
         self.calib = None
         self.aborted = False
         self._odom = None
+        self._odom_t = None
         self._scan = None
         self._scan_t = None
         self._raw_lock = threading.Lock()
@@ -61,10 +62,21 @@ class RobotLink:
             typ = msg.get("type")
             if typ == "odom":
                 self._odom = (msg["x"], msg["y"], msg["yaw"])
+                self._odom_t = self.clock.now()
             elif typ == "scan":
                 self._scan = protocol.decode_scan(msg)
                 self._scan_t = self.clock.now()
             self._record(msg, "in")
+
+    def alive(self):
+        """스트림을 아직 받고 있고 중단하지 않았는지(웹 화면 연결 표시)."""
+        return self._reader.is_alive() and not self.aborted
+
+    def ages(self):
+        """(odom을 받은 뒤 지난 s, LiDAR 스캔을 받은 뒤 지난 s). 받은 적 없으면 None."""
+        now = self.clock.now()
+        return (None if self._odom_t is None else now - self._odom_t,
+                None if self._scan_t is None else now - self._scan_t)
 
     def wait_streams(self, timeout=5.0):
         end = self.clock.now() + timeout

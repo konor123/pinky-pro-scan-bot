@@ -136,6 +136,29 @@ class RobotScan:
         self.emit("view", k=k, use="retake", snap=snap, pose=has_pose, d=d2, d_source=src2)
         self.emit("correct", k=k, d_before=d, src_before=src, d_after=d2, src_after=src2)
 
+    # ---- 5. 보강 촬영(웹 화면) ----
+    def refix(self):
+        """그 자리에서 한 장 찍어 표식으로 자세를 다시 잡는다. 표식이 안 보이면 StartError."""
+        header, payloads, _ = self.link.snapshot(None, "fix", None)
+        pose = self._estimate(header, payloads)
+        if pose is None:
+            raise StartError(f"{self.role}: 표식이 보이지 않아 자세를 다시 잡지 못함")
+        self._fix(pose.T_cam_board, header)
+        return pose
+
+    def capture_extra(self, k, phi, turn=contextlib.nullcontext):
+        """시점 번호 k(스캔 시점 밖)로 한 장 더 찍는다. → (frame, 표식 자세 또는 None, snap)."""
+        with turn():
+            header, payloads, snap = self.link.snapshot(k, "view", phi)
+        frame = align.prepare(header, payloads, self.calib)
+        pose = tagpose.estimate(frame.color, frame.K, self.board)
+        if pose is not None:
+            self._fix(pose.T_cam_board, header)
+        d = None if pose is None else tagpose.distance_d(pose.T_cam_board, self.r_eff)
+        self.emit("view", k=k, use="focus", snap=snap, pose=pose is not None, d=d,
+                  d_source="tag" if pose is not None else None)
+        return frame, pose, snap
+
     # ---- 중단 ----
     def abort(self):
         self.link.abort()

@@ -226,6 +226,7 @@ class Driver:
 
     def _wait(self, leg, mode):
         start = self.io.now()
+        self._check_cancel()
         self._event("wait", leg)
         if mode == "outer":
             self.io.say("바깥 차선에 장애물이 있습니다")
@@ -233,6 +234,7 @@ class Driver:
             self._check_cancel()
             clearance = self._clearance()
             if clearance >= self._drive["start_clear"]:
+                self._event("go", leg)
                 return True
             elapsed = self.io.now() - start
             if elapsed + 1e-9 >= self._drive["block_timeout_s"]:
@@ -283,6 +285,23 @@ class Driver:
     def enter(self):
         self._phi0 = self._angle()
         return self.correct(0)
+
+    def angle_deg(self):
+        """지금 카메라의 판 좌표 각(도)."""
+        return self._angle()
+
+    def go_to_phi(self, phi_deg):
+        """원 위의 각 phi(도)로 한 번에 간다(보강 촬영). 15° 안쪽만(더 멀면 현이 원 안을 지난다).
+
+        시점 이동과 같은 문장·장애물 감시. 비켜 가지 않고 막히면 `block_timeout_s` 뒤 Blocked.
+        """
+        if self.arc:
+            target = view_pose(phi_deg, self._radius, self.mount, yaw=arc_yaw(phi_deg, self._radius, self.mount))
+        else:
+            target = view_pose(phi_deg, self._radius, self.mount)
+        leg = Leg(-1)
+        self._travel(target, leg, "required", arc=self.arc)
+        return leg
 
     def correct(self, k):
         leg = Leg(k)
