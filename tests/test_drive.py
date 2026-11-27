@@ -345,6 +345,27 @@ def test_bypass_arc(cfg, rng):
     assert {"wait", "bypass", "skip"} <= {e["event"] for e in events}
 
 
+def test_go_to_phi_long_arc(cfg):
+    """원 위에 원호 자세로 서 있으면 먼 각도 원호 하나로 간다(보강 촬영 이동)."""
+    driver, io, mount, _ = rig(cfg, noise={"scale": 0.02, "yaw_drift_deg_per_m": 2}, arc=True)
+    driver.enter()                                     # 원호 자세로
+    assert driver.on_orbit()
+    start = len(io.move_log)
+    driver.go_to_phi(90.0)
+    sent = [cmd for _, cmd in io.move_log[start:]]
+    assert len(sent) == 1 and parse_arc(sent[0])[2] == pytest.approx(90, abs=3), sent
+    actual, expected = io.robot.true_pose(), arc_pose(90, mount)      # 바퀴 오차 2 %·2°/m로 1 m: 도착 뒤 표식으로 다시 잡는다
+    assert math.dist(cam_xy(actual, mount), cam_xy(expected, mount)) <= 0.06
+    assert abs(wrap_angle(actual[2] - expected[2])) <= math.radians(5.0)
+    driver.set_fix(actual, io.odom())
+    assert driver.on_orbit()                                           # 그 자리에서 다음 원호로 떠날 수 있다
+    x, y, yaw = io.robot.true_pose()
+    driver.set_fix((x, y, yaw + math.radians(25)), io.odom())      # 접선에서 25° 틀어짐
+    assert not driver.on_orbit()
+    plain, _, _, _ = rig(cfg, arc=False)
+    assert not plain.on_orbit()
+
+
 def test_stop_resume_arc(cfg, rng, monkeypatch):
     driver, io, mount, events = rig(cfg, arc=True)
     driver.enter()

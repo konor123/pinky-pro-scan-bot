@@ -7,7 +7,7 @@
   - **(sudo)** 로봇이나 스캔 PC의 sudo 비밀번호가 필요한 일. 원격 터미널에서 해도 된다.
 - 현장 명령은 모두 스캔 PC의 저장소 폴더에서 실행한다. 로봇 이름 `pinky1`(H, SSID pinky_d52c), `pinky2`(L, SSID pinky_6437)는 스캔 PC의 `~/.ssh/config`에 만드는 SSH 별칭이다(3번 묶음).
 - 각 묶음은 앞 묶음이 끝난 뒤에 한다.
-- 지금: 두 대 엇갈림 스캔 1회 성공(`scans/20261123-211555`, 241 s, 결과 `out/scan_20261123-211555/`). 같은 날 `results/20261123-123251`·`124006`·`125715`·`130957`로 4회 더(263 ~ 296 s). 남은 일: 기준 상자 2회와 시연 물체 스캔(5장), 합친 모델 치수 확인과 재생 테스트(6장), 원호 시점 이동의 로봇 배포와 현장 확인(6-1장).
+- 지금: 두 대 엇갈림 스캔 1회 성공(`scans/20261123-211555`, 241 s, 결과 `out/scan_20261123-211555/`). 같은 날 `results/20261123-123251`·`124006`·`125715`·`130957`로 4회 더(263 ~ 296 s). 웹 화면(`tools/webui.sh`)으로 구동·자리 맞추기·스캔·판정·보강 촬영을 브라우저에서 한다(가짜 로봇으로 확인함). 남은 일: 원호 시점 이동의 로봇 배포와 현장 확인(6-1장), 웹 화면의 현장 확인(6-2장), 리허설(7장), 다가가서 찍는 근접 촬영(10장).
 - 결과 보관: 원본 전체는 `scans/<id>/`(수백 MB, git 제외)에 두고, 남길 결과는 `tools/archive_scan.py scans/<id> --note …`로 `results/<id>/`(수 MB, git에 커밋)에 고른다(`results/README.md`). 메시는 `tools/view_web.py --open`으로 브라우저에서 본다.
 - 실패하면 적힌 일을 한 번 해 보고, 안 되면 로그와 데이터를 남기고 다음 항목으로 간다.
 
@@ -259,10 +259,41 @@
   - 명령: L의 원 경로 위에 상자를 놓고 `tools/scan.sh --only L`
   - 성공: 상자 앞에서 멈춤 → 바깥 차선으로 비켜 감 → 한 바퀴 마침
 
+## 6-2. 웹 화면 — 구동부터 보강 촬영까지 브라우저로 [온라인 → 현장]
+
+스캔 PC에서 서버 하나(`tools/webui.sh`)를 띄우고 브라우저로 구동 켜기, 자리 맞추기, 레시피, 스캔, 판정, 보강 촬영을 한다(`docs/specs/webui.md`, README 5-1). 스캔은 `tools/scan.sh`와 같은 코드(`pair.coordinator`, `station.run`)로 돈다. 리허설(7장) 전에 한다.
+
+- [x] 서버와 화면: `scan3d/web/`(연결·미리보기·스캔·보강 촬영의 상태 기계, 구멍, 덮임, 레시피·판정, 알람, 구동), `tools/webui.sh`, 테스트 `tests/test_webui.py`
+- [x] 보강 촬영의 원 위 이동을 긴 원호로: 원호를 아는 로봇이면 반시계로 90° 이하의 원호 하나씩 가고(90°까지는 서지 않는다. 더 멀면 원호 사이에 서서 표식으로 자세를 다시 잡는다), 시계 방향으로 45°보다 멀면 반시계로 돌아서 간다(config `webui.transit_max_deg`, 15면 15°씩 끊어 감)
+- [x] 가짜 로봇으로 처음부터 끝까지 [온라인, 개발 PC]
+  - 명령: `tools/webui.sh --fake` → `카메라 값` → 레시피 `시험 상자` → `시작` → 모델 탭 `덮임`·`영역` → `보강 시작`. 이어서 `tools/webui.sh --fake --obstacle 2`로 `시작`
+  - 결과: 상자 184 × 144 × 160 mm에 판정 OK, 영역 하나에 보강 사진 17장과 `out_focus/` 메시. 상자를 놓은 실행은 W06 경고가 뜬 뒤 비켜 가고 경고가 풀림
+  - 구멍 후보: 돼지 인형 메시 세 개(`results/20261123-123251`·`130957`, `out/scan_20261123-211555`)에서 6 ~ 8개. 가장 큰 것은 높이 7 cm 근처의 둘레 0.4 m 구멍이고 바닥 테두리는 빠진다. 둘레 2 cm 안팎의 작은 후보가 함께 나온다.
+- [ ] 구동과 연결 [현장](10분)
+  - 명령: 스캔 PC에서 `tools/webui.sh --host 0.0.0.0`, 브라우저로 `http://<스캔 PC 주소>:8080` → `구동 켜기`
+  - 성공: L·H 로봇 패널의 구동이 `켜짐`, 연결 `ON`, ODOM·LIDAR 초록, 상태줄 `LIVE`·`대기`
+  - 실패하면: 구동이 `다른 스택 사용 중`이면 그 로봇에서 도는 다른 구동을 끈다(`scripts/robot.sh -H <로봇> status`). `오류`면 알람 창의 내용을 보고 터미널에서 `scripts/robot.sh -H <로봇> start robot_scan`. Docker로 띄웠으면 컨테이너 안에서 `ssh <로봇>`이 되는지 본다(`scripts/ssh_aliases.sh`).
+- [ ] 자리 맞추기 [현장](5분)
+  - 명령: `카메라 값`을 켜고 두 로봇을 원 위 반대편에 놓는다
+  - 성공: 두 카메라 사진에 표식이 그려지고, 페어 `OK`, 거리·조준·숙임·높이가 초록, 표식 6장 이상
+  - 실패하면: 페어 `NG`면 `조정`에 나온 방향으로 한 대를 옮긴다. 숙임·높이가 노랑이면 config `robots.<역할>.mount`를 잰 값으로 고친다.
+- [ ] 레시피로 스캔과 판정 [현장](10분)
+  - 명령: 레시피를 시연 물체로 고르고 `시작`
+  - 성공: 진행 막대가 24/24까지 가고 모델 탭에 메시, 판정 패널에 OK·NG와 축별 편차. 걸린 시간을 `tools/scan.sh`(두 대 241 s)와 견주어 적는다.
+  - 실패하면: 상태줄이 `알람`이면 알람 창의 코드(E01 ~ E09)와 `기록`을 남기고, 서버를 끈 뒤 `tools/scan.sh`로 한 번 돌려 견준다. 시연 물체의 레시피가 없으면 `config/recipes.yaml`에 기준 치수(`results/<id>/out/report.txt`)와 허용 오차를 더한다.
+- [ ] 보강 촬영 [현장](15분): 스캔 뒤 물체와 로봇을 그대로 두고
+  - 명령: 모델 탭에서 `덮임`을 켜고 `구멍`(작은 후보는 목록에서 지운다)이나 `영역`으로 한 곳 → `보강 시작`
+  - 성공: 두 로봇이 같은 각만큼 함께 움직이고(원호를 배포했으면 90°까지 서지 않고 긴 원호로), 보강 사진마다 고른 곳이 고리 안에 있고, `out_focus` 메시에서 그 구멍이 메워지거나 덮임 색이 나아짐. 걸린 시간을 적는다.
+  - 실패하면: 긴 원호가 원에서 벗어나거나 도착 각이 5° 넘게 틀리면 config `webui.transit_max_deg`를 15로 둔다. 표식이 안 보여 서면 로봇을 원 위로 다시 놓고 스캔부터 한다.
+- [ ] 장애물 경고와 세우기 [현장](10분)
+  - 명령: 스캔 중 L의 원 경로 위에 상자를 놓는다. 다음 스캔에서는 `일시정지` → `재개`, 이어서 `중지`
+  - 성공: 상태줄 `장애물 대기`와 W06 경고 → 비켜 가면 경고가 풀림. 일시정지는 다음 이동·촬영 앞에서 서고 재개하면 이어 감. 중지는 두 로봇이 바로 서고 잠시 뒤 다시 연결됨
+  - 실패하면: `기록`과 `scans/<id>/events.jsonl`을 남긴다.
+
 ## 7. 리허설 [현장]
 
 - [ ] 시연 순서대로 처음부터 끝까지(9장 체크리스트, 60분)
-  - 성공: 3회 연속 메시 창
+  - 성공: 3회 연속 화면에 메시와 판정, 그중 1회는 보강 촬영까지
 - [ ] 가장 잘 나온 결과를 예비로 보관(5분): `cp -r scans/<id> demo_backup/`
 
 ## 8. 막히면
@@ -285,19 +316,23 @@
 - [ ] 원 경로 주변 바닥에서 케이블·낮은 물체를 치운다(LiDAR에 안 보임).
 - [ ] 표식 판을 고정하고 물체를 가운데 놓는다.
 - [ ] 두 로봇을 대략 반대편 원 위에 놓는다.
-- [ ] `scripts/robot.sh -H pinky1 start robot_scan`, `scripts/robot.sh -H pinky2 start robot_scan`
-- [ ] `tools/scan.sh` → 메시 창
-- [ ] 안 되면 `demo_backup/`의 결과를 띄운다.
+- [ ] 스캔 PC에서 `tools/webui.sh --host 0.0.0.0`, 브라우저로 `http://<스캔 PC 주소>:8080`
+- [ ] `구동 켜기` → 두 로봇 연결 `ON`
+- [ ] `카메라 값` → 페어 `OK`
+- [ ] 레시피 고르기 → `시작` → 모델 탭의 메시와 판정
+- [ ] `구멍`이나 `영역`으로 보강 대상을 고르고 `보강 시작` → 보강 사진과 `out_focus` 메시
+- [ ] 웹 화면이 안 되면 서버를 끄고 터미널로: `scripts/robot.sh -H pinky1 start robot_scan`, `scripts/robot.sh -H pinky2 start robot_scan` → `tools/scan.sh` → 메시 창
+- [ ] 그래도 안 되면 `demo_backup/`의 결과를 띄운다.
 
 ## 10. 근접 촬영 — 메시에서 고른 지점을 가까이서 찍기
 
 계획서: `docs/plan/CLOSEUP-PLAN.md`. 스캔(5장)이 되는 상태에서 시작한다. 로봇에는 에이전트와 런치를 한 번 다시 배포한다(10-4).
 
+웹 화면(6-2장)의 보강 촬영이 이 계획의 앞부분을 한다: 화면에서 지점 고르기(점·영역·구멍), 높이 0.15 m로 로봇 고르기, 원 위를 원호로 이동, 표식으로 자세 다시 잡기, 찍어서 지점 둘레를 잘라 화면에 보이기. 사진은 스캔 원 위에서 찍고 메시에 다시 합친다. 남은 것은 물체에 다가가서 찍는 구간이다(odom·IMU·앞 카메라·정면 거리, 10-2부터). 따로 만들려던 `mesh.html`과 `tools/closeup.sh` 서버 대신 웹 화면 서버(`scan3d/web/`)에 더한다.
+
 ### 10-1. 접점 확정 [온라인, 개발 PC]
 
-- [ ] `docs/specs/closeup_api.md`(계획서 4.1)를 써서 `mesh.html`을 만드는 사람에게 전달
-  - 확인받을 것: 화면을 여는 주소, 보내는 점의 좌표(메시 파일 좌표 그대로), 메시를 서버에서 받는 것, 상태를 1초마다 묻는 방식
-  - 확인받을 것: 화면의 PLY 읽기가 `out/scan_20261123-211555/mesh.ply`(꼭짓점 `double`, 색 `uchar`)를 색과 함께 그리는지
+- [x] 접점: 화면과 서버가 한 저장소(`scan3d/web/`)에 들어와 따로 전달할 명세가 없다. 요청 표는 `docs/specs/webui.md`의 HTTP
 
 ### 10-2. 로봇 확인 [온라인, 로봇 켜진 상태] — 약 20분
 
@@ -318,8 +353,8 @@
 - [ ] 명세: PLAN 4.4와 `docs/specs/protocol.md`·`robot_agent.md`·`fake_agent.md`·`sim2d.md`에 `imu`·`range` 스트림과 앞 카메라 스냅샷, `docs/specs/viewplan.md`, `docs/specs/drive.md`에 `go_to_angle`, config `closeup` 묶음
 - [ ] 스트림·앞 카메라 스냅샷 테스트 먼저, 구현: `scan3d/protocol.py`, `scan3d/robot/link.py`, `ros/scan3d_robot/`(`node.py`·`agent.py`·`camera.py`·`robot_scan.launch.xml`), `scan3d/sim/sim2d.py`·`fake_agent.py`
 - [ ] 앞 카메라 방향 테스트(`tests/test_tagpose.py`): 원 위에서 물체를 볼 때 표식 2장 이상, 방향 오차 1° 안
-- [ ] `viewplan` 테스트 먼저, 구현 → `scan3d/closeup/viewplan.py`, `tests/test_viewplan.py`
-- [ ] `drive`의 `go_to_angle`(6-1의 원호 문장 하나로 한 번에, 도중 표식 확인 없음) 테스트 먼저, 구현(기존 `tests/test_drive.py`는 그대로 통과)
+- [ ] `viewplan` 테스트 먼저, 구현 → `scan3d/closeup/viewplan.py`, `tests/test_viewplan.py` (로봇 고르기는 `scan3d/web/focus.py`의 `plan`에 있다. 남은 것은 다가갈 자리와 가는 길)
+- [x] 원 위 이동(원호 문장, 90°까지는 서지 않고 한 번에, 더 멀면 원호 사이에 표식으로 자세를 다시 잡음): `Driver.go_to_phi`·`on_orbit`과 보강 촬영의 긴 원호 이동(`scan3d/web/focus.py`, `tests/test_webui.py`의 `test_focus_transit`·`test_focus_run`)
 - [ ] 확인 도구 `tools/approach_check.py`(`tests/test_tools.py`에 가짜 에이전트로 추가)
   - `--listen`: 스트림별 주기, 앞 카메라 사진 한 장(`out/front_<역할>.jpg`, 보인 표식 수)
   - `--turn`: 원 위에서 `turn 45`·`turn -45`를 표식·IMU·odom으로 잰 값, 60 s 서 있는 동안 IMU 방향 변화
@@ -343,19 +378,17 @@
 ### 10-5. 온라인 B — 근접 구간, 한 건 진행, 서버 [온라인, 개발 PC]
 
 - [ ] 명세: `docs/specs/closeup.md`(`approach`, `mission`, 데이터 폴더)
-- [ ] `mission` 1차: 원 위 이동 → 자세 다시 잡기 → 그 자리에서 찍어 자르기(`closeup.approach: false`) → `scan3d/closeup/mission.py`, `tests/test_closeup.py`
+- [x] `mission` 1차: 원 위 이동 → 자세 다시 잡기 → 그 자리에서 찍어 자르기 — 웹 화면의 보강 촬영(`scan3d/web/focus.py`의 `FocusRun`)
 - [ ] `approach` 테스트 먼저, 구현: 자세 추정(odom + IMU), 앞 카메라 표식으로 방향 확인, 한 번에 전진한 뒤 정면 거리로 확인·보정, 돌아가기 → `scan3d/closeup/approach.py`, `tests/test_approach.py`
-- [ ] `mission` 2차: 근접 구간을 넣음(`closeup.approach: true`)
-- [ ] `server`와 `tools/closeup.sh [--scan scans/<id>] [--fake]` → `scan3d/closeup/server.py`, `tests/test_closeup_server.py`
-- [ ] `docker/README.md` 표에 근접 촬영 서버 줄(`run --rm -p 8080:8080 station tools/closeup.sh`)
-- [ ] C1: `tools/closeup.sh --fake`에 옆면의 낮은 점, 옆면의 높은 점, 윗면 점, 가려진 점을 차례로 보내 네 건이 `done`(낮은 점은 L, 높은 점과 윗면은 H)
-- [ ] `tools/closeup.sh --fake`와 계획서 4.1의 curl 예를 `mesh.html`을 만드는 사람에게 전달
+- [ ] `mission` 2차: 보강 촬영에 근접 구간을 넣음(`closeup.approach: true`)
+- [ ] 웹 화면에 근접 촬영을 더함: 요청과 진행(`scan3d/web/server.py`·`session.py`), 모델 탭의 버튼과 근접 사진 → `tests/test_webui.py`
+- [ ] C1: `tools/webui.sh --fake`에서 옆면의 낮은 점, 옆면의 높은 점, 윗면 점, 가려진 점을 차례로 골라 네 건이 끝남(낮은 점은 L, 높은 점과 윗면은 H)
 
 완료: `pytest -q` 전부 통과, C1 통과
 
 ### 10-6. 온라인 C — Gazebo [온라인, 시뮬레이션 PC] — 반나절
 
-- [ ] C2: `scripts/sim_scan.sh`로 한 바퀴 뒤 근접 촬영 서버를 띄워 옆면 점 하나(`closeup.use_imu: false`) → 정면 거리 전진이 도는 자리에서 서고 `done`
+- [ ] C2: `scripts/sim_scan.sh`로 한 바퀴 뒤 웹 화면 서버를 띄워 옆면 점 하나를 근접 촬영(`closeup.use_imu: false`) → 정면 거리 전진이 도는 자리에서 서고 `done`
 
 반나절을 넘기면 멈추고 다음 묶음으로 간다.
 
@@ -395,39 +428,25 @@
 
 ### 10-8. 현장 A — 로봇으로 근접 촬영 [현장] — 약 1시간
 
-스캔 한 번(`tools/scan.sh`)을 마친 뒤 물체와 판을 그대로 두고 한다. 점 좌표는 `scans/<id>/out/mesh.ply`를 MeshLab으로 열어 읽는다.
+웹 화면(`tools/webui.sh --host 0.0.0.0`)에서 스캔 한 번을 마친 뒤 물체와 판을 그대로 두고 한다. 점은 모델 탭의 `점`으로 고른다.
 
-- [ ] 서버 켜기(5분)
-  - 명령: `tools/closeup.sh` → 다른 터미널에서 `curl http://localhost:8080/api/state`
-  - 성공: `L`, `H` 모두 `ready: true`, 카메라 위치가 실제 자리와 맞음
-  - 실패하면: `ready: false`인 로봇은 카메라가 판을 보게 돌려 놓는다. 연결이 안 되면 `tools/scan.sh --hello`
 - [ ] 옆면의 낮은 점 하나(높이 0.10 m 근처)(10분)
-  - 명령: `curl -X POST -H 'Content-Type: application/json' -d '{"point":[x,y,z]}' http://localhost:8080/api/closeup` → `curl http://localhost:8080/api/closeup/1`
-  - 성공: 원 위를 서지 않고 원호로 한 번에 감, `done`, `scans/<id>/closeup/jobs/1/closeup.jpg`에 고른 부분이 있고 고리가 그 지점에서 5 cm 안, `center_source: lidar`, 3분 안. `result.json`의 돌아와서 잰 자세 차가 3 cm·3° 안
-  - 실패하면: 물체에 너무 붙거나 덜 가면 `events.jsonl`의 정면 거리 기록을 보고 `closeup.front_sensor`를 바꿔 본다. 고른 부분이 사진 밖이면 `full.jpg`와 `plan.json`을 남기고 config 장착 변환(높이·피치) 확인
+  - 성공: 원 위를 원호로 감(90°까지는 서지 않고 한 번에), 근접 사진에 고른 부분이 있고 고리가 그 지점에서 5 cm 안, 정면 거리는 LiDAR 값, 3분 안. 돌아와서 잰 자세 차가 3 cm·3° 안
+  - 실패하면: 물체에 너무 붙거나 덜 가면 `events.jsonl`의 정면 거리 기록을 보고 `closeup.front_sensor`를 바꿔 본다. 고른 부분이 사진 밖이면 전체 사진을 남기고 config 장착 변환(높이·피치) 확인
 - [ ] 높이로 로봇이 갈리는지: 옆면의 높이 0.10 m 점, 0.18 m 점, 윗면 점을 차례로(20분)
   - 성공: 0.10 m는 L, 0.18 m와 윗면은 H가 가서 찍음, 고른 부분이 자른 사진 안
-  - 실패하면: 0.15 m 근처에서 고른 부분이 사진 끝에 걸리면 config `closeup.split_z`를 0.02 m씩 옮긴다. 로그·데이터를 남기고 다음
+  - 실패하면: 0.15 m 근처에서 고른 부분이 사진 끝에 걸리면 config `webui.split_z`를 0.02 m씩 옮긴다. 로그·데이터를 남기고 다음
 - [ ] 이어서 3곳, 그중 하나는 서 있는 다른 로봇 쪽 면(15분)
-  - 성공: 서버를 다시 띄우지 않고 세 건 `done`, 다른 로봇을 피해 감
-  - 실패하면: `failed`의 `message`를 남긴다. 다른 로봇이 길을 막았다고 나오면 그 로봇을 원 위의 다른 자리로 옮긴다.
+  - 성공: 서버를 다시 띄우지 않고 세 건이 끝남, 다른 로봇을 피해 감
+  - 실패하면: 알람 창의 내용을 남긴다. 다른 로봇이 길을 막았다고 나오면 그 로봇을 원 위의 다른 자리로 옮긴다.
 - [ ] 이동 중 세우기(5분)
-  - 명령: 이동 중 `curl -X POST http://localhost:8080/api/stop`
-  - 성공: 로봇이 바로 서고 건이 `stopped`, 다음 요청을 받음
+  - 명령: 이동 중 화면의 `중지`
+  - 성공: 로봇이 바로 서고 다음 요청을 받음
 - [ ] 판이 밀리지 않았는지(5분)
-  - 명령: 근접 촬영 전후로 `tools/closeup.sh`를 끈 상태에서 `tools/show_pose.py --robot <서 있던 로봇>`
+  - 명령: 근접 촬영 전후로 `카메라 값`에서 서 있던 로봇의 φ·거리·높이를 적는다
   - 성공: 카메라 위치 차 5 mm 안
   - 실패하면: `closeup.on_sheet: false`
 - [ ] 데이터 올리기(5분)
   - 명령: `tools/upload.sh`
-
-### 10-9. 현장 B — 웹 화면과 함께 [현장] — 약 30분
-
-- [ ] `mesh.html`을 `docs/presentation/`에 넣고 스캔 PC에서 `tools/closeup.sh`, 브라우저로 `http://<스캔 PC 주소>:8080/mesh.html`(10분)
-  - 성공: 방금 스캔한 메시가 뜸
-  - 실패하면: 브라우저 개발자 도구의 네트워크 탭에서 `/api/mesh.ply` 응답을 본다.
-- [ ] 화면에서 점을 눌러 3곳(20분)
-  - 성공: 계획서 1장 완료 기준
-  - 실패하면: 누른 점과 다른 곳을 찍으면 화면이 보낸 `point`(`scans/<id>/closeup/jobs/<n>/request.json`)를 MeshLab 좌표와 비교한다. 다르면 화면의 좌표 되돌리기를 고친다.
 
 완료: 계획서 1장 완료 기준

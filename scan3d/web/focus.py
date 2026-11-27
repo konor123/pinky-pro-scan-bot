@@ -1,7 +1,8 @@
 """보강 촬영: 3D 메시에 찍은 마커 쪽을 원 위에서 촘촘히 더 찍고 다시 합친다(docs/specs/webui.md).
 
 원 위에서는 표식이 보여 더 찍은 사진도 스캔과 같은 정확도로 들어간다.
-두 로봇은 함께 같은 각만큼(가까운 방향, 15° 이하씩) 움직여 각도 차를 그대로 둔다.
+두 로봇은 함께 같은 각만큼 움직여 각도 차를 그대로 둔다. 원호 문장을 아는 로봇이면 반시계로 긴 원호 하나씩,
+아니면 가까운 방향으로 15° 이하씩 간다.
 출발 전 각도 차가 180 ± pair_gap_tol_deg 밖이면 움직이지 않는다.
 """
 import contextlib
@@ -18,7 +19,9 @@ from ..pair import recon
 from ..pair.coordinator import run_parallel
 from ..robot.unit import StartError
 
-STEP_DEG = 15.0          # 한 번 이동의 최대 각(스캔 시점 간격. 현이 물체 쪽으로 들어가지 않게)
+STEP_DEG = 15.0          # 회전 + 직진 한 번의 최대 각(스캔 시점 간격. 현이 물체 쪽으로 들어가지 않게)
+ARC_DEG = 90.0           # 원호 하나의 최대 각 기본값(config webui.transit_max_deg)
+BACK_DEG = 45.0          # 원호 모드: 시계 방향으로 이보다 멀면 반시계로 돌아서 간다(15°마다 제자리 반 바퀴 회전 두 번보다 빠르다)
 REGION_STEP_DEG = 10.0   # 영역을 덮는 촬영 각 간격
 REGION_PAD_DEG = 5.0     # 영역 각 범위 양쪽 여유
 REGION_MAX_SHOTS = 12    # 영역 하나, 로봇 하나의 최대 촬영 수(넘으면 간격을 넓힌다)
@@ -31,6 +34,7 @@ def settings(cfg):
     w = cfg.get("webui") or {}
     return {"split_z": float(w.get("split_z", 0.15)), "up_deg": float(w.get("up_deg", 45.0)),
             "offsets": [float(v) for v in w.get("focus_offsets_deg", (-10.0, 0.0, 10.0))],
+            "transit_max": min(max(float(w.get("transit_max_deg", ARC_DEG)), STEP_DEG), 120.0),
             "crop": [int(v) for v in w.get("crop_px", (480, 360))]}
 
 
@@ -189,6 +193,7 @@ class FocusRun:
         self.cfg, self.units, self.scan_dir, self.plans = cfg, units, Path(scan_dir), plans
         self.hold, self.cancelled, self.progress, self.log = hold, cancelled, progress, log
         self.crop = settings(cfg)["crop"]
+        self.transit_max = settings(cfg)["transit_max"]
         self.camera = threading.Lock()
         self.crops = []
         progress.update(step="", target=0, n_targets=len(plans), shots=0, crops=self.crops)
@@ -225,19 +230,34 @@ class FocusRun:
         if abs(gap - 180.0) > tol:
             raise StartError(f"두 로봇 각도 차 {gap:.0f}°(180 ± {tol}° 밖): 로봇을 반대편으로 옮긴 뒤 다시 한다")
 
-    def _move_all(self, delta):
-        """두 로봇이 함께 원 위로 delta°(양수 반시계) 이동. STEP_DEG 이하씩."""
-        n = math.ceil(abs(delta) / STEP_DEG - 1e-9) if abs(delta) > 0.5 else 0
-        if not n:
+    def _move_all(self, delta, shooter):
+        """두 로봇이 함께 원 위로 delta°(양수 반시계) 이동. shooter는 이 이동 뒤에 찍을 로봇.
+
+        모든 로봇이 원호 문장을 알면 반시계로 `transit_max` 이하의 원호 하나씩 간다. 시계 방향으로 BACK_DEG보다
+        멀면 반시계로 돌아서 간다. 그 밖(시계 방향으로 가까움, 회전 + 직진 로봇, 원에서 벗어난 자세)은 STEP_DEG 이하씩.
+        긴 원호 뒤에 갈 길이 남았으면 표식으로 자세를 다시 잡는다(바퀴 오차가 다음 원호로 쌓이지 않게).
+        """
+        if abs(delta) <= 0.5:
             return
+        drivers = [u.driver for u in self.units.values()]
+        arcs = self.transit_max > STEP_DEG and all(d.arc for d in drivers)
+        if arcs and delta < -BACK_DEG:
+            delta += 360.0
         self.progress["step"] = "transit"
         start = {r: u.driver.angle_deg() for r, u in self.units.items()}
-        for i in range(1, n + 1):
+        done = 0.0
+        while abs(delta - done) > 1e-6:
             self._check()
             self.hold()
-            frac = delta * i / n
-            run_parallel({r: (lambda r=r, u=u: u.driver.go_to_phi(start[r] + frac))
+            left = delta - done
+            step = self.transit_max if arcs and left > 0 and all(d.on_orbit() for d in drivers) else STEP_DEG
+            hop = left / math.ceil(abs(left) / step - 1e-9)
+            done += hop
+            run_parallel({r: (lambda r=r, u=u: u.driver.go_to_phi(start[r] + done))
                           for r, u in self.units.items()})
+            if abs(hop) > STEP_DEG and abs(delta - done) > 1e-6:
+                self._refix_all(shooter)
+                self.progress["step"] = "transit"
 
     def _shoot(self, plan, u, phi, k):
         settle = self.cfg["capture"]["settle_s"]
@@ -285,7 +305,7 @@ class FocusRun:
                 phis = [here + d for d in sorted(settings(self.cfg)["offsets"])]
             here = u.driver.angle_deg()
             for phi in phis:                       # 가까운 방향으로, 다른 로봇도 같은 각만큼
-                self._move_all(_wrap(phi - here))
+                self._move_all(_wrap(phi - here), plan["role"])
                 here = u.driver.angle_deg()
                 self._shoot(plan, u, phi, k)
                 k += 1

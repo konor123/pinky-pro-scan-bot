@@ -834,7 +834,7 @@ def _arc_move(agent, text, timeout_s=20.0, during=None):
         st.close()
 
 
-@pytest.mark.parametrize("angle", [15.0, -15.0])
+@pytest.mark.parametrize("angle", [15.0, -15.0, 90.0])     # 90°: 보강 촬영의 긴 원호
 def test_arc(angle):
     bus = DrivingBus()
     try:
@@ -848,7 +848,7 @@ def test_arc(angle):
         assert max(v for v, _ in moving) == pytest.approx(0.10)
         assert bus.twists[-1][1:] == (0.0, 0.0)         # 끝나면 0을 보낸다
         x, y, yaw = resp["odom"]
-        length = 0.62 * math.radians(15)
+        length = 0.62 * math.radians(abs(angle))
         assert length - 0.012 <= abs(yaw) * 0.62 <= length + 0.005
         assert yaw * angle > 0
         centre_y = math.copysign(0.62, angle)

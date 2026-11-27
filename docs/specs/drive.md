@@ -39,8 +39,9 @@
    3. 각 j에서 `plan_move(pose(), view_pose(phi_j, R))`로 돌아간다. 돌아가는 직진의 출발 전 확인이 막혀 있거나 돌아가는 도중 멈추면, 기다리지 않고 바깥 차선 `view_pose(phi_j, R + lane)`로 되돌아가 j + 1로 한 칸 더 간다. 돌아오면 `Leg(view=j, skipped=[k…j−1])`
    4. j가 `n_views − 1`을 넘으면 바깥 차선에서 멈추고 `Leg(view=n_views, skipped=[k…n_views−1])`
 6. **거리 보정** `correct(k)`: `view_pose(phi_k, R)`로 한 번 간다(우회 없음).
-7. **기다림 한도**: 진입·거리 보정·바깥 차선에서 막힌 상태나 스캔 끊김이 `block_timeout_s`를 넘으면 `Blocked` 예외. `io.cancelled()`가 true면 다음 문장을 보내지 않고 `Cancelled` 예외
-8. 시점 위치 오차: `command_driver`가 단계마다 1 cm·2° 남기고 멈추므로 한 구간 끝에서 1 ~ 2 cm·2 ~ 4°가 남을 수 있다. 시점마다 표식 자세로 다시 잡으므로 쌓이지 않는다.
+7. **원 위의 각으로** `go_to_phi(phi)`(보강 촬영, `docs/specs/webui.md`): 카메라가 원 위의 각 `phi`에 오는 자세로 한 번 간다(우회 없음, 막히면 `block_timeout_s` 뒤 `Blocked`). `on_orbit()`(원호 모드이고 원에서 5 cm, 접선에서 20° 안)이고 `phi`가 반시계 쪽이면 원호 하나라 180° 안쪽까지 되고, 그 밖은 회전 + 직진이라 15° 안쪽만 쓴다(현이 원 안을 지나지 않게). `angle_deg()`는 지금 카메라 각.
+8. **기다림 한도**: 진입·거리 보정·바깥 차선에서 막힌 상태나 스캔 끊김이 `block_timeout_s`를 넘으면 `Blocked` 예외. `io.cancelled()`가 true면 다음 문장을 보내지 않고 `Cancelled` 예외
+9. 시점 위치 오차: `command_driver`가 단계마다 1 cm·2° 남기고 멈추므로 한 구간 끝에서 1 ~ 2 cm·2 ~ 4°가 남을 수 있다. 시점마다 표식 자세로 다시 잡으므로 쌓이지 않는다.
 
 ## 설정
 

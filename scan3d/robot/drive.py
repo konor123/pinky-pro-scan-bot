@@ -94,6 +94,12 @@ ORBIT_MIN_RADIUS = 0.10
 ORBIT_STRAIGHT = 20.0               # 반지름이 이보다 크면 직진
 
 
+def orbit_error(pose, radius):
+    """판 중심 둘레 반지름 radius의 원에서 벗어난 만큼 → (반지름 방향 m, 바깥이 양수; 접선에서 틀어진 rad, 왼쪽이 양수)."""
+    off = math.hypot(pose[0], pose[1]) - radius
+    return off, wrap_angle(pose[2] - (math.atan2(pose[1], pose[0]) + math.pi/2))
+
+
 def plan_orbit(pose, target, speed):
     """판 중심 둘레의 원 위 자세 `target`(`arc_yaw` 방향)까지 원호 하나로 가는 문장: `speed s; arc r θ`.
 
@@ -105,11 +111,9 @@ def plan_orbit(pose, target, speed):
     목표가 2 cm 안이거나 뒤쪽이거나, 원에서 5 cm·20° 넘게 벗어나 있으면 `plan_move`의 문장을 돌려준다.
     """
     radius = math.hypot(target[0], target[1])
-    here = math.hypot(pose[0], pose[1])
     sweep = wrap_angle(math.atan2(target[1], target[0]) - math.atan2(pose[1], pose[0]))
     length = radius * sweep
-    off = here - radius
-    yaw_err = wrap_angle(pose[2] - (math.atan2(pose[1], pose[0]) + math.pi/2))
+    off, yaw_err = orbit_error(pose, radius)
     if length < 0.02 or abs(off) > ORBIT_MAX_OFF or abs(yaw_err) > ORBIT_MAX_YAW:
         return plan_move(pose, target, speed)
     k1 = (1 - ORBIT_POLE)**2 / length**2
@@ -290,10 +294,20 @@ class Driver:
         """지금 카메라의 판 좌표 각(도)."""
         return self._angle()
 
-    def go_to_phi(self, phi_deg):
-        """원 위의 각 phi(도)로 한 번에 간다(보강 촬영). 15° 안쪽만(더 멀면 현이 원 안을 지난다).
+    def on_orbit(self):
+        """지금 자세에서 반시계 쪽 원 위의 각으로 원호 하나로 갈 수 있는지(원호 모드, 원에서 5 cm·접선에서 20° 안)."""
+        if not self.arc:
+            return False
+        stance = view_pose(0.0, self._radius, self.mount, yaw=arc_yaw(0.0, self._radius, self.mount))
+        off, yaw_err = orbit_error(self.pose(), math.hypot(stance[0], stance[1]))
+        return abs(off) <= ORBIT_MAX_OFF and abs(yaw_err) <= ORBIT_MAX_YAW
 
-        시점 이동과 같은 문장·장애물 감시. 비켜 가지 않고 막히면 `block_timeout_s` 뒤 Blocked.
+    def go_to_phi(self, phi_deg):
+        """원 위의 각 phi(도)로 한 번에 간다(보강 촬영).
+
+        `on_orbit()`이고 phi가 반시계 쪽이면 원호 하나라 180° 안쪽까지 된다. 그 밖(회전 + 직진)은 15° 안쪽만
+        (더 멀면 현이 원 안을 지난다). 시점 이동과 같은 문장·장애물 감시. 비켜 가지 않고 막히면
+        `block_timeout_s` 뒤 Blocked.
         """
         if self.arc:
             target = view_pose(phi_deg, self._radius, self.mount, yaw=arc_yaw(phi_deg, self._radius, self.mount))

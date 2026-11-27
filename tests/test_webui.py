@@ -338,6 +338,60 @@ def test_focus_wrap():
     assert focus._wrap(350.0) == -10.0 and focus._wrap(-190.0) == 170.0 and focus._wrap(10.0) == 10.0
 
 
+class _StubDriver:
+    """원 위 각만 따라가는 주행(보강 촬영의 이동 나누기 확인용)."""
+
+    def __init__(self, phi, arc=True, off_orbit=False):
+        self.phi, self.arc, self.off_orbit, self.hops = phi, arc, off_orbit, []
+
+    def angle_deg(self):
+        return self.phi
+
+    def on_orbit(self):
+        return self.arc and not self.off_orbit
+
+    def go_to_phi(self, phi):
+        self.hops.append(round(phi - self.phi, 6))
+        self.phi, self.off_orbit = phi, False
+
+
+class _StubUnit:
+    def __init__(self, driver):
+        self.driver, self.refixes = driver, 0
+
+    def refix(self):
+        self.refixes += 1
+
+
+def _hops(delta, tmp_path, transit_max=None, **l_driver):
+    """L(각 0°)·H(각 180°)를 함께 delta° 옮길 때 로봇마다 한 번씩 간 각 목록."""
+    cfg = load_cfg()
+    if transit_max is not None:
+        cfg["webui"]["transit_max_deg"] = transit_max
+    units = {"L": _StubUnit(_StubDriver(0.0, **l_driver)), "H": _StubUnit(_StubDriver(180.0))}
+    run = focus.FocusRun(cfg, units, tmp_path, [], hold=lambda role=None: None, cancelled=lambda: False,
+                         progress={}, log=lambda text: None)
+    run._move_all(delta, "L")
+    hops = {r: u.driver.hops for r, u in units.items()}
+    assert hops["L"] == hops["H"]                                    # 두 로봇이 늘 같은 각만큼
+    long = [h for h in hops["L"][:-1] if abs(h) > focus.STEP_DEG]    # 긴 원호 뒤 갈 길이 남으면 자세를 다시 잡는다
+    assert units["L"].refixes == units["H"].refixes == len(long)
+    assert not hops["L"] or math.isclose(units["L"].driver.phi % 360, delta % 360, abs_tol=1e-6)
+    return hops["L"]
+
+
+def test_focus_transit(tmp_path):
+    assert _hops(170.0, tmp_path) == [85.0, 85.0]                    # 반시계: 90° 이하의 원호 둘
+    assert _hops(10.0, tmp_path) == [10.0]
+    assert _hops(-120.0, tmp_path) == [80.0, 80.0, 80.0]             # 시계로 멀면 반시계로 돌아서
+    assert _hops(-30.0, tmp_path) == [-15.0, -15.0]                  # 시계로 가까우면 15° 이하씩
+    assert _hops(60.0, tmp_path, arc=False) == [15.0] * 4            # 원호를 모르는 로봇이 있으면 15° 이하씩
+    assert _hops(-120.0, tmp_path, arc=False) == [-15.0] * 8
+    assert _hops(90.0, tmp_path, off_orbit=True) == [15.0, 75.0]     # 원에서 벗어나 있으면 15°로 자리를 잡은 뒤
+    assert _hops(-120.0, tmp_path, transit_max=15) == [-15.0] * 8    # 설정으로 끄면 가까운 방향 15° 이하씩
+    assert _hops(0.3, tmp_path) == []
+
+
 # ---------- HTTP(세션 대역) ----------
 
 class StubSession:
@@ -583,6 +637,22 @@ def test_focus_run(site):
     wait(lambda: job.state != "running", 900, "두 번째 보강 촬영")
     assert job.state == "done", job.message
     assert sum(1 for m in fleet.move_log if m[0] == "L") - moves_before <= 15      # 한 바퀴면 24 이상
+
+    # 반대편(시계로 150°)의 점 → 두 로봇이 반시계로 긴 원호 몇 번에 돌아서 간다(제자리 회전 없음)
+    here = {r: math.degrees(math.atan2(*_cam_true(cfg, fleet, r)[1::-1])) for r in ("L", "H")}
+    n = math.radians(here["L"] - 140.0)
+    marker = {"point": [0.07 * math.cos(n), 0.07 * math.sin(n), 0.04], "normal": [math.cos(n), math.sin(n), 0.0]}
+    mark = len(fleet.move_log)
+    job = session.start_focus([marker])
+    wait(lambda: job.state != "running", 900, "세 번째 보강 촬영")
+    assert job.state == "done", job.message
+    texts = [m[1] for m in fleet.move_log[mark:] if m[0] == "L"]
+    assert all("arc" in t for t in texts), texts
+    assert len(texts) <= 6, texts                                    # 200° ÷ 90° → 원호 3 + 촬영 각 사이 2
+    assert all(c["posed"] for c in job.result["crops"])
+    after = {r: math.degrees(math.atan2(*_cam_true(cfg, fleet, r)[1::-1])) for r in ("L", "H")}
+    assert abs(((after["L"] - (here["L"] - 130.0)) + 180) % 360 - 180) < 5      # L은 마지막 각(점 +10°)
+    assert abs((after["H"] - after["L"]) % 360 - (here["H"] - here["L"]) % 360) < 5
 
 
 @pytest.mark.slow
