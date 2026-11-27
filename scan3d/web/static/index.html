@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>scan3d</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="sysbar">
+  <div class="sys-id">SCAN3D</div>
+  <div class="sys-cell"><span class="k">상태</span><span class="lamp" id="sysLamp"></span><b id="sysState">-</b></div>
+  <div class="sys-cell"><span class="k">모드</span><b id="sysMode">-</b></div>
+  <div class="sys-cell control"><span class="k">레시피</span><b id="sysRecipe">-</b></div>
+  <div class="sys-cell grow"><span class="k">작업</span><b id="sysJob">-</b></div>
+  <button type="button" class="sys-cell sys-alarm control" id="btnAlarm"><span class="lamp" id="alarmLamp"></span><span class="k">알람</span><b class="mono" id="alarmCount">0</b></button>
+  <div class="sys-cell"><span class="k">경과</span><b class="mono" id="sysElapsed">-</b></div>
+  <div class="sys-cell"><span class="k">시각</span><b class="mono" id="sysClock">-</b></div>
+</header>
+
+<div class="body">
+  <aside class="modules control">
+    <section class="panel"><h2>L 로봇</h2><table class="kv stackrow" id="stackL"></table><table class="kv" id="modL"></table></section>
+    <section class="panel"><h2>H 로봇</h2><table class="kv stackrow" id="stackH"></table><table class="kv" id="modH"></table></section>
+    <section class="panel"><h2>페어</h2>
+      <div class="gap"><span class="mono big" id="gapVal">-</span><span class="badge" id="gapBadge">-</span></div>
+      <table class="kv" id="modPair"></table>
+    </section>
+    <section class="panel"><h2>판정</h2><div id="judge"></div></section>
+    <section class="panel"><h2>진행</h2><div id="proc"></div></section>
+  </aside>
+
+  <main class="stage">
+    <div class="tabs">
+      <button type="button" class="tab control" id="tabCam" aria-selected="true">카메라</button>
+      <button type="button" class="tab" id="tabModel" aria-selected="false">모델</button>
+    </div>
+
+    <section class="view control" id="camView">
+      <div class="cams" id="cams"></div>
+    </section>
+
+    <section class="view model" id="modelView" hidden>
+      <div class="canvaswrap">
+        <canvas id="view"></canvas>
+        <div class="legend" id="legend" hidden>
+          <span><i class="sw bad"></i>부족</span><span><i class="sw warn"></i>보통</span><span><i class="sw ok"></i>충분</span>
+        </div>
+        <div class="status mono" id="status"></div>
+      </div>
+      <aside class="side">
+        <section class="panel"><h2>결과</h2>
+          <select id="selScan" aria-label="결과"></select>
+          <table class="kv">
+            <tr><th>치수</th><td class="mono" id="dims">-</td></tr>
+            <tr><th>덮임 부족</th><td class="mono" id="covLow">-</td></tr>
+            <tr><th>보고서</th><td><a id="lnkReport" target="_blank" rel="noopener">report.txt</a></td></tr>
+          </table>
+          <label class="chk"><input type="checkbox" id="chkFollow" checked> 최신 자동</label>
+        </section>
+        <section class="panel control"><h2>보강 대상 <span class="cnt mono" id="markCount">0</span></h2>
+          <ol class="targets" id="markList"></ol>
+          <div class="reasons" id="focusReasons"></div>
+        </section>
+        <section class="panel" id="cropPanel" hidden><h2>보강 사진 <span class="cnt mono" id="cropCount"></span></h2>
+          <div class="crops" id="crops"></div>
+        </section>
+      </aside>
+    </section>
+  </main>
+</div>
+
+<footer class="cmdbar">
+  <div class="group control">
+    <span class="glabel">운전</span>
+    <select class="cmdsel" id="selRecipe" aria-label="레시피"></select>
+    <button type="button" class="cmd" id="btnStacks">구동 켜기</button>
+    <button type="button" class="cmd" id="btnConnect">연결</button>
+    <button type="button" class="cmd toggle" id="btnPreview" aria-pressed="false">카메라 값</button>
+    <button type="button" class="cmd go" id="btnStart">시작</button>
+    <button type="button" class="cmd hold" id="btnPause">일시정지</button>
+    <button type="button" class="cmd go" id="btnResume">재개</button>
+    <button type="button" class="cmd stop" id="btnCancel">중지</button>
+  </div>
+  <div class="group">
+    <span class="glabel">모델</span>
+    <button type="button" class="cmd" id="btnFit">시점</button>
+    <button type="button" class="cmd toggle" id="btnCloud" aria-pressed="false">점구름</button>
+    <button type="button" class="cmd toggle" id="btnColor" aria-pressed="true">색</button>
+    <button type="button" class="cmd toggle" id="btnGrid" aria-pressed="true">격자</button>
+    <button type="button" class="cmd toggle control" id="btnCoverage" aria-pressed="false">덮임</button>
+  </div>
+  <div class="group control">
+    <span class="glabel">보강</span>
+    <button type="button" class="cmd toggle" id="btnSelRegion" aria-pressed="false">영역</button>
+    <button type="button" class="cmd toggle" id="btnSelPoint" aria-pressed="false">점</button>
+    <button type="button" class="cmd" id="btnHoles">구멍</button>
+    <button type="button" class="cmd" id="btnClearMarks">지우기</button>
+    <button type="button" class="cmd go" id="btnFocus">보강 시작</button>
+  </div>
+</footer>
+<div class="eventline">
+  <span class="mono" id="lastEvent">-</span>
+  <button type="button" class="link control" id="btnLog">기록</button>
+</div>
+
+<div class="drawer" id="drawer" hidden>
+  <div class="drawer-head"><span>기록</span><button type="button" class="link" id="btnLogClose">닫기</button></div>
+  <pre class="log mono" id="log"></pre>
+</div>
+<div class="drawer alarmdrawer" id="alarmDrawer" hidden>
+  <div class="drawer-head"><span>알람</span><span><button type="button" class="link" id="btnAckAll">전체 확인</button>
+    &nbsp;<button type="button" class="link" id="btnAlarmClose">닫기</button></span></div>
+  <div class="alarmlist"><table class="alarms mono" id="alarmTable"></table></div>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script src="ply.js"></script>
+<script src="meshview.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

@@ -84,9 +84,10 @@ def _get(url):
 
 def test_http(server):
     status, ctype, body = _get(server + "/")
-    assert status == 200 and ctype.startswith("text/html") and b"viewer.js" in body
-    for path in ("/viewer.js", "/ply.js"):
+    assert status == 200 and ctype.startswith("text/html") and b"app.js" in body
+    for path in ("/app.js", "/meshview.js", "/ply.js", "/style.css"):
         assert _get(server + path)[0] == 200
+    assert json.loads(_get(server + "/api/state")[2]) == {"mode": "view"}
     _, _, body = _get(server + "/api/scans")
     entries = json.loads(body)
     assert entries[0]["id"] == "scans/20261120-100000/out"
