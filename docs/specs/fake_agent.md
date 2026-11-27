@@ -20,7 +20,7 @@
   - `serials`(역할별 일련번호, 같은 값을 주면 일련번호 확인 시험), `ports`(역할별 (제어, 스트림) 포트, 기본 0)
   - 기록: `hello_log`, `move_log`, `stop_log`(stop·abort), `snapshot_log`(역할, 실제 시작·끝 시각(`snapshot_s` 기다림 포함), `clock` 시각), `arrive_log`(시점 목표에 도착한 시각), `fail_log`. 조회: `true_pose(role)`, `view_target(role, k)`, `world_boxes()`
 - `start() -> {"L": (host, ctrl_port, stream_port), …}`: 포트 0으로 열어 실제 포트를 돌려준다. `stop()`
-- `python -m scan3d.fake_agent [--obstacle 2] [--time-scale 5]`: config의 포트로 띄운다.
+- `python -m scan3d.sim.fake_agent [--obstacle 2] [--time-scale 5]`: config의 포트로 띄운다.
 
 ## 동작
 

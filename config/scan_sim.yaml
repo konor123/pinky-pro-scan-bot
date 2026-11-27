@@ -1,4 +1,4 @@
-# 시뮬레이션용 설정(config/scan.yaml 기반: host 127.0.0.1, Gazebo 카메라 크기 640x360).
+# 시뮬레이션용 설정(config/scan.yaml 기반: host 127.0.0.1, Gazebo 카메라 크기 1280x720).
 
 board:
   layout: config/board.json      # 표식 배치(board 모듈이 만든다)

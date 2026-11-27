@@ -43,4 +43,4 @@ alias s3d='docker compose -f docker/compose.yaml run --rm station'
 - 결과(`scans/`)는 마운트된 저장소에 그대로 남는다. 남길 결과는 `tools/archive_scan.py`로 `results/`에 고른다(`results/README.md`).
 - 메시 창: 컨테이너에는 화면이 없으니 `--no-window`로 돌리고 호스트에서 `tools/view_web.py --open`(표준 라이브러리만 쓰므로 호스트 python3로 된다)으로 브라우저에서 보거나 `scans/<id>/out/mesh.ply`를 연다.
   Linux 호스트면 `xhost +local:root` 뒤 `DISPLAY`를 넘겨 창을 띄울 수 있다.
-- `scripts/*.sh`, `tools/scan.sh`는 `SCAN3D_PY`(컨테이너에서는 `/opt/venv/bin/python`)가 있으면 저장소 `.venv` 대신 그 파이썬을 쓴다.
+- `tools/scan.sh`, `scripts/robot.sh`·`setup_robot.sh`·`sim_scan.sh`는 `SCAN3D_PY`(컨테이너에서는 `/opt/venv/bin/python`)가 있으면 저장소 `.venv` 대신 그 파이썬을 쓴다.

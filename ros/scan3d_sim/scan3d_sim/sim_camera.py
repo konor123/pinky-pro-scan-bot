@@ -1,6 +1,5 @@
 """ROS 없이 동작하는 Gazebo RGB-D 카메라 래퍼와 메시지 변환(PLAN 4.2)."""
 import array
-import sys
 import threading
 import time
 
@@ -98,8 +97,6 @@ def pack_depth_frame(
         arr.frombytes(raw)
         arr.byteswap()
         raw = arr.tobytes()
-        if sys.byteorder == "big":
-            return w, h, raw
     return w, h, raw
 
 

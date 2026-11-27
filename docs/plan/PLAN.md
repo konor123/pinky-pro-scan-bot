@@ -35,7 +35,7 @@
 |---|---|---|
 | pinklab-art/pinky_pro | `pinky_bringup/bringup.py`(`cmd_vel` → 모터, `odom` 30 Hz) | 로봇 구동. `ros/pinky_auto`의 robot 런치가 이것에 명령 끊김 정지를 더한 것이다. |
 | fhekwn549/pinky_sim_examples | `command_driver.py`(`turn <deg>`, `forward <m>`, `stop` 문장 명령을 odom으로 확인하며 실행, 실물에 그대로 사용) | 로봇의 문장 명령 실행. 장애물 판단은 스캔 PC가 하므로 `stop_distance:=0.0` |
-| 〃 | `commands.py`(ROS 없는 함수: `sector_min`, `wrap_angle`, `yaw_from_quaternion`) | 스캔 PC 장애물 판단. `sector_min`이 LiDAR 장착 yaw 180°를 보정한다. |
+| 〃 | `commands.py`(ROS 없는 함수: `parse`, `sector_min`, `wrap_angle`) | 스캔 PC 장애물 판단·시뮬레이션 문장 해석. `sector_min`이 LiDAR 장착 yaw 180°를 보정한다. |
 | 〃 | `launch/twin_arena.launch.py`, `urdf/pinky_sim.urdf.xacro`(`d455:=true`), `config/d455_bridge.yaml`, `layouts/scan_room.yaml`, `world_builder`의 `texture`, `spawn_object` | Gazebo 스캔 시험: 표식 판 텍스처를 깐 방, 옆 방향·높이를 바꾼 D455, 실행 중 장애물 추가 |
 | realsenseai/librealsense | `wrappers/python/examples/align-depth2color.py` | 로봇 스냅샷: 파이프라인 설정, 프레임 받기, 깊이 배율 |
 | 〃 | `wrappers/python/examples/align-with-software-device.py` | 스캔 PC에서 받은 원본 프레임으로 깊이를 컬러에 정렬 |
