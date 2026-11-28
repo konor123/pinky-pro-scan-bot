@@ -18,7 +18,7 @@ import numpy as np
 import open3d as o3d
 import open3d.core as o3c
 
-from scan3d import dataset
+from scan3d import dataset, urdf
 
 Result = namedtuple("Result", "mesh cloud dims_mm used crop largest_frac")
 Result.__doc__ = """mesh·cloud: 레거시 Open3D 객체(비면 빈 객체), dims_mm: (w, d, h) 또는 None,
@@ -183,12 +183,13 @@ def _fmt(v, spec):
 
 
 def write_outputs(scan_dir, result, report):
-    """`out/mesh.ply`, `out/cloud.ply`, `out/report.txt`, 역할별 `outcomes.json`의 `crop`·`fused`."""
+    """`out/mesh.ply`, `out/mesh.stl`, `out/object.urdf`, `out/cloud.ply`, `out/report.txt`, 역할별 `outcomes.json`."""
     scan_dir = Path(scan_dir)
     out = scan_dir / "out"
     out.mkdir(exist_ok=True)
     if len(result.mesh.triangles) > 0:
         o3d.io.write_triangle_mesh(str(out / "mesh.ply"), result.mesh)
+        urdf.export_urdf(result.mesh, out, name=scan_dir.name)
     if len(result.cloud.points) > 0:
         o3d.io.write_point_cloud(str(out / "cloud.ply"), result.cloud)
     report = report or {}
@@ -248,7 +249,7 @@ def _report_lines(result, cfg, role_dirs):
 
 
 def write_dir(out, result, cfg, role_dirs, extra_lines=()):
-    """다시 합친 결과를 out에 쓴다: mesh.ply, cloud.ply, report.txt. → report.txt 줄 목록."""
+    """다시 합친 결과를 out에 쓴다: mesh.ply, mesh.stl, object.urdf, cloud.ply, report.txt. → report.txt 줄 목록."""
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     # 임시 이름에 쓴 뒤 바꿔 넣는다(쓰는 중인 파일을 화면이 읽지 않게). 비었으면 지난 결과를 지운다
@@ -262,6 +263,11 @@ def write_dir(out, result, cfg, role_dirs, extra_lines=()):
             os.replace(tmp, out / name)
         else:
             (out / name).unlink(missing_ok=True)
+    if len(result.mesh.triangles) > 0:
+        urdf.export_urdf(result.mesh, out, name=out.parent.name)
+    else:
+        (out / "mesh.stl").unlink(missing_ok=True)
+        (out / "object.urdf").unlink(missing_ok=True)
     lines = _report_lines(result, cfg, role_dirs) + list(extra_lines)
     (out / "report.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return lines

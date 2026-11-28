@@ -137,6 +137,19 @@ class FakeFleet:
         with self._sim_lock:
             self.world.boxes.clear()
 
+    def set_target_mesh(self, mesh, r_obj=None):
+        """시뮬레이터 중앙 물체 메시(및 충돌 반지름)를 바꾼다(URDF 로드용)."""
+        with self._render_lock, self._sim_lock:
+            self.mesh = mesh
+            self.scene = synth.Scene(self.board, self.mesh)
+            if r_obj is not None and self.world.circles:
+                r = max(0.04, min(float(r_obj), self.R - 0.16))
+                self.world.circles[0] = (0.0, 0.0, r)
+
+    def reset_target_mesh(self):
+        """시뮬레이터 중앙 물체를 기본 상자로 되돌린다."""
+        self.set_target_mesh(default_mesh(self.cfg), r_obj=self.cfg["scene"]["r_obj"])
+
     def true_pose(self, role):
         with self._sim_lock:
             return self.bots[role].robot.true_pose()

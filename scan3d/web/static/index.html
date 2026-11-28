@@ -56,6 +56,10 @@
           <div class="stg-grp" id="stageSimGrp" hidden>
             <button type="button" class="stg-btn" id="btnStageObs">장애물 놓기</button>
           </div>
+          <div class="stg-grp" id="stageUrdfGrp" hidden>
+            <a class="stg-btn stg-link mono" id="lnkStageUrdf" target="_blank" rel="noopener">URDF</a>
+            <button type="button" class="stg-btn" id="btnStageUrdfReset">기본 상자</button>
+          </div>
         </div>
         <div class="stagelegend mono">
           <span><i class="sw sw-l"></i>L (0.15m·15°)</span>
@@ -87,7 +91,14 @@
             <tr><th>치수</th><td class="mono" id="dims">-</td></tr>
             <tr><th>덮임 부족</th><td class="mono" id="covLow">-</td></tr>
             <tr><th>보고서</th><td><a id="lnkReport" target="_blank" rel="noopener">report.txt</a></td></tr>
+            <tr><th>URDF</th><td class="filelinks">
+              <a id="lnkUrdf" target="_blank" rel="noopener" download="object.urdf">object.urdf</a>
+              <a id="lnkStl" target="_blank" rel="noopener" download="mesh.stl">mesh.stl</a>
+            </td></tr>
           </table>
+          <div class="sideact control">
+            <button type="button" class="cmd go full" id="btnLoadUrdf">URDF 생성 · 시뮬레이터 로드</button>
+          </div>
           <label class="chk"><input type="checkbox" id="chkFollow" checked> 최신 자동</label>
         </section>
         <section class="panel control"><h2>보강 대상 <span class="cnt mono" id="markCount">0</span></h2>
