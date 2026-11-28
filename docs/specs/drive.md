@@ -24,7 +24,7 @@
 - `front_min(scan, age_s, cfg) -> float`: 로봇 정면 ±`sector_half_deg` 안의 최소 거리. `lidar.mask`의 각 범위(`[from_deg, to_deg]`, from에서 반시계로 to까지, 360으로 나눈 나머지)의 값은 버린다. `scan`이 없거나 `age_s` > `scan_timeout_s`이면 0
 - `RobotIO`(station의 `RobotLink`와 `sim2d.SimIO`가 구현): `move(text, watch=None) -> MoveResult(ok, stopped, odom)`(이동 중 0.1 s마다 `watch()`, true면 `stop`), `scan() -> (scan, age_s)`, `odom() -> Pose2`(odom 좌표), `now()`, `sleep(s)`, `say(text)`, `cancelled() -> bool`
 - `Driver.arc`: 시점 이동을 원호로 할지(`drive.arc`, 기본 참). 참이면 시점·바깥 차선의 목표 yaw가 `arc_yaw`다. unit이 원호를 모르는 에이전트에서 끈다.
-- `Driver(io, cfg, mount, on_event=None)`: 정지, 기다림, 우회, 건너뜀, 막힘을 일어날 때 `on_event(dict)`로 알린다. `set_fix(pose, odom_at_capture)`, `pose()`, `enter() -> Leg`, `go_to_view(k) -> Leg`, `correct(k) -> Leg`. `Leg(view: int, skipped: list[int], stops: int, waited_s: float)`. `enter()`는 `view = 0`
+- `Driver(io, cfg, mount, on_event=None)`: 정지, 기다림, 우회, 건너뜀, 막힘을 일어날 때 `on_event(dict)`로 알린다. `set_fix(pose, odom_at_capture)`, `take_sent()`(지난 호출 뒤 보낸 이동 문장과 도중 정지 여부, 장착값 맞춤이 쓴다), `pose()`, `enter() -> Leg`, `go_to_view(k) -> Leg`, `correct(k) -> Leg`. `Leg(view: int, skipped: list[int], stops: int, waited_s: float)`. `enter()`는 `view = 0`
 
 ## 동작
 

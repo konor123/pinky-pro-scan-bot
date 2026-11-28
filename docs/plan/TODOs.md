@@ -244,9 +244,11 @@
   - 명령: `scripts/sim_scan.sh L`
   - 성공: 시점 이동이 원호로 가고(`events.jsonl`의 `hello`에 `arc: true`) 한 바퀴를 마침, 물체 치수 1 cm 안
   - 실패하면: `config/scan_sim.yaml`과 `config/scan.yaml`의 `drive.arc`를 함께 false로 두고 기록한다.
-- [ ] 두 로봇에 배포 [온라인, 로봇 켜진 상태](10분)
+- [x] 두 로봇에 배포 [온라인, 로봇 켜진 상태](10분)
   - 명령: `scripts/deploy.sh pinky1`, `scripts/robot.sh -H pinky1 stop`, `scripts/robot.sh -H pinky1 start robot_scan`(`pinky2`도 같이) → 스캔 PC에서 `git pull` → `tools/scan.sh --hello`
   - 성공: `L: role L`, `H: role H`
+  - 결과: 두 로봇 빌드 성공, `L: role L`, `H: role H`, hello 응답 `arc: true`, 스냅샷 L·H `PASS 3/3`(평균 2.5 s)
+  - 실패하면: 빌드가 `can't copy … doesn't exist`로 서면 저장소에서 지운 파일의 옛 링크가 남은 것이다. `scripts/deploy.sh`를 다시 실행한다(빌드 전에 끊긴 링크를 지운다).
 - [ ] 원호 확인: 로봇을 원 위에 카메라가 판을 보게 놓는다 [현장](두 로봇 10분)
   - 명령: `tools/drive_check.py --robot L --arc 15`, 이어서 `--arc 45`(H도 같이)
   - 성공: `PASS`(도착 자리 차 2 ~ 4 cm 안, 돈 각 ± 3° 안), 판 중심에서의 거리가 거의 그대로

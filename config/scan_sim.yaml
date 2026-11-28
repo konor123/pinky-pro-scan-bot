@@ -24,6 +24,7 @@ capture:
 drive:
   speed: 0.10                    # 직진 속도 m/s
   arc: true                      # 시점 이동을 원호 하나로(false면 회전 + 직진). 로봇 에이전트가 원호를 모르면 자동으로 회전 + 직진
+  mount_fit: true                # 원호를 달릴 때마다 표식으로 카메라 장착 위치·방향(mount x·y·yaw_deg)을 다시 맞춘다
   d_target: 0.45                 # 카메라–물체 거리 목표
   d_min: 0.40
   d_max: 0.55
@@ -46,7 +47,7 @@ robots:
     host: 127.0.0.1
     port: 7010                   # 제어 연결
     stream_port: 7011            # odom·LiDAR 스트림 연결
-    mount: {x: -0.08, y: 0.0, z: 0.15, pitch_down_deg: 15, yaw_deg: 90}
+    mount: {x: -0.08, y: 0.0, z: 0.15, pitch_down_deg: 15, yaw_deg: 90}   # x·y·yaw_deg는 처음 값(drive.mount_fit이 주행 중 표식으로 맞춘다)
     wheel_radius: 0.027
     wheel_separation: 0.0961
   H:

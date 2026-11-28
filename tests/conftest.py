@@ -22,3 +22,12 @@ def cfg() -> dict:
 @pytest.fixture
 def rng() -> np.random.Generator:
     return np.random.default_rng(0)
+
+
+@pytest.fixture(autouse=True)
+def _forget_mount_fit():
+    """앞 테스트가 맞춘 장착값(프로세스 기억)이 다음 테스트에 넘어가지 않게."""
+    from scan3d.robot import mountfit
+    mountfit.forget()
+    yield
+    mountfit.forget()

@@ -48,10 +48,11 @@ def test_base_from_cam(cfg, role, phi):
         a = math.radians(phi)
         assert board[:3, 3] == pytest.approx(
             [0.62 * math.cos(a), 0.62 * math.sin(a), actual["z"]])
-        assert board[:3, 0] == pytest.approx([-math.sin(a), math.cos(a), 0])
+        look = a + math.pi/2 + math.radians(mount["yaw_deg"])      # 카메라가 보는 수평 방향(yaw 90이면 판 중심 쪽)
+        assert board[:3, 0] == pytest.approx([math.sin(look), -math.cos(look), 0])
         pitch = math.radians(actual["pitch_down_deg"])
-        assert board[:3, 2] == pytest.approx([-math.cos(pitch)*math.cos(a),
-                                              -math.cos(pitch)*math.sin(a), -math.sin(pitch)])
+        assert board[:3, 2] == pytest.approx([math.cos(pitch)*math.cos(look),
+                                              math.cos(pitch)*math.sin(look), -math.sin(pitch)])
         recovered = base_from_cam(T, mount)
         assert math.dist(pose[:2], recovered[:2]) <= 0.002
         assert abs(wrap_angle(pose[2] - recovered[2])) <= math.radians(0.5)

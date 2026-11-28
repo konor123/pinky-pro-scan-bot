@@ -190,6 +190,7 @@ class Driver:
         self.arc = bool(self._drive.get("arc", False))
         self._phi0 = None
         self._fix = None
+        self._sent = []      # 지난 take_sent() 뒤에 보낸 이동 문장 (문장, 도중에 섰는지)
 
     def _event(self, kind, leg):
         if self._on_event:
@@ -197,6 +198,11 @@ class Driver:
 
     def set_fix(self, pose, odom_at_capture):
         self._fix = tuple(pose), tuple(odom_at_capture)
+
+    def take_sent(self):
+        """지난 호출 뒤에 보낸 이동 문장 [(문장, 도중에 섰는지)]을 돌려주고 비운다(장착값 맞춤이 쓴다)."""
+        sent, self._sent = self._sent, []
+        return sent
 
     def pose(self):
         if self._fix is None:
@@ -273,6 +279,7 @@ class Driver:
                             return False
                     watch = lambda: self.io.cancelled() or self._clearance() < self._drive["stop_dist"]
                 result = self.io.move(command, watch=watch)
+                self._sent = (self._sent + [(command, bool(result.stopped))])[-50:]
                 self._check_cancel()
                 if not result.ok:
                     self._event("blocked", leg)

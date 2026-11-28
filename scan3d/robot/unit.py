@@ -8,7 +8,8 @@ import contextlib
 import math
 from dataclasses import dataclass, field
 
-from . import align, drive, tagpose
+from ..protocol import parse_arc
+from . import align, drive, mountfit, tagpose
 
 
 class StartError(RuntimeError):
@@ -31,7 +32,10 @@ class RobotScan:
         self.cfg = cfg
         self.board = board
         self.emit = emit
-        self.mount = cfg["robots"][role]["mount"]
+        # 처음 값. x·y·yaw_deg는 원호를 달릴 때마다 표식으로 다시 맞춘다(drive.mount_fit, mountfit)
+        self.mount = dict(cfg["robots"][role]["mount"])
+        self._fit = None
+        self._fit_at = None    # 마지막으로 자세를 잡은 (표식 자세, odom yaw)
         scene = cfg["scene"]
         self.r_eff = scene["r_obj"] + scene["place_err"]
         self.driver = drive.Driver(link, cfg, self.mount,
@@ -53,6 +57,11 @@ class RobotScan:
             # 원호 문장을 모르는 에이전트(배포 전)에는 보내지 않는다.
             self.driver.arc = False
             self.link.say("로봇 에이전트가 원호 문장을 모릅니다. 시점 이동을 회전 + 직진으로 합니다")
+        if self.cfg["drive"].get("mount_fit", True):
+            known = mountfit.recall(self.serial)        # 이 서버에서 앞선 스캔이 맞춘 값
+            if known:
+                self._set_mount(known)
+            self._fit = mountfit.MountFit(self.mount)
         self.emit("hello", arc=self.driver.arc)
         return reply
 
@@ -64,7 +73,26 @@ class RobotScan:
         frame = align.prepare(header, payloads, self.calib)
         return tagpose.estimate(frame.color, frame.K, self.board)
 
+    def _set_mount(self, values):
+        self.mount = dict(self.mount, **values)
+        self.driver.mount = self.mount
+
+    def _fit_mount(self, T, odom):
+        """지난 표식 자세와 이번 사이에 원호 문장 하나만 끝까지 달렸으면 그 회전 중심으로 장착값을 다시 맞춘다."""
+        sent = self.driver.take_sent()
+        before, self._fit_at = self._fit_at, (T, odom[2])
+        if self._fit is None or before is None or len(sent) != 1 or sent[0][1]:
+            return
+        arc = parse_arc(sent[0][0])
+        seen = mountfit.observe(before[0], T, before[1], odom[2], arc[1], arc[2]) if arc is not None else None
+        if seen is not None and self._fit.add(*seen):
+            m = self._fit.mount()
+            self._set_mount({k: m[k] for k in ("x", "y", "yaw_deg")})
+            mountfit.remember(self.serial, m)
+            self.emit("mount", x=m["x"], y=m["y"], yaw_deg=m["yaw_deg"], n=self._fit.n)
+
     def _fix(self, T, header):
+        self._fit_mount(T, header["odom"])
         self.driver.set_fix(drive.base_from_cam(T, self.mount), header["odom"])
 
     def start_pose(self):
