@@ -26,12 +26,13 @@ class UnitStats:
 class RobotScan:
     """로봇 하나의 스캔. link는 RobotLink(또는 같은 인터페이스), emit(type, **kw)는 이벤트 기록."""
 
-    def __init__(self, role, link, cfg, board, emit):
+    def __init__(self, role, link, cfg, board, emit, on_capture=None):
         self.role = role
         self.link = link
         self.cfg = cfg
         self.board = board
         self.emit = emit
+        self.on_capture = on_capture
         # 처음 값. x·y·yaw_deg는 원호를 달릴 때마다 표식으로 다시 맞춘다(drive.mount_fit, mountfit)
         self.mount = dict(cfg["robots"][role]["mount"])
         self._fit = None
@@ -44,6 +45,7 @@ class RobotScan:
         self.serial = None
         self.cur = -1          # 마지막으로 도착한 시점(아직 없으면 −1)
         self.phi0 = None       # 출발 때 판 좌표 각(도)
+        self.activity = "idle"  # idle | moving | capturing(화면 표시용)
         self.stats = UnitStats()
 
     # ---- 1. 연결 ----
@@ -69,9 +71,20 @@ class RobotScan:
         self.link.wait_streams()
 
     # ---- 2. 출발 자세 ----
-    def _estimate(self, header, payloads):
+    def _prepare_and_estimate(self, header, payloads):
         frame = align.prepare(header, payloads, self.calib)
-        return tagpose.estimate(frame.color, frame.K, self.board)
+        return frame, tagpose.estimate(frame.color, frame.K, self.board)
+
+    def _estimate(self, header, payloads):
+        return self._prepare_and_estimate(header, payloads)[1]
+
+    def _notify_capture(self, use, k, frame, pose, header):
+        if self.on_capture is None:
+            return
+        try:
+            self.on_capture(self.role, use, k, frame, pose, header)
+        except Exception:  # noqa: BLE001  화면 콜백 오류가 스캔을 멈추지 않게
+            pass
 
     def _set_mount(self, values):
         self.mount = dict(self.mount, **values)
@@ -97,8 +110,13 @@ class RobotScan:
 
     def start_pose(self):
         """표식으로 출발 자세를 잡고 판 좌표 각 phi(도)를 돌려준다."""
-        header, payloads, snap = self.link.snapshot(None, "start", None)
-        pose = self._estimate(header, payloads)
+        self.activity = "capturing"
+        try:
+            header, payloads, snap = self.link.snapshot(None, "start", None)
+        finally:
+            self.activity = "idle"
+        frame, pose = self._prepare_and_estimate(header, payloads)
+        self._notify_capture("start", None, frame, pose, header)
         if pose is None:
             self.emit("start", snap=snap, pose=False, phi=None, d=None, d_source=None)
             raise StartError(f"{self.role}: 표식이 보이지 않음. 카메라가 판을 보게 놓는다")
@@ -119,21 +137,30 @@ class RobotScan:
         self.cur = leg.view
 
     def enter(self):
-        self._record_leg(0, self.driver.enter())
+        self.activity = "moving"
+        try:
+            self._record_leg(0, self.driver.enter())
+        finally:
+            self.activity = "idle"
 
     def needs_move(self, k):
         return self.cur < k
 
     def go_to_view(self, k):
-        self._record_leg(k, self.driver.go_to_view(k))
+        self.activity = "moving"
+        try:
+            self._record_leg(k, self.driver.go_to_view(k))
+        finally:
+            self.activity = "idle"
 
     def at_view(self, k):
         return self.cur == k
 
     # ---- 4. 촬영 ----
-    def _distance(self, header, payloads):
+    def _distance(self, header, payloads, use="view", k=None):
         """→ (d, 출처 'tag'|'odom', 표식 자세 있음). 표식이 보이면 자세도 고친다."""
-        pose = self._estimate(header, payloads)
+        frame, pose = self._prepare_and_estimate(header, payloads)
+        self._notify_capture(use, k, frame, pose, header)
         if pose is not None:
             T = pose.T_cam_board
             self._fix(T, header)
@@ -149,26 +176,43 @@ class RobotScan:
         dcfg = self.cfg["drive"]
         phi = self.driver.phi_deg(k)
         with turn():
-            header, payloads, snap = self.link.snapshot(k, "view", phi)
-        d, src, has_pose = self._distance(header, payloads)
+            self.activity = "capturing"
+            try:
+                header, payloads, snap = self.link.snapshot(k, "view", phi)
+            finally:
+                self.activity = "idle"
+        d, src, has_pose = self._distance(header, payloads, use="view", k=k)
         self.emit("view", k=k, use="view", snap=snap, pose=has_pose, d=d, d_source=src)
         if dcfg["d_min"] <= d <= dcfg["d_max"]:
             return
-        leg = self.driver.correct(k)
+        self.activity = "moving"
+        try:
+            leg = self.driver.correct(k)
+        finally:
+            self.activity = "idle"
         self.stats.corrections += 1
         self.stats.stops += leg.stops
         self.link.sleep(self.cfg["capture"]["settle_s"])
         with turn():
-            header, payloads, snap = self.link.snapshot(k, "retake", phi)
-        d2, src2, has_pose = self._distance(header, payloads)
+            self.activity = "capturing"
+            try:
+                header, payloads, snap = self.link.snapshot(k, "retake", phi)
+            finally:
+                self.activity = "idle"
+        d2, src2, has_pose = self._distance(header, payloads, use="retake", k=k)
         self.emit("view", k=k, use="retake", snap=snap, pose=has_pose, d=d2, d_source=src2)
         self.emit("correct", k=k, d_before=d, src_before=src, d_after=d2, src_after=src2)
 
     # ---- 5. 보강 촬영(웹 화면) ----
     def refix(self):
         """그 자리에서 한 장 찍어 표식으로 자세를 다시 잡는다. 표식이 안 보이면 StartError."""
-        header, payloads, _ = self.link.snapshot(None, "fix", None)
-        pose = self._estimate(header, payloads)
+        self.activity = "capturing"
+        try:
+            header, payloads, _ = self.link.snapshot(None, "fix", None)
+        finally:
+            self.activity = "idle"
+        frame, pose = self._prepare_and_estimate(header, payloads)
+        self._notify_capture("fix", None, frame, pose, header)
         if pose is None:
             raise StartError(f"{self.role}: 표식이 보이지 않아 자세를 다시 잡지 못함")
         self._fix(pose.T_cam_board, header)
@@ -177,9 +221,14 @@ class RobotScan:
     def capture_extra(self, k, phi, turn=contextlib.nullcontext):
         """시점 번호 k(스캔 시점 밖)로 한 장 더 찍는다. → (frame, 표식 자세 또는 None, snap)."""
         with turn():
-            header, payloads, snap = self.link.snapshot(k, "view", phi)
+            self.activity = "capturing"
+            try:
+                header, payloads, snap = self.link.snapshot(k, "view", phi)
+            finally:
+                self.activity = "idle"
         frame = align.prepare(header, payloads, self.calib)
         pose = tagpose.estimate(frame.color, frame.K, self.board)
+        self._notify_capture("focus", k, frame, pose, header)
         if pose is not None:
             self._fix(pose.T_cam_board, header)
         d = None if pose is None else tagpose.distance_d(pose.T_cam_board, self.r_eff)

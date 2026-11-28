@@ -101,7 +101,7 @@ body.view .body { grid-template-columns: 1fr; }
 .view { flex: 1; min-height: 0; border: 1px solid var(--line); background: var(--panel); }
 .cams { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; height: 100%; overflow: auto; align-content: start; }
 .cam { border: 1px solid var(--line); background: var(--cell); }
-.cam.hold { opacity: .6; }
+.cam.flash { border-color: var(--hold); box-shadow: 0 0 0 2px rgba(209, 138, 0, .35); }
 .cam h3 { margin: 0; font-size: 11.5px; letter-spacing: .04em; padding: 5px 9px; background: var(--panel-head); color: var(--panel-head-text);
   display: flex; align-items: center; gap: 8px; }
 .cam h3 .age { margin-left: auto; font-weight: 500; opacity: .8; }
@@ -111,6 +111,35 @@ body.view .body { grid-template-columns: 1fr; }
 .cam .kv td.ok { color: var(--run); } .cam .kv td.warn { color: var(--hold); } .cam .kv td.bad { color: var(--stop); }
 .cam .grid2 { display: grid; grid-template-columns: 1fr 1fr; }
 .cam .grid2 .kv:first-child { border-right: 1px solid var(--line); }
+
+/* 실시간 3D 스테이지 */
+.view.stageview { display: grid; grid-template-columns: 1fr 340px; min-height: 0; }
+.stagecanvas { position: relative; min-height: 0; background: var(--canvas); overflow: hidden; }
+#stageCanvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; display: block; }
+#stageCanvas:active { cursor: grabbing; }
+.stagehud { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: block; }
+.stagetools { position: absolute; left: 8px; top: 8px; display: flex; flex-wrap: wrap; gap: 6px; z-index: 2; }
+.stg-grp { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.stg-btn { height: 26px; padding: 0 9px; border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--text);
+  font: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.stg-btn:last-child { border-right: 0; }
+.stg-btn:hover { background: var(--bg); }
+.stg-btn.active, .stg-btn[aria-pressed="true"] { background: var(--info-dim); color: var(--info); }
+.stagelegend { position: absolute; left: 8px; bottom: 26px; display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px;
+  background: var(--panel); border: 1px solid var(--line); padding: 4px 8px; border-radius: 2px; opacity: .92; pointer-events: none; }
+.sw.sw-l { background: #1f9d55; } .sw.sw-h { background: #1f6fd1; } .sw.sw-shot { background: #eab308; } .sw.sw-obs { background: #ea580c; }
+.stagecams { border-left: 1px solid var(--line); overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 8px; background: var(--panel); }
+.livecam { border: 1px solid var(--line); background: var(--cell); border-radius: 2px; overflow: hidden; flex: none; transition: border-color .2s, box-shadow .2s; }
+.livecam.flash { border-color: #eab308; box-shadow: 0 0 0 2px rgba(234, 179, 8, .45); }
+.livecam h3 { margin: 0; font-size: 11.5px; padding: 5px 8px; background: var(--panel-head); color: var(--panel-head-text); display: flex; align-items: center; gap: 6px; }
+.livecam h3 .act { margin-left: auto; font-size: 11px; padding: 1px 6px; border-radius: 2px; background: rgba(255,255,255,.12); }
+.livecam.flash h3 .act { background: #d97706; color: #fff; }
+.livecam .img { background: #000; aspect-ratio: 16 / 9; position: relative; }
+.livecam img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.livecam .none { position: absolute; inset: 0; display: grid; place-items: center; color: #6f7b88; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; padding: 8px; text-align: center; }
+.livecam .shotbar { position: absolute; left: 6px; bottom: 6px; background: rgba(0, 0, 0, .72); color: #f8fafc; font-size: 11px; padding: 2px 6px; border-radius: 2px; }
+.livecam .meta { display: flex; justify-content: space-between; gap: 6px; padding: 4px 8px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--line); }
+.livecam .meta b { color: var(--text); }
 .view.model { display: grid; grid-template-columns: 1fr 280px; }
 .canvaswrap { position: relative; min-height: 0; }
 #view { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab; display: block; }
@@ -181,6 +210,9 @@ body.view .body { grid-template-columns: 1fr; }
 
 @media (max-width: 1100px) {
   .view.model { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .view.stageview { grid-template-columns: 1fr; grid-template-rows: minmax(320px, 1fr) auto; }
+  .stagecams { border-left: 0; border-top: 1px solid var(--line); flex-direction: row; flex-wrap: wrap; max-height: 40vh; }
+  .livecam { flex: 1 1 240px; }
   .side { border-left: 0; border-top: 1px solid var(--line); max-height: 40vh; }
   .cams { grid-template-columns: 1fr; }
 }

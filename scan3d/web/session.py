@@ -5,6 +5,7 @@
 끝 상태(done·failed·cancelled)는 정리(_finish) 뒤에 낸다. 그때까지 busy()가 참이라 새 작업·다시 연결이 끼어들지 못한다.
 """
 import json
+import math
 import subprocess
 import threading
 import time
@@ -13,10 +14,12 @@ from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import numpy as np
+
 from .. import dataset, station
 from ..config import ORDER, ROOT, load_board
 from ..pair.coordinator import PairScan
-from ..robot import drive
+from ..robot import align, drive, mountfit, tagpose
 from ..robot import link as robot_link
 from ..robot.unit import RobotScan, StartError
 from . import alarms as alarm_mod
@@ -56,6 +59,13 @@ class Slot:
     stack_msg: str = ""
     stack_busy: bool = False
     user_stopped: bool = False      # 화면에서 끈 로봇(다시 켤 때까지 다시 연결하지 않는다)
+    fix: tuple = None               # (base_pose, origin_odom): 실시간 판 좌표 추정용 기준
+    trail: deque = field(default_factory=lambda: deque(maxlen=600))
+    shots: list = field(default_factory=list)
+    last_shot_t: float = None
+    last_shot_k: int = None
+    last_shot_use: str = None
+    bypassing: bool = False
 
     def live_link(self):
         """살아 있는 링크 또는 None. link는 다른 스레드가 바꾸므로 한 번만 읽는다."""
@@ -77,6 +87,7 @@ class Job:
     started: float = field(default_factory=time.monotonic)
     ended: float = None
     pair: object = None
+    units: dict = None              # focus 등 pair가 없는 작업의 {role: RobotScan}
     scan_dir: Path = None
     user_cancel: bool = False       # 사용자가 누른 취소(실패와 구분)
     recipe: str = "default"
@@ -86,11 +97,13 @@ class Job:
 
 class Session:
     def __init__(self, cfg, cfg_path, addrs, clock, data_dir=None, roles=ORDER, fake=False, recipes_path=None,
-                 robot_sh=None):
+                 robot_sh=None, fleet=None):
         self.base_cfg, self.cfg_path, self.clock, self.fake = cfg, cfg_path, clock, bool(fake)
+        self.fleet = fleet
         self.board_path, self.board = load_board(cfg)
         self.recipes = recipe_mod.load(recipes_path or ROOT / "config" / "recipes.yaml")
         board_json = json.loads(Path(self.board_path).read_text(encoding="utf-8"))
+        self.board_json = board_json
         for name, r in self.recipes.items():        # 이 판과 원에서 말이 되는지
             recipe_mod.check(name, recipe_mod.apply(cfg, r), board_json)
         self.recipe_name = "default" if "default" in self.recipes else next(iter(self.recipes))
@@ -294,6 +307,10 @@ class Session:
         if s is None or not self.busy():          # 작업이 끝난 뒤 늦게 온 이벤트는 버린다
             return
         ev = kw.get("event") if typ == "drive" else None
+        if ev == "bypass":
+            s.bypassing = True
+        elif typ in ("leg", "view"):
+            s.bypassing = False
         if ev in ("wait", "stop"):
             s.obstacle = {"event": ev, "view": kw.get("view"), "since": time.monotonic()}
             self.alarms.raise_("W06", f"{role}: 진행 방향 막힘({'정지' if ev == 'stop' else '대기'})", role,
@@ -306,7 +323,63 @@ class Session:
     def _clear_obstacles(self):
         for r, s in self.slots.items():
             s.obstacle = None
+            s.bypassing = False
             self.alarms.clear(f"obs:{r}")
+
+    def set_obstacle(self, on, view=None):
+        """가짜 시뮬레이션(--fake)에서 장애물 상자를 놓거나 치운다."""
+        if not self.fake or self.fleet is None:
+            raise NotReady("시뮬레이션(--fake)에서만 장애물을 바꿀 수 있다")
+        if on:
+            box = self.fleet.add_obstacle(k=view)
+            self.log(f"장애물 추가: ({box[0]:.2f}, {box[1]:.2f})")
+        else:
+            self.fleet.clear_obstacles()
+            self.log("장애물 제거")
+
+    # ---- 실시간 촬영·자세 기록 ----
+    def _mount_of(self, role, cfg, job=None):
+        """화면에 쓸 장착값: 진행 중인 작업의 로봇이 맞춘 값, 없으면 이 서버가 기억한 값(mountfit), 없으면 config."""
+        u = self._unit_of(job, role) if job is not None else None
+        if u is not None:
+            return u.mount
+        base = cfg["robots"][role]["mount"]
+        slot = self.slots.get(role)
+        known = mountfit.recall(slot.serial) if slot is not None else None
+        return dict(base, **known) if known else base
+
+    def _on_capture(self, role, use, k, frame, pose, header, cfg):
+        s = self.slots.get(role)
+        if s is None:
+            return
+        mount = self._mount_of(role, cfg, self.job)
+        values, jpeg = preview.measure_frame(frame, pose, self.board, cfg, mount)
+        now = time.monotonic()
+        fix = None
+        shot = None
+        if pose is not None:
+            T = np.asarray(pose.T_cam_board, float)
+            if header and header.get("odom") is not None:
+                fix = (drive.base_from_cam(T, mount), tuple(header["odom"]))
+            R = T[:3, :3]
+            c = -R.T @ T[:3, 3]
+            f = R.T @ np.array([0.0, 0.0, 1.0])
+            shot = {"k": k, "use": use, "pose": True,
+                    "cam": [round(float(v), 4) for v in c],
+                    "look": [round(float(v), 4) for v in f],
+                    "phi_deg": round(float(values["phi_deg"]), 1),
+                    "d_m": round(float(values["d_m"]), 3)}
+        with self.lock:
+            s.preview, s.preview_t, s.jpeg, s.error = values, now, jpeg, None
+            s.seq += 1
+            s.last_shot_t, s.last_shot_k, s.last_shot_use = now, k, use
+            if fix is not None:
+                s.fix = fix
+            if shot is not None and use in ("view", "retake", "focus"):
+                s.shots = [x for x in s.shots if not (x["k"] == k and x["use"] == use)]
+                s.shots.append(shot)
+                if len(s.shots) > 96:
+                    s.shots = s.shots[-96:]
 
     # ---- 미리보기 ----
     def set_preview(self, on):
@@ -326,11 +399,17 @@ class Session:
             if lk is None:
                 return False
             header, payloads, _ = lk.snapshot(None, "preview", None)
-            values, jpeg = preview.measure(header, payloads, lk.calib, self.board, self.cfg,
-                                           self.cfg["robots"][role]["mount"])
+            mount = self._mount_of(role, self.cfg)
+            frame = align.prepare(header, payloads, lk.calib)
+            pose = tagpose.estimate(frame.color, frame.K, self.board)
+            values, jpeg = preview.measure_frame(frame, pose, self.board, self.cfg, mount)
+            fix = (drive.base_from_cam(pose.T_cam_board, mount), tuple(header["odom"])) if (
+                pose is not None and header.get("odom") is not None) else None
             with self.lock:
                 s.preview, s.preview_t, s.jpeg, s.error = values, time.monotonic(), jpeg, None
                 s.seq += 1
+                if fix is not None:
+                    s.fix = fix
         except (ConnectionError, OSError, TimeoutError) as e:
             s.error = f"미리보기 실패: {e}"
             self._drop(s, lost=True)
@@ -340,10 +419,19 @@ class Session:
             self.camera.release()
         return True
 
+    def _sample_trails(self):
+        with self.lock:
+            job = self.job
+        for r, s in self.slots.items():
+            p = self._live_pose(r, s, job)
+            if p is not None:
+                self._record_trail(s, p)
+
     def _loop(self):
         while not self._stop.is_set():
             if self.busy():
-                time.sleep(POLL_S * 2)
+                self._sample_trails()
+                time.sleep(POLL_S)
                 continue
             for s in self.slots.values():           # 작업이 없을 때 끊긴 로봇(전원, Wi-Fi)
                 if s.was_connected and not s.connected():
@@ -497,9 +585,16 @@ class Session:
                 (job.scan_dir / "recipe.json").write_text(json.dumps(
                     recipe_mod.public(job.recipe, self.recipes[job.recipe]), ensure_ascii=False, indent=1) + "\n",
                     encoding="utf-8")
+                with self.lock:
+                    for s in self.slots.values():
+                        s.trail.clear()
+                        s.shots = []
+                        s.last_shot_t = s.last_shot_k = s.last_shot_use = None
                 for r, lk in links.items():
                     lk.raw = writer.role(r)
-                pair = PairScan(job.cfg, links, writer, self.board, self.cancel)
+                pair = PairScan(job.cfg, links, writer, self.board, self.cancel,
+                                on_capture=lambda role, use, k, fr, po, hdr: self._on_capture(
+                                    role, use, k, fr, po, hdr, job.cfg))
                 pair.hold = lambda role=None: self._hold(job, role)   # 일시정지는 세션의 paused로
                 record = pair.event                                      # 기록하면서 장애물 상태도 본다
                 pair.event = lambda role, typ, **kw: (self._on_event(role, typ, kw), record(role, typ, **kw))
@@ -578,8 +673,11 @@ class Session:
                 for r, lk in links.items():
                     writers[r] = dataset.RawWriter(job.scan_dir / r)
                     lk.raw = writers[r]
-                    units[r] = RobotScan(r, lk, cfg, self.board, emitter(r))
+                    units[r] = RobotScan(r, lk, cfg, self.board, emitter(r),
+                                         on_capture=lambda role, use, k, fr, po, hdr: self._on_capture(
+                                             role, use, k, fr, po, hdr, cfg))
                     units[r].hello()
+                job.units = units
                 run = focus.FocusRun(cfg, units, job.scan_dir, plans,
                                      hold=lambda role=None: self._hold(job, role),
                                      cancelled=self.cancel.is_set, progress=job.progress, log=self.log)
@@ -614,6 +712,148 @@ class Session:
             return None
         path = job.scan_dir / "focus" / crops[i]["file"]
         return path.read_bytes() if path.is_file() else None
+
+    # ---- 실시간 스테이지(3D 시각화) ----
+    def _unit_of(self, job, role):
+        if job is None:
+            return None
+        if job.pair is not None and role in job.pair.units:
+            return job.pair.units[role]
+        if job.units is not None and role in job.units:
+            return job.units[role]
+        return None
+
+    def _live_pose(self, role, slot, job):
+        """현재 로봇의 판 좌표 (x, y, yaw rad) 또는 None."""
+        if self.fleet is not None:
+            try:
+                return tuple(float(v) for v in self.fleet.true_pose(role))
+            except Exception:  # noqa: BLE001
+                pass
+        u = self._unit_of(job, role)
+        if u is not None and u.driver._fix is not None:
+            try:
+                return tuple(float(v) for v in u.driver.pose())
+            except Exception:  # noqa: BLE001
+                pass
+        lk = slot.live_link()
+        fix = slot.fix
+        if lk is not None and fix is not None:
+            od = lk.odom()
+            if od is not None:
+                base, origin = fix
+                offset = base[2] - origin[2]
+                dx, dy = drive._rotate(od[0] - origin[0], od[1] - origin[1], offset)
+                return float(base[0] + dx), float(base[1] + dy), float(drive.wrap_angle(od[2] + offset))
+        return None
+
+    def _record_trail(self, slot, pose):
+        pt = (round(pose[0], 3), round(pose[1], 3))
+        with self.lock:
+            if not slot.trail or math.hypot(pt[0] - slot.trail[-1][0], pt[1] - slot.trail[-1][1]) >= 0.015:
+                slot.trail.append(pt)
+
+    def _lidar_points(self, pose, lk, cfg):
+        """최신 LiDAR 스캔을 판 좌표 [[x, y], …]로 변환(최대 약 90점)."""
+        if pose is None or lk is None:
+            return []
+        sc, age = lk.scan()
+        if sc is None or age > cfg["drive"]["scan_timeout_s"] * 2.0:
+            return []
+        ranges = sc["ranges"]
+        n = len(ranges)
+        if not n:
+            return []
+        step = max(1, n // 90)
+        start, inc = sc["angle_min"], sc["angle_inc"]
+        rmin, rmax = max(0.05, sc["range_min"]), min(2.2, sc["range_max"])
+        mount_yaw = math.radians(cfg["lidar"]["mount_yaw_deg"])
+        mask = cfg["lidar"].get("mask") or []
+        rx, ry, ryaw = pose
+        pts = []
+        for i in range(0, n, step):
+            r = ranges[i]
+            if not (rmin <= r <= rmax) or not math.isfinite(r):
+                continue
+            ang_robot = start + i * inc + mount_yaw
+            if mask and drive.in_mask(math.degrees(ang_robot), mask):
+                continue
+            ang = ryaw + ang_robot
+            pts.append([round(rx + r * math.cos(ang), 3), round(ry + r * math.sin(ang), 3)])
+        return pts
+
+    def _stage_state(self, now, job):
+        cfg = (job.cfg if job is not None and job.state == "running" and job.cfg else self.cfg)
+        sc = cfg["scene"]
+        d = cfg["drive"]
+        holding = set((job.progress.get("holding") or []) if job is not None and job.state == "running" else [])
+        robots = {}
+        for r, s in self.slots.items():
+            lk = s.live_link()
+            pose = self._live_pose(r, s, job)
+            if pose is not None and job is not None and job.state == "running":
+                self._record_trail(s, pose)
+            mount = self._mount_of(r, cfg, job)
+            cam = None
+            if pose is not None:
+                cx, cy = drive.cam_xy(pose, mount)
+                cam = [round(cx, 4), round(cy, 4), round(float(mount["z"]), 4)]
+            u = self._unit_of(job, r)
+            if s.obstacle is not None:
+                activity = "waiting"
+            elif s.bypassing:
+                activity = "bypassing"
+            elif r in holding or "all" in holding:
+                activity = "holding"
+            elif u is not None and job is not None and job.state == "running":
+                activity = u.activity
+            else:
+                activity = "idle"
+            with self.lock:
+                trail = [list(p) for p in s.trail]
+                shots = list(s.shots)
+                shot_t, shot_k, shot_use = s.last_shot_t, s.last_shot_k, s.last_shot_use
+            robots[r] = {
+                "pose": None if pose is None else [round(pose[0], 4), round(pose[1], 4), round(pose[2], 4)],
+                "cam": cam,
+                "mount": {"x": float(mount["x"]), "y": float(mount["y"]), "z": float(mount["z"]),
+                          "yaw_deg": float(mount["yaw_deg"]), "pitch_down_deg": float(mount["pitch_down_deg"])},
+                "activity": activity,
+                "shot_age_s": None if shot_t is None else round(now - shot_t, 2),
+                "shot_k": shot_k,
+                "shot_use": shot_use,
+                "trail": trail,
+                "shots": shots,
+                "lidar": self._lidar_points(pose, lk, cfg),
+            }
+        obstacles = []
+        target_box = None
+        if self.fleet is not None:
+            try:
+                from ..sim.fake_agent import BOX
+                target_box = list(BOX)
+                obstacles = [[round(float(v), 4) for v in b] for b in self.fleet.world_boxes()]
+            except Exception:  # noqa: BLE001
+                pass
+        return {
+            "board_m": round(float(self.board_json.get("board_mm", 594.0)) / 1000.0, 4),
+            "tags": [{"id": t["id"], "corners": [[round(c[0], 4), round(c[1], 4)] for c in t["corners"]]}
+                     for t in self.board_json.get("tags", [])],
+            "scene": {
+                "r_obj": float(sc["r_obj"]),
+                "r_eff": float(sc["r_obj"]) + float(sc["place_err"]),
+                "obj_h": float(sc["obj_h"]),
+                "R": float(sc["R"]),
+                "n_views": int(sc["n_views"]),
+                "bypass_lane": float(d["bypass_lane"]),
+                "sector_half_deg": float(d["sector_half_deg"]),
+                "start_clear": float(d["start_clear"]),
+                "stop_dist": float(d["stop_dist"]),
+            },
+            "target_box": target_box,
+            "obstacles": obstacles,
+            "robots": robots,
+        }
 
     # ---- 화면 상태 ----
     def state(self):
@@ -654,7 +894,8 @@ class Session:
                           "up_deg": fs["up_deg"], "start_clear": d["start_clear"], "stop_dist": d["stop_dist"]},
                "recipe": {"current": recipe_mod.public(self.recipe_name, self.recipes[self.recipe_name]),
                           "list": [recipe_mod.public(n, r) for n, r in self.recipes.items()]},
-               "alarms": self.alarms.snapshot(), "judge": self.last_judge}
+               "alarms": self.alarms.snapshot(), "judge": self.last_judge,
+               "stage": self._stage_state(now, job)}
         if self.last_scan_dir is not None:
             out["last_scan"] = {"scan_id": self.last_scan_dir.name,
                                 "mesh_id": f"{self.data_dir.name}/{self.last_scan_dir.name}/out"}

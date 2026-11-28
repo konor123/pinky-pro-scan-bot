@@ -45,13 +45,11 @@ def thumbnail(color, board):
     return buf.tobytes() if ok else b""
 
 
-def measure(header, payloads, calib, board, cfg, mount):
-    """스냅샷 → (맞추기 값 dict, JPEG 바이트)."""
-    frame = align.prepare(header, payloads, calib)
+def measure_frame(frame, pose, board, cfg, mount):
+    """이미 정렬된 frame과 표식 자세 pose → (맞추기 값 dict, JPEG 바이트)."""
     scene = cfg["scene"]
     r_eff = float(scene["r_obj"]) + float(scene["place_err"])
     out = {"pose": False, "depth_center_m": center_depth(frame.depth)}
-    pose = tagpose.estimate(frame.color, frame.K, board)
     if pose is None:
         out["reason"] = "표식이 2장 미만으로 보임: 카메라가 판을 보게 놓는다"
     else:
@@ -64,6 +62,13 @@ def measure(header, payloads, calib, board, cfg, mount):
             z_err_m=z - float(mount["z"]), pitch_err_deg=pitch - float(mount["pitch_down_deg"]),
             n_tags=pose.n_tags, reproj_px=pose.reproj_px)
     return out, thumbnail(frame.color, board)
+
+
+def measure(header, payloads, calib, board, cfg, mount):
+    """스냅샷 → (맞추기 값 dict, JPEG 바이트)."""
+    frame = align.prepare(header, payloads, calib)
+    pose = tagpose.estimate(frame.color, frame.K, board)
+    return measure_frame(frame, pose, board, cfg, mount)
 
 
 def pair_check(phis, tol_deg):

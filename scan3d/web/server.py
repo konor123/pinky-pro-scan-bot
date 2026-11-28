@@ -15,7 +15,7 @@ from . import results
 
 STATIC_DIR = Path(__file__).resolve().parent / "static"
 STATIC = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/meshview.js": "meshview.js",
-          "/ply.js": "ply.js", "/style.css": "style.css"}
+          "/stageview.js": "stageview.js", "/ply.js": "ply.js", "/style.css": "style.css"}
 TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
          ".css": "text/css; charset=utf-8"}
 MAX_BODY = 1 << 20
@@ -195,6 +195,11 @@ def make_handler(app):
                     s.alarms.ack(aid)
                 elif path == "/api/focus/start":
                     s.start_focus(body.get("markers"), body.get("regions"))
+                elif path == "/api/sim/obstacle":
+                    view = body.get("view")
+                    if view is not None and (not isinstance(view, int) or isinstance(view, bool)):
+                        return self._error(HTTPStatus.BAD_REQUEST, "bad_request", "view는 정수")
+                    s.set_obstacle(bool(body.get("on", True)), view)
                 else:
                     return self._error(HTTPStatus.NOT_FOUND, "not_found")
             except Busy as e:

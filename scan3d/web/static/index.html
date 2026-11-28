@@ -32,11 +32,43 @@
 
   <main class="stage">
     <div class="tabs">
-      <button type="button" class="tab control" id="tabCam" aria-selected="true">카메라</button>
+      <button type="button" class="tab control" id="tabStage" aria-selected="true">실시간 뷰</button>
+      <button type="button" class="tab control" id="tabCam" aria-selected="false">카메라</button>
       <button type="button" class="tab" id="tabModel" aria-selected="false">모델</button>
     </div>
 
-    <section class="view control" id="camView">
+    <section class="view stageview control" id="stageView">
+      <div class="stagecanvas">
+        <canvas id="stageCanvas"></canvas>
+        <canvas id="stageHud" class="stagehud"></canvas>
+        <div class="stagetools">
+          <div class="stg-grp">
+            <button type="button" class="stg-btn active" id="btnStage3d">3D</button>
+            <button type="button" class="stg-btn" id="btnStageTop">위에서</button>
+            <button type="button" class="stg-btn" id="btnStageSide">측면</button>
+          </div>
+          <div class="stg-grp">
+            <button type="button" class="stg-btn" id="btnStageFrustum" aria-pressed="true">시야각</button>
+            <button type="button" class="stg-btn" id="btnStageLidar" aria-pressed="true">LiDAR</button>
+            <button type="button" class="stg-btn" id="btnStageTrail" aria-pressed="true">궤적</button>
+            <button type="button" class="stg-btn" id="btnStageShots" aria-pressed="true">시점</button>
+          </div>
+          <div class="stg-grp" id="stageSimGrp" hidden>
+            <button type="button" class="stg-btn" id="btnStageObs">장애물 놓기</button>
+          </div>
+        </div>
+        <div class="stagelegend mono">
+          <span><i class="sw sw-l"></i>L (0.15m·15°)</span>
+          <span><i class="sw sw-h"></i>H (0.45m·37°)</span>
+          <span><i class="sw sw-shot"></i>촬영</span>
+          <span><i class="sw sw-obs"></i>LiDAR·장애물</span>
+        </div>
+        <div class="status mono" id="stageStatus">드래그 회전 · Shift/우클릭 이동 · 휠 확대</div>
+      </div>
+      <aside class="stagecams" id="stageCams"></aside>
+    </section>
+
+    <section class="view control" id="camView" hidden>
       <div class="cams" id="cams"></div>
     </section>
 
@@ -116,6 +148,7 @@
 <div class="toast" id="toast" hidden></div>
 <script src="ply.js"></script>
 <script src="meshview.js"></script>
+<script src="stageview.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

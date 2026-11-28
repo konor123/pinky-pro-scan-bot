@@ -14,12 +14,13 @@
   };
 
   const ui = {
-    mode: null, st: null, entries: [], current: null, mtime: null, tab: "cam", hasMesh: false,
+    mode: null, st: null, entries: [], current: null, mtime: null, tab: "stage", hasMesh: false,
     targets: [],              // {kind:"point"|"region", source, point, normal | points, normals, vertices:Set, n}
     coverage: null,           // {scores, good, low_frac, n_views}
     showCoverage: false, showCloud: false, inflight: new Set(), pending: null, loading: false, lastJobKey: null,
   };
   const view = new MeshView($("view"));
+  const stageView = new StageView($("stageCanvas"), $("stageHud"));
 
   // ---------- 공용 ----------
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -63,14 +64,38 @@
   // ---------- 탭 ----------
   function setTab(tab) {
     ui.tab = tab;
+    $("tabStage").setAttribute("aria-selected", String(tab === "stage"));
     $("tabCam").setAttribute("aria-selected", String(tab === "cam"));
     $("tabModel").setAttribute("aria-selected", String(tab === "model"));
+    $("stageView").hidden = tab !== "stage";
     $("camView").hidden = tab !== "cam";
     $("modelView").hidden = tab !== "model";
     if (tab === "model") view.redraw();
   }
+  $("tabStage").addEventListener("click", () => setTab("stage"));
   $("tabCam").addEventListener("click", () => setTab("cam"));
   $("tabModel").addEventListener("click", () => setTab("model"));
+
+  // 실시간 3D 스테이지 조작 버튼
+  function setStagePreset(name, btnId) {
+    stageView.setPreset(name);
+    for (const id of ["btnStage3d", "btnStageTop", "btnStageSide"]) $(id).classList.toggle("active", id === btnId);
+  }
+  $("btnStage3d").addEventListener("click", () => setStagePreset("3d", "btnStage3d"));
+  $("btnStageTop").addEventListener("click", () => setStagePreset("top", "btnStageTop"));
+  $("btnStageSide").addEventListener("click", () => setStagePreset("side", "btnStageSide"));
+  for (const [id, key] of [["btnStageFrustum", "frustum"], ["btnStageLidar", "lidar"],
+    ["btnStageTrail", "trail"], ["btnStageShots", "shots"]]) {
+    $(id).addEventListener("click", () => {
+      const on = !isPressed(id);
+      pressed(id, on);
+      stageView.setOptions({ [key]: on });
+    });
+  }
+  $("btnStageObs").addEventListener("click", () => {
+    const has = !!(ui.st && ui.st.stage && ui.st.stage.obstacles && ui.st.stage.obstacles.length);
+    post("/api/sim/obstacle", { on: !has });
+  });
 
   // ---------- 상태줄 ----------
   function renderSys(st) {
@@ -241,22 +266,70 @@
         <tr><th>재투영</th><td class="${c(p.reproj_px < 1.5, p.reproj_px < 2.5)}">${fmt(p.reproj_px, 2, " px")}</td></tr>
       </table></div>`;
   }
+  const ACT_TXT = { idle: "대기", moving: "이동 중", capturing: "촬영 중", waiting: "장애물 대기", bypassing: "우회 중", holding: "일시정지" };
+  let stageCamKey = "";
+  function renderStage(st) {
+    if (!st.stage) return;
+    stageView.update(st.stage, st.robots);
+    const simGrp = $("stageSimGrp");
+    simGrp.hidden = !st.fake;
+    if (st.fake) {
+      const nObs = (st.stage.obstacles || []).length;
+      const b = $("btnStageObs");
+      b.textContent = nObs ? `장애물 치우기 (${nObs})` : "장애물 놓기";
+      pressed("btnStageObs", nObs > 0);
+      b.disabled = ui.inflight.has("/api/sim/obstacle");
+    }
+    const key = JSON.stringify(ROLES.map((r) => {
+      const R = st.robots[r], sr = st.stage.robots && st.stage.robots[r];
+      return R && sr ? [R.preview_seq, R.connected, sr.activity, sr.shot_k, sr.shot_use,
+        sr.shot_age_s != null && sr.shot_age_s < 1.2, (sr.shots || []).length] : null;
+    }));
+    if (key === stageCamKey) return;
+    stageCamKey = key;
+    $("stageCams").innerHTML = ROLES.filter((r) => st.robots[r]).map((r) => {
+      const R = st.robots[r], sr = (st.stage.robots && st.stage.robots[r]) || {};
+      const p = R.preview;
+      const flash = sr.activity === "capturing" || (sr.shot_age_s != null && sr.shot_age_s < 1.2);
+      const act = flash && sr.shot_k != null ? `촬영 #${sr.shot_k}` : (ACT_TXT[sr.activity] || "대기");
+      const img = R.preview_seq
+        ? `<img alt="${r}" src="/api/preview/${r}.jpg?n=${R.preview_seq}">`
+        : `<div class="none">${R.connected ? "시작 또는 '카메라 값'을 누르면\n실시간 촬영 화면이 표시됩니다" : "OFFLINE"}</div>`;
+      const shotBadge = sr.shot_k != null ? `<div class="shotbar mono">VIEW #${sr.shot_k} · ${sr.shot_use || ""}</div>`
+        : p && p.pose ? `<div class="shotbar mono">PREVIEW</div>` : "";
+      const meta = p && p.pose
+        ? `<span>φ <b>${fmt(p.phi_deg, 1, "°")}</b></span><span>d <b>${fmt(p.d_m, 3, "m")}</b></span><span>표식 <b>${p.n_tags}</b></span>`
+        : `<span>시점 <b>${(sr.shots || []).length}/${st.limits.n_views}</b></span><span>전방 <b>${R.front_m == null ? "-" : R.front_m >= 9.99 ? "없음" : fmt(R.front_m, 2, "m")}</b></span>`;
+      return `<div class="livecam ${flash ? "flash" : ""}">
+        <h3><span class="lamp ${R.connected ? "run" : "stop"}"></span>${r} CAM (${R.z_cfg_m}m · ${R.pitch_cfg_deg}°)
+          <span class="act mono">${esc(act)}</span></h3>
+        <div class="img">${img}${shotBadge}</div>
+        <div class="meta mono">${meta}</div>
+      </div>`;
+    }).join("");
+  }
+
   function renderCams(st) {
-    const hold = busy(st);
-    const key = JSON.stringify([hold, ROLES.map((r) => st.robots[r] && [st.robots[r].preview_seq, st.robots[r].connected])]);
+    const running = busy(st);
+    const key = JSON.stringify([running, ROLES.map((r) => {
+      const R = st.robots[r], sr = st.stage && st.stage.robots && st.stage.robots[r];
+      return R && [R.preview_seq, R.connected, sr && sr.shot_k, sr && sr.shot_age_s != null && sr.shot_age_s < 1.2];
+    })]);
     if (key !== camKey) {
       camKey = key;
       $("cams").innerHTML = ROLES.filter((r) => st.robots[r]).map((r) => {
-        const R = st.robots[r];
+        const R = st.robots[r], sr = (st.stage && st.stage.robots && st.stage.robots[r]) || {};
+        const flash = running && (sr.activity === "capturing" || (sr.shot_age_s != null && sr.shot_age_s < 1.2));
         const img = R.preview_seq ? `<img alt="${r}" src="/api/preview/${r}.jpg?n=${R.preview_seq}">`
           : `<div class="none">${R.connected ? "NO IMAGE" : "OFFLINE"}</div>`;
-        return `<div class="cam ${hold ? "hold" : ""}"><h3><span class="lamp ${R.connected ? "run" : "stop"}"></span>${r} CAM
+        return `<div class="cam ${flash ? "flash" : ""}"><h3><span class="lamp ${R.connected ? "run" : "stop"}"></span>${r} CAM
           <span class="age mono" id="age${r}"></span></h3><div class="img">${img}</div>${camTable(R, st.limits)}</div>`;
       }).join("");
     }
     for (const r of ROLES) {
       const el = $(`age${r}`), p = st.robots[r] && st.robots[r].preview;
-      if (el) el.textContent = hold ? "HOLD" : p ? fmt(p.age_s, 0, " s") : "";
+      const sr = st.stage && st.stage.robots && st.stage.robots[r];
+      if (el) el.textContent = running && sr && sr.shot_k != null ? `LIVE #${sr.shot_k}` : p ? fmt(p.age_s, 0, " s") : "";
     }
   }
 
@@ -282,7 +355,7 @@
     post("/api/robot/stack", { role: b.dataset.stack, action: b.dataset.act });
   });
   $("btnPreview").addEventListener("click", () => post("/api/preview", { on: !isPressed("btnPreview") }));
-  $("btnStart").addEventListener("click", async () => { if (await post("/api/scan/start")) setTab("cam"); });
+  $("btnStart").addEventListener("click", async () => { if (await post("/api/scan/start")) setTab("stage"); });
   $("btnPause").addEventListener("click", () => post("/api/job/pause"));
   $("btnResume").addEventListener("click", () => post("/api/job/resume"));
   $("btnCancel").addEventListener("click", () => { if (confirm("작업 중지: 두 로봇을 세웁니다")) post("/api/job/cancel"); });
@@ -541,6 +614,7 @@
     renderJudge(st);
     renderRecipe(st);
     renderAlarms(st);
+    renderStage(st);
     renderCams(st);
     renderCmds(st);
     renderJobEnd(st);
@@ -560,8 +634,13 @@
       $("sysLamp").className = "lamp stop blink";
     }
   }
+  async function pollLoop() {
+    await poll();
+    const fast = ui.st && ui.st.mode === "control" && (busy(ui.st) || ui.tab === "stage");
+    setTimeout(pollLoop, fast ? 200 : 1000);
+  }
   if (location.hash === "#model") ui.tab = "model";
-  poll().then(refreshList);
-  setInterval(poll, 1000);
+  else if (location.hash === "#cam") ui.tab = "cam";
+  poll().then(() => { refreshList(); setTimeout(pollLoop, 300); });
   setInterval(refreshList, 3000);
 })();
