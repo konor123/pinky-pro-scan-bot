@@ -100,6 +100,7 @@
     const has = !!(ui.st && ui.st.stage && ui.st.stage.obstacles && ui.st.stage.obstacles.length);
     post("/api/sim/obstacle", { on: !has });
   });
+  $("btnStageUrdfReset").addEventListener("click", () => post("/api/sim/clear_urdf", {}));
 
   // ---------- 상태줄 ----------
   function renderSys(st) {
@@ -284,6 +285,13 @@
       pressed("btnStageObs", nObs > 0);
       b.disabled = ui.inflight.has("/api/sim/obstacle");
     }
+    const u = st.stage.urdf;
+    $("stageUrdfGrp").hidden = !u;
+    if (u) {
+      $("lnkStageUrdf").textContent = `URDF: ${u.name}`;
+      $("lnkStageUrdf").href = u.urdf_url || "#";
+      $("btnStageUrdfReset").disabled = busy(st) || ui.inflight.has("/api/sim/clear_urdf");
+    }
     const key = JSON.stringify(ROLES.map((r) => {
       const R = st.robots[r], sr = st.stage.robots && st.stage.robots[r];
       return R && sr ? [R.preview_seq, R.connected, sr.activity, sr.shot_k, sr.shot_use,
@@ -406,6 +414,11 @@
       $("dims").textContent = entry.dims_mm ? `${entry.dims_mm.map((v) => v.toFixed(0)).join(" × ")} mm` : "-";
       $("lnkReport").hidden = !entry.files.includes("report.txt");
       $("lnkReport").href = `/files?id=${encodeURIComponent(entry.id)}&name=report.txt`;
+      const hasPly = entry.files.includes("mesh.ply");
+      $("lnkUrdf").hidden = !hasPly;
+      $("lnkUrdf").href = `/files?id=${encodeURIComponent(entry.id)}&name=object.urdf`;
+      $("lnkStl").hidden = !hasPly;
+      $("lnkStl").href = `/files?id=${encodeURIComponent(entry.id)}&name=mesh.stl`;
       $("covLow").textContent = "-";
       setStatus(view.ok ? (info.triangles ? `TRI ${info.triangles.toLocaleString()}` : `PTS ${info.vertices.toLocaleString()}`) : "WebGL2 없음", !view.ok);
       if (ui.showCoverage) await fetchCoverage();
@@ -567,7 +580,18 @@
     const so = st.limits && st.limits.closeup_standoff;
     $("btnCloseup").title = `고른 지점에 로봇이 다가가서 찍는다${so ? `(지점에서 약 ${fmt(so * 100, 0)} cm)` : ""}`;
     $("focusReasons").textContent = ui.targets.length ? reasons.join(" · ") : "";
+    const curEntry = ui.entries.find((x) => x.id === ui.current);
+    const canUrdf = !!(curEntry && curEntry.files.includes("mesh.ply") && !busy(st) && !ui.inflight.has("/api/sim/load_urdf"));
+    $("btnLoadUrdf").disabled = !canUrdf;
   }
+  $("btnLoadUrdf").addEventListener("click", async () => {
+    if (!ui.current) return;
+    const data = await post("/api/sim/load_urdf", { id: ui.current });
+    if (data) {
+      refreshList();
+      setTab("stage");
+    }
+  });
   $("btnFocus").addEventListener("click", () => {
     const markers = ui.targets.filter((t) => t.kind === "point").map((t) => ({ point: t.point, normal: t.normal }));
     const regions = ui.targets.filter((t) => t.kind === "region").map((t) => ({ points: t.points, normals: t.normals }));

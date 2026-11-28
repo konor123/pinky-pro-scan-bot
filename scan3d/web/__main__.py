@@ -23,6 +23,7 @@ def main(argv=None):
     ap.add_argument("--only", choices=ORDER, help="한 대만")
     ap.add_argument("--fake", action="store_true", help="가짜 로봇 2대(로봇 없이 시험)")
     ap.add_argument("--obstacle", type=int, default=None, help="--fake에서 L 시점 k·k+1 사이에 상자")
+    ap.add_argument("--urdf", default=None, help="시뮬레이터에 미리 로드할 object.urdf 경로")
     ap.add_argument("--time-scale", type=float, default=None, help="--fake 시계 배속(기본 5)")
     ap.add_argument("--data-dir", default=None, help="스캔 저장 폴더(기본 config station.data_dir)")
     ap.add_argument("--open", action="store_true", help="브라우저를 연다")
@@ -40,6 +41,8 @@ def main(argv=None):
         addrs = {r: robot_addr(cfg, r) for r in roles}
     session = Session(cfg, cfg_path, addrs, clock, data_dir=args.data_dir, roles=roles, fake=fleet is not None,
                       fleet=fleet)
+    if args.urdf:
+        session.load_urdf(args.urdf)
     roots = [session.data_dir] + [r for r in results.default_roots(cfg)[1:]]
     app = server.App(roots, session=session, floor_cut=float(cfg["scene"]["floor_cut"]))
     httpd = server.serve(app, args.host, args.port)

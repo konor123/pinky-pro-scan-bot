@@ -472,6 +472,18 @@ class StubSession:
     def set_obstacle(self, on, view=None):
         self.calls.append(("obstacle", on, view))
 
+    def load_urdf(self, path, entry_id=None):
+        self.calls.append(("load_urdf", str(path), entry_id))
+
+    def clear_urdf(self):
+        self.calls.append("clear_urdf")
+
+    def urdf_mesh_bytes(self):
+        return (b"ply\n", "application/octet-stream")
+
+    def urdf_xml_bytes(self):
+        return b"<robot name='x'/>"
+
 
 @pytest.fixture
 def http(tmp_path):
@@ -543,6 +555,10 @@ def test_http(http):
     assert _req(base + "/api/sim/obstacle", {"on": True, "view": 2})[0] == 200
     assert stub.calls[-1] == ("obstacle", True, 2)
     assert _req(base + "/api/sim/obstacle", {"on": True, "view": "bad"})[0] == 400
+    assert _req(base + "/api/sim/clear_urdf", {})[0] == 200 and stub.calls[-1] == "clear_urdf"
+    assert _req(base + "/api/sim/urdf/xml") == (200, b"<robot name='x'/>")
+    assert _req(base + "/api/sim/urdf/mesh") == (200, b"ply\n")
+    assert _req(base + "/api/sim/load_urdf", {"id": "nope"})[0] == 404
 
 
 def test_stage_state_and_live_capture(tmp_path):
@@ -596,10 +612,11 @@ def test_stage_state_and_live_capture(tmp_path):
     with pytest.raises(NotReady):
         s.set_obstacle(True)
 
-    # fake 세션에서 장애물 동적 추가·제거
+    # fake 세션에서 장애물 동적 추가·제거 및 URDF 로드·해제
     class StubFleet:
         def __init__(self):
             self.boxes = []
+            self.loaded_mesh = None
 
         def true_pose(self, role):
             return (0.62, 0.0, math.pi / 2) if role == "L" else (-0.62, 0.0, -math.pi / 2)
@@ -615,13 +632,35 @@ def test_stage_state_and_live_capture(tmp_path):
         def clear_obstacles(self):
             self.boxes.clear()
 
+        def set_target_mesh(self, mesh, r_obj=None):
+            self.loaded_mesh = (mesh, r_obj)
+
+        def reset_target_mesh(self):
+            self.loaded_mesh = None
+
+    fleet = StubFleet()
     sf = Session(cfg, ROOT / "config" / "scan.yaml", {"L": ("127.0.0.1", 1, 2), "H": ("127.0.0.1", 3, 4)},
-                 Clock(), data_dir=tmp_path, fake=True, fleet=StubFleet())
+                 Clock(), data_dir=tmp_path, fake=True, fleet=fleet)
     assert sf.state()["stage"]["obstacles"] == []
     sf.set_obstacle(True)
     assert len(sf.state()["stage"]["obstacles"]) == 1
     sf.set_obstacle(False)
     assert sf.state()["stage"]["obstacles"] == []
+
+    # URDF 생성 후 세션 시뮬레이터에 로드·해제
+    from scan3d import urdf as urdf_mod
+    v = np.array([[0, 0, 0], [0.1, 0, 0], [0, 0.1, 0], [0, 0, 0.12]], dtype=np.float64)
+    t = np.array([[0, 1, 2], [0, 1, 3], [1, 2, 3], [0, 2, 3]], dtype=np.int32)
+    uinfo = urdf_mod.export_urdf((v, t, None), tmp_path / "uout", name="demo_obj")
+    sf.load_urdf(uinfo["urdf"], entry_id="scans/demo/out")
+    ust = sf.state()["stage"]
+    assert ust["urdf"] is not None and ust["urdf"]["name"] == "demo_obj"
+    assert ust["target_box"] is None
+    assert fleet.loaded_mesh is not None
+    assert sf.urdf_xml_bytes().startswith(b"<?xml")
+    assert sf.urdf_mesh_bytes() is not None
+    sf.clear_urdf()
+    assert sf.state()["stage"]["urdf"] is None and fleet.loaded_mesh is None
 
 
 def test_http_view_only(tmp_path):

@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 NAMES = {"mesh.ply": "application/octet-stream", "cloud.ply": "application/octet-stream",
+         "mesh.stl": "application/octet-stream", "object.urdf": "application/xml; charset=utf-8",
          "report.txt": "text/plain; charset=utf-8"}
 OUT_DIR = re.compile(r"out(_[\w-]+)?")
 DIMS = re.compile(r"dims_mm:\s*w\s*([\d.]+)\s+d\s*([\d.]+)\s+h\s*([\d.]+)")
@@ -71,8 +72,8 @@ def list_entries(roots, extra_files=()):
             for out in scan.iterdir():
                 if not (out.is_dir() and OUT_DIR.fullmatch(out.name)):
                     continue
-                files = {n: out / n for n in ("mesh.ply", "cloud.ply") if (out / n).is_file()}
-                if files:
+                files = {n: out / n for n in ("mesh.ply", "cloud.ply", "mesh.stl", "object.urdf") if (out / n).is_file()}
+                if "mesh.ply" in files or "cloud.ply" in files:
                     report = out / "report.txt"
                     label = f"{root.name}/{scan.name} · {out.name}" + (f" — {note}" if note else "")
                     entries.append(_entry(f"{root.name}/{scan.name}/{out.name}", label, files,

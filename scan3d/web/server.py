@@ -81,9 +81,22 @@ def make_handler(app):
                     if name not in results.NAMES:
                         return self._error(HTTPStatus.NOT_FOUND, "not_found", "unknown file name")
                     entry = results.find(app.roots, q.get("id", [""])[0], app.extra_files)
-                    if entry is None or name not in entry["files"]:
+                    if entry is None:
                         return self._error(HTTPStatus.NOT_FOUND, "not_found")
-                    return self._send(HTTPStatus.OK, Path(entry["files"][name]).read_bytes(), results.NAMES[name])
+                    target_path = entry["files"].get(name)
+                    if target_path is None and name in ("object.urdf", "mesh.stl") and "mesh.ply" in entry["files"]:
+                        try:
+                            from .. import urdf
+                            ply_path = Path(entry["files"]["mesh.ply"])
+                            urdf.ensure_urdf(ply_path.parent)
+                            cand = ply_path.parent / name
+                            if cand.is_file():
+                                target_path = cand
+                        except Exception as e:  # noqa: BLE001
+                            return self._error(HTTPStatus.INTERNAL_SERVER_ERROR, "urdf_failed", f"{type(e).__name__}: {e}")
+                    if target_path is None:
+                        return self._error(HTTPStatus.NOT_FOUND, "not_found")
+                    return self._send(HTTPStatus.OK, Path(target_path).read_bytes(), results.NAMES[name])
                 if url.path == "/api/holes":
                     entry = results.find(app.roots, q.get("id", [""])[0], app.extra_files)
                     if entry is None or "mesh.ply" not in entry["files"]:
@@ -109,6 +122,16 @@ def make_handler(app):
                     if cov is None:
                         return self._error(HTTPStatus.NOT_FOUND, "no_dataset", "깊이 사진이 없는 결과(보관본)")
                     return self._json(cov)
+                if url.path == "/api/sim/urdf/mesh" and s:
+                    res = s.urdf_mesh_bytes()
+                    if res is None:
+                        return self._error(HTTPStatus.NOT_FOUND, "not_found")
+                    return self._send(HTTPStatus.OK, res[0], res[1])
+                if url.path == "/api/sim/urdf/xml" and s:
+                    xml = s.urdf_xml_bytes()
+                    if xml is None:
+                        return self._error(HTTPStatus.NOT_FOUND, "not_found")
+                    return self._send(HTTPStatus.OK, xml, "application/xml; charset=utf-8")
                 m = PREVIEW.fullmatch(url.path)
                 if m and s:
                     slot = s.slots.get(m.group(1))
@@ -202,6 +225,17 @@ def make_handler(app):
                     if view is not None and (not isinstance(view, int) or isinstance(view, bool)):
                         return self._error(HTTPStatus.BAD_REQUEST, "bad_request", "view는 정수")
                     s.set_obstacle(bool(body.get("on", True)), view)
+                elif path == "/api/sim/load_urdf":
+                    eid = str(body.get("id", ""))
+                    entry = results.find(app.roots, eid, app.extra_files)
+                    if entry is None or "mesh.ply" not in entry["files"]:
+                        return self._error(HTTPStatus.NOT_FOUND, "not_found", "메시 결과를 찾을 수 없음")
+                    from .. import urdf
+                    out_dir = Path(entry["files"]["mesh.ply"]).parent
+                    urdf_path = urdf.ensure_urdf(out_dir)
+                    s.load_urdf(urdf_path, entry_id=eid)
+                elif path == "/api/sim/clear_urdf":
+                    s.clear_urdf()
                 else:
                     return self._error(HTTPStatus.NOT_FOUND, "not_found")
             except Busy as e:

@@ -183,6 +183,30 @@
     }
   }
 
+  function parseBinarySTL(buffer) {
+    if (buffer.byteLength < 84) throw new Error("invalid STL");
+    const dv = new DataView(buffer);
+    const n = dv.getUint32(80, true);
+    if (84 + n * 50 !== buffer.byteLength) throw new Error("non-binary STL");
+    const positions = new Float32Array(n * 9);
+    const normals = new Float32Array(n * 9);
+    let off = 84;
+    for (let i = 0; i < n; i++) {
+      const nx = dv.getFloat32(off, true), ny = dv.getFloat32(off + 4, true), nz = dv.getFloat32(off + 8, true);
+      off += 12;
+      for (let k = 0; k < 3; k++) {
+        const b = i * 9 + k * 3;
+        positions[b] = dv.getFloat32(off, true);
+        positions[b + 1] = dv.getFloat32(off + 4, true);
+        positions[b + 2] = dv.getFloat32(off + 8, true);
+        normals[b] = nx; normals[b + 1] = ny; normals[b + 2] = nz;
+        off += 12;
+      }
+      off += 2;
+    }
+    return { positions, normals, colors: null, indices: null, vertexCount: n * 3 };
+  }
+
   class StageView {
     constructor(canvas, hudCanvas) {
       this.canvas = canvas;
@@ -195,6 +219,8 @@
       this.interp = {};           // {role: {x, y, yaw}}
       this.flash = {};            // {role: untilMs}
       this.lastShotSeq = {};      // {role: seq}
+      this.urdfMesh = null;       // {vao, buf, count, seq}
+      this._urdfLoadingSeq = -1;
       this._mvp = null;
       if (!this.ok) return;
       const gl = this.gl;
@@ -225,6 +251,7 @@
     update(stage, robotsMeta) {
       this.stage = stage;
       const now = performance.now();
+      this._syncUrdf(stage && stage.urdf);
       if (!stage || !stage.robots) return;
       for (const [role, r] of Object.entries(stage.robots)) {
         if (r.pose && !this.interp[role]) {
@@ -239,6 +266,75 @@
           this.flash[role] = Math.max(this.flash[role] || 0, now + 500);
         }
       }
+    }
+
+    _clearUrdfMesh() {
+      if (!this.urdfMesh || !this.ok) return;
+      const gl = this.gl;
+      gl.deleteVertexArray(this.urdfMesh.vao);
+      gl.deleteBuffer(this.urdfMesh.buf);
+      this.urdfMesh = null;
+    }
+
+    _syncUrdf(u) {
+      if (!this.ok) return;
+      if (!u || !u.mesh_url) {
+        this._clearUrdfMesh();
+        this._urdfLoadingSeq = -1;
+        return;
+      }
+      if ((this.urdfMesh && this.urdfMesh.seq === u.seq) || this._urdfLoadingSeq === u.seq) return;
+      this._urdfLoadingSeq = u.seq;
+      const seq = u.seq;
+      fetch(u.mesh_url, { cache: "no-store" })
+        .then((res) => { if (!res.ok) throw new Error(res.status); return res.arrayBuffer(); })
+        .then((buf) => {
+          if (this._urdfLoadingSeq !== seq) return;
+          const geom = u.mesh_format === "ply" && root.parsePLY ? root.parsePLY(buf) : parseBinarySTL(buf);
+          this._uploadUrdfMesh(geom, u);
+        })
+        .catch(() => { if (this._urdfLoadingSeq === seq) this._urdfLoadingSeq = -1; });
+    }
+
+    _uploadUrdfMesh(geom, u) {
+      const gl = this.gl;
+      this._clearUrdfMesh();
+      const P = geom.positions, N = geom.normals, C = geom.colors, I = geom.indices;
+      const off = u.mesh_format === "ply" && u.ply_offset ? u.ply_offset : [0, 0, 0];
+      const org = u.origin_xyz || [0, 0, 0];
+      const dx = org[0] - off[0], dy = org[1] - off[1], dz = org[2] - off[2];
+      const def = u.rgba || [0.76, 0.78, 0.82, 1.0];
+      const nTris = I ? I.length / 3 : Math.floor(P.length / 9);
+      if (!nTris) return;
+      const out = new Float32Array(nTris * 3 * 10);
+      let w = 0;
+      for (let t = 0; t < nTris; t++) {
+        const i0 = I ? I[3 * t] : 3 * t;
+        const i1 = I ? I[3 * t + 1] : 3 * t + 1;
+        const i2 = I ? I[3 * t + 2] : 3 * t + 2;
+        let fnx = 0, fny = 0, fnz = 1;
+        if (!N) {
+          const ax = P[3 * i1] - P[3 * i0], ay = P[3 * i1 + 1] - P[3 * i0 + 1], az = P[3 * i1 + 2] - P[3 * i0 + 2];
+          const bx = P[3 * i2] - P[3 * i0], by = P[3 * i2 + 1] - P[3 * i0 + 1], bz = P[3 * i2 + 2] - P[3 * i0 + 2];
+          const cx = ay * bz - az * by, cy = az * bx - ax * bz, cz = ax * by - ay * bx;
+          const ln = Math.hypot(cx, cy, cz) || 1;
+          fnx = cx / ln; fny = cy / ln; fnz = cz / ln;
+        }
+        for (const vi of [i0, i1, i2]) {
+          const p3 = 3 * vi;
+          out[w++] = P[p3] + dx; out[w++] = P[p3 + 1] + dy; out[w++] = P[p3 + 2] + dz;
+          out[w++] = N ? N[p3] : fnx; out[w++] = N ? N[p3 + 1] : fny; out[w++] = N ? N[p3 + 2] : fnz;
+          if (C) {
+            out[w++] = C[p3] / 255; out[w++] = C[p3 + 1] / 255; out[w++] = C[p3 + 2] / 255; out[w++] = 1.0;
+          } else {
+            out[w++] = def[0]; out[w++] = def[1]; out[w++] = def[2]; out[w++] = def[3] ?? 1.0;
+          }
+        }
+      }
+      const vaoBuf = this._makeVao(this.triProg.p, [["aPos", 3, 0], ["aNor", 3, 12], ["aCol", 4, 24]], 40);
+      gl.bindBuffer(gl.ARRAY_BUFFER, vaoBuf.buf);
+      gl.bufferData(gl.ARRAY_BUFFER, out, gl.STATIC_DRAW);
+      this.urdfMesh = { vao: vaoBuf.vao, buf: vaoBuf.buf, count: nTris * 3, seq: u.seq };
     }
 
     _prog(vs, fs, uniforms) {
@@ -345,8 +441,10 @@
                dark ? [0.6, 0.78, 1.0, 0.45] : [0.2, 0.45, 0.8, 0.45]);
       }
 
-      // 4. 스캔 대상 물체
-      if (st && st.target_box && st.target_box.length === 3) {
+      // 4. 스캔 대상 물체 (로드된 URDF 메시가 있으면 정적 VAO로 렌더링, 아니면 기본 상자/원기둥)
+      if (st && st.urdf && this.urdfMesh) {
+        // 정적 URDF VAO는 _frame()에서 그린다
+      } else if (st && st.target_box && st.target_box.length === 3) {
         const [bw, bd, bh] = st.target_box;
         b.box([0, 0, bh / 2], 0, [bw, bd, bh], BOX_COLORS, 0, false, [0.12, 0.14, 0.18, 0.7]);
       } else {
@@ -553,6 +651,28 @@
       if (axX) { ctx.fillStyle = "#e04040"; ctx.fillText("+X", axX[0] - 8, axX[1]); }
       if (axY) { ctx.fillStyle = "#2eb85c"; ctx.fillText("+Y", axY[0] - 8, axY[1]); }
 
+      // 로드된 URDF 라벨
+      if (this.stage && this.stage.urdf) {
+        const u = this.stage.urdf;
+        const sp = this._project([0, 0, (u.obj_h || 0.18) + 0.05], mvp, cw, ch);
+        if (sp) {
+          const d = u.dims_mm ? `${u.dims_mm[0].toFixed(0)}×${u.dims_mm[1].toFixed(0)}×${u.dims_mm[2].toFixed(0)}mm` : "";
+          const text = `URDF · ${u.name}${d ? " · " + d : ""}`;
+          const tw = ctx.measureText(text).width;
+          const px = Math.round(sp[0] - (tw + 14) / 2);
+          const py = Math.round(sp[1] - 11);
+          ctx.fillStyle = "rgba(124, 58, 237, 0.92)";
+          ctx.strokeStyle = "#ddd6fe";
+          ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.roundRect(px, py, tw + 14, 20, 3);
+          ctx.fill();
+          ctx.stroke();
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(text, px + 7, py + 10.5);
+        }
+      }
+
       // 로봇 배지
       for (const lb of labels) {
         const sp = this._project(lb.pos, mvp, cw, ch);
@@ -611,6 +731,13 @@
       gl.useProgram(this.triProg.p);
       gl.uniformMatrix4fv(this.triProg.uMVP, false, mvp);
       this._uploadDraw(this.solidBuf, batch.solid, gl.TRIANGLES, 10);
+
+      // 로드된 URDF 3D 메시
+      if (this.urdfMesh && this.stage && this.stage.urdf) {
+        gl.bindVertexArray(this.urdfMesh.vao);
+        gl.drawArrays(gl.TRIANGLES, 0, this.urdfMesh.count);
+        gl.bindVertexArray(null);
+      }
 
       // 선분
       gl.useProgram(this.lineProg.p);

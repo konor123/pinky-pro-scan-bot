@@ -16,7 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .. import dataset, station
+from .. import dataset, station, urdf
 from ..config import ORDER, ROOT, load_board
 from ..pair.coordinator import PairScan
 from ..robot import align, drive, mountfit, tagpose
@@ -122,6 +122,8 @@ class Session:
         self.job = None
         self.last_scan_dir = None
         self.last_scan_recipe = "default"
+        self.loaded_urdf = None             # (UrdfModel, entry_id|None)
+        self._urdf_seq = 0
         self._log = deque(maxlen=200)
         self._stop = threading.Event()
         self._next_role = 0
@@ -336,6 +338,75 @@ class Session:
         else:
             self.fleet.clear_obstacles()
             self.log("장애물 제거")
+
+    # ---- URDF 시뮬레이터 로드 ----
+    def load_urdf(self, urdf_path, entry_id=None):
+        """URDF 파일을 파싱해 시뮬레이터(가짜 로봇 + 실시간 3D 스테이지)에 로드한다."""
+        if self.busy():
+            raise Busy("작업 중에는 URDF를 바꿀 수 없다")
+        model = urdf.load_urdf(urdf_path)
+        if self.fleet is not None and hasattr(self.fleet, "set_target_mesh"):
+            mesh = None
+            try:
+                mesh = model.to_open3d_mesh()
+            except ImportError:
+                pass
+            if mesh is not None:
+                self.fleet.set_target_mesh(mesh, r_obj=model.r_obj)
+            else:
+                self.fleet.set_target_mesh(model, r_obj=model.r_obj)
+        with self.lock:
+            self.loaded_urdf = (model, entry_id)
+            self._urdf_seq += 1
+        d = [v * 1000.0 for v in model.dims_m]
+        self.log(f"URDF 로드: {model.name} ({d[0]:.0f} × {d[1]:.0f} × {d[2]:.0f} mm, {model.mass_kg:.2f} kg)")
+        return self.urdf_info()
+
+    def clear_urdf(self):
+        """로드한 URDF를 해제하고 기본 상자로 되돌린다."""
+        if self.busy():
+            raise Busy("작업 중에는 URDF를 해제할 수 없다")
+        if self.fleet is not None and hasattr(self.fleet, "reset_target_mesh"):
+            self.fleet.reset_target_mesh()
+        with self.lock:
+            self.loaded_urdf = None
+            self._urdf_seq += 1
+        self.log("URDF 해제: 기본 상자로 복원")
+
+    def urdf_info(self):
+        with self.lock:
+            item, seq = self.loaded_urdf, self._urdf_seq
+        if item is None:
+            return None
+        model, entry_id = item
+        info = model.public(
+            mesh_url=f"/api/sim/urdf/mesh?n={seq}",
+            urdf_url=f"/api/sim/urdf/xml?n={seq}",
+            entry_id=entry_id,
+        )
+        info["mesh_format"] = "ply" if info["has_color_ply"] else "stl"
+        info["seq"] = seq
+        return info
+
+    def urdf_mesh_bytes(self):
+        """현재 로드된 URDF의 메시 바이트(색 있는 PLY 우선, 없으면 STL) 또는 None."""
+        with self.lock:
+            item = self.loaded_urdf
+        if item is None:
+            return None
+        model, _ = item
+        if model.color_ply_path is not None and model.color_ply_path.is_file():
+            return model.color_ply_path.read_bytes(), "application/octet-stream"
+        if model.mesh_path is not None and model.mesh_path.is_file():
+            return model.mesh_path.read_bytes(), "application/octet-stream"
+        return None
+
+    def urdf_xml_bytes(self):
+        with self.lock:
+            item = self.loaded_urdf
+        if item is None or not item[0].urdf_path.is_file():
+            return None
+        return item[0].urdf_path.read_bytes()
 
     # ---- 실시간 촬영·자세 기록 ----
     def _mount_of(self, role, cfg, job=None):
@@ -892,10 +963,12 @@ class Session:
             }
         obstacles = []
         target_box = None
+        urdf_meta = self.urdf_info()
         if self.fleet is not None:
             try:
                 from ..sim.fake_agent import BOX
-                target_box = list(BOX)
+                if urdf_meta is None:
+                    target_box = list(BOX)
                 obstacles = [[round(float(v), 4) for v in b] for b in self.fleet.world_boxes()]
             except Exception:  # noqa: BLE001
                 pass
@@ -915,6 +988,7 @@ class Session:
                 "stop_dist": float(d["stop_dist"]),
             },
             "target_box": target_box,
+            "urdf": urdf_meta,
             "obstacles": obstacles,
             "robots": robots,
         }
