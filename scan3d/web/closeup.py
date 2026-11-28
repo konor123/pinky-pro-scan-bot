@@ -111,8 +111,10 @@ class CloseupRun(focus.FocusRun):
         return statistics.median(vals) if len(vals) >= 3 else None
 
     # ---- 다가가기 ----
-    def _approach(self, u, target):
+    def _approach(self, u, target, phi):
         """지금 자리(E)에서 target 자세로: 회전 → 한 번에 전진 → 정면 거리로 확인·한 번 보정 → 회전.
+
+        정면 거리는 지켜보는 데와, 보낸 것보다 더 다가갔을 때 물러나는 데만 쓴다. 덜 줄었다고 더 밀어 넣지 않는다.
 
         → (정면 거리 출처 'lidar'|'odom', 도중에 섰으면 이유 또는 None)
         """
@@ -121,6 +123,7 @@ class CloseupRun(focus.FocusRun):
         here = d.pose()
         heading = math.atan2(target[1] - here[1], target[0] - here[0])
         dist = math.hypot(target[0] - here[0], target[1] - here[1])
+        skew = abs(drive.wrap_angle(heading - (math.radians(phi) + math.pi)))
         turn = math.degrees(drive.wrap_angle(heading - here[2]))
         if abs(turn) >= 1:
             u.link.move(f"turn {turn:.1f}")
@@ -143,17 +146,22 @@ class CloseupRun(focus.FocusRun):
         u.link.sleep(self.cfg["capture"]["settle_s"])
         r1 = self._front(u)
         if r0 is not None and r1 is not None and abs((r0 - r1) - dist) <= self.st["front_tol"]:
-            source = "lidar"                                 # 줄어든 양만 쓴다(센서의 고정 오차가 빠진다)
-            short = dist - (r0 - r1)
-            if abs(short) > self.st["fix_tol"]:
-                u.link.move(f"speed {speed}; {'forward' if short > 0 else 'back'} {abs(short):.3f}")
+            over = (r0 - r1) - dist                          # 줄어든 양만 쓴다(센서의 고정 오차가 빠진다)
+            if abs(over) <= self.st["fix_tol"]:
+                source = "lidar"                             # 정면 거리와 odom이 같은 말을 한다
+            elif over > 0:                                   # 보낸 것보다 더 다가갔다: 그만큼 물러난다
+                source = "lidar"
+                u.link.move(f"speed {speed}; back {over:.3f}")
                 self._check()
-            x, y, yaw = d.pose()                             # odom이 본 전진량과의 차만큼 추정 위치를 옮긴다
-            odo = (x - here[0]) * math.cos(heading) + (y - here[1]) * math.sin(heading)
-            lidar = r0 - r1 + (short if abs(short) > self.st["fix_tol"] else 0.0)
-            slip = lidar - odo
-            if abs(slip) <= 0.05:
-                d.set_fix((x + slip * math.cos(heading), y + slip * math.sin(heading), yaw), u.link.odom())
+                x, y, yaw = d.pose()                         # odom은 다 물러났다고 보므로 추정 위치를 그만큼 앞에 둔다
+                odo = (x - here[0]) * math.cos(heading) + (y - here[1]) * math.sin(heading)
+                slip = dist - odo
+                if abs(slip) <= 0.05:
+                    d.set_fix((x + slip * math.cos(heading), y + slip * math.sin(heading), yaw), u.link.odom())
+            # 덜 줄었으면 더 밀어 넣지 않는다: 정면 부채꼴이 좁아 가까이 가면 면의 가장 가까운 곳이 부채꼴 밖으로 나간다
+        fmt = lambda v: "없음" if v is None else f"{v:.3f}"   # noqa: E731
+        self.log(f"{u.role} 접근: 전진 {dist:.3f} m(면에서 {math.degrees(skew):.0f}° 비스듬), "
+                 f"정면 거리 {fmt(r0)} → {fmt(r1)} m, 확인 {source}")
         yaw_now = d.pose()[2]
         turn = math.degrees(drive.wrap_angle(target[2] - yaw_now))
         if abs(turn) >= 1:
@@ -245,7 +253,7 @@ class CloseupRun(focus.FocusRun):
                 self.progress["step"] = "approach"
                 u.activity = "moving"
                 try:
-                    source, reason = self._approach(u, target)
+                    source, reason = self._approach(u, target, phi)
                 finally:
                     u.activity = "idle"
             item = self._shoot_close(plan, u, phi, k, T_e, pose_e, source, standoff, reason)

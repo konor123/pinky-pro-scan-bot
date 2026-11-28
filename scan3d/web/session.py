@@ -558,6 +558,9 @@ class Session:
             self._last_connect = 0.0               # 바로 다시 연결
         self.cancel.clear()
         self.paused.clear()
+        if job.kind != "scan":                     # 로봇마다 마지막으로 찍은 때가 달라 각도 차가 틀리게 보인다
+            for s in self.slots.values():
+                s.preview_t = None
         with self.lock:
             job.ended = time.monotonic()
             job.state, job.message = state, message
