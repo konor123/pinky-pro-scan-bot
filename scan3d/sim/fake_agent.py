@@ -120,6 +120,23 @@ class FakeFleet:
         with self._sim_lock:
             return list(self.world.boxes)
 
+    def add_obstacle(self, k=None, size=0.10, role="L"):
+        """시점 k·k+1 사이(k가 없으면 role의 진행 방향 2시점 앞)에 장애물 상자를 놓는다."""
+        with self._sim_lock:
+            if k is not None:
+                box = self.obstacle_box(k, size, role)
+            else:
+                bot = self.bots[role if role in self.bots else self.roles[0]]
+                cx, cy = drive.cam_xy(bot.robot.true_pose(), bot.mount)
+                phi = math.degrees(math.atan2(cy, cx)) + 2.0 * (360.0 / self.n_views)
+                p = drive.view_pose(phi, self.R, bot.mount)
+                box = (p[0], p[1], size, size, math.degrees(p[2]))
+            return self.world.add_box(*box)
+
+    def clear_obstacles(self):
+        with self._sim_lock:
+            self.world.boxes.clear()
+
     def true_pose(self, role):
         with self._sim_lock:
             return self.bots[role].robot.true_pose()

@@ -61,13 +61,13 @@ def check_pair_gap(phi_l, phi_h, tol_deg):
 class PairScan:
     """links({role: RobotLink})로 한 번의 스캔 진행. writer는 dataset.ScanWriter(이벤트 기록)."""
 
-    def __init__(self, cfg, links, writer, board, cancel):
+    def __init__(self, cfg, links, writer, board, cancel, on_capture=None):
         self.cfg = cfg
         self.writer = writer
         self.cancel = cancel
         self.roles = [r for r in ORDER if r in links]
         self.clock_link = links[self.roles[0]]
-        self.units = {r: RobotScan(r, links[r], cfg, board, self._emitter(r)) for r in self.roles}
+        self.units = {r: RobotScan(r, links[r], cfg, board, self._emitter(r), on_capture=on_capture) for r in self.roles}
         self.phase = "idle"               # hello → start → enter → views → done(웹 화면 진행 표시)
         self.paused = threading.Event()   # 켜 있으면 이동 앞·촬영 앞에서 선다
         self.holding = {}                 # {role: True} 일시정지로 서 있는 로봇

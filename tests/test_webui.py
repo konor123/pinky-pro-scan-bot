@@ -440,6 +440,9 @@ class StubSession:
     def focus_image(self, i):
         return b"\xff\xd8crop" if i == 0 else None
 
+    def set_obstacle(self, on, view=None):
+        self.calls.append(("obstacle", on, view))
+
 
 @pytest.fixture
 def http(tmp_path):
@@ -507,6 +510,89 @@ def test_http(http):
     assert _req(base + "/api/focus/0.jpg") == (200, b"\xff\xd8crop")
     assert _req(base + "/api/focus/1.jpg")[0] == 404
     assert _req(base + "/api/holes?id=nope")[0] == 404
+    assert _req(base + "/stageview.js")[0] == 200
+    assert _req(base + "/api/sim/obstacle", {"on": True, "view": 2})[0] == 200
+    assert stub.calls[-1] == ("obstacle", True, 2)
+    assert _req(base + "/api/sim/obstacle", {"on": True, "view": "bad"})[0] == 400
+
+
+def test_stage_state_and_live_capture(tmp_path):
+    """실시간 3D 스테이지 상태: 판·표식, fix+odom 자세, LiDAR 판 좌표, 촬영 콜백 갱신."""
+    cfg = load_cfg()
+    s = Session(cfg, ROOT / "config" / "scan.yaml", {"L": ("127.0.0.1", 1, 2), "H": ("127.0.0.1", 3, 4)},
+                Clock(), data_dir=tmp_path)
+
+    class FakeLink:
+        def alive(self):
+            return True
+
+        def ages(self):
+            return (0.05, 0.08)
+
+        def odom(self):
+            return (0.10, 0.0, 0.0)
+
+        def scan(self):
+            # 정면(로봇 기준 0 rad → mount_yaw=180°이므로 raw 각도는 π) 0.5 m 지점에 장애물
+            return ({"angle_min": math.pi, "angle_inc": 0.1, "range_min": 0.05, "range_max": 5.0,
+                     "ranges": [0.5]}, 0.05)
+
+    s.slots["L"].link = FakeLink()
+    s.slots["L"].fix = ((0.62, 0.0, math.pi / 2), (0.0, 0.0, 0.0))   # 출발 자세 + odom +0.10 m → (0.62, 0.10)
+    st = s.state()
+    stage = st["stage"]
+    assert math.isclose(stage["board_m"], 0.594, abs_tol=1e-4)
+    assert len(stage["tags"]) == 16
+    rl = stage["robots"]["L"]
+    assert rl["pose"] is not None
+    assert math.isclose(rl["pose"][0], 0.62, abs_tol=1e-3)
+    assert math.isclose(rl["pose"][1], 0.10, abs_tol=1e-3)
+    assert math.isclose(rl["pose"][2], math.pi / 2, abs_tol=1e-3)
+    # 정면(+Y) 0.5 m 지점의 LiDAR 반사점이 (0.62, 0.60) 근처
+    assert rl["lidar"] and math.isclose(rl["lidar"][0][0], 0.62, abs_tol=1e-2)
+    assert math.isclose(rl["lidar"][0][1], 0.60, abs_tol=1e-2)
+
+    # 촬영 콜백: 스캔 중에도 preview JPEG, seq, shots, fix가 갱신된다
+    frame = type("F", (), {"color": np.full((120, 160, 3), 180, np.uint8),
+                           "depth": np.full((120, 160), 600, np.uint16)})()
+    T = drive.camera_pose((0.62, 0.0, math.pi / 2), cfg["robots"]["L"]["mount"])
+    pose = type("P", (), {"T_cam_board": T, "n_tags": 6, "reproj_px": 0.4})()
+    s._on_capture("L", "view", 3, frame, pose, {"odom": [0.1, 0.0, 0.0]}, cfg)
+    st2 = s.state()
+    assert st2["robots"]["L"]["preview_seq"] == 1
+    assert s.slots["L"].jpeg[:2] == b"\xff\xd8"
+    assert st2["stage"]["robots"]["L"]["shot_k"] == 3
+    assert len(st2["stage"]["robots"]["L"]["shots"]) == 1
+    assert st2["stage"]["robots"]["L"]["shots"][0]["k"] == 3
+    with pytest.raises(NotReady):
+        s.set_obstacle(True)
+
+    # fake 세션에서 장애물 동적 추가·제거
+    class StubFleet:
+        def __init__(self):
+            self.boxes = []
+
+        def true_pose(self, role):
+            return (0.62, 0.0, math.pi / 2) if role == "L" else (-0.62, 0.0, -math.pi / 2)
+
+        def world_boxes(self):
+            return list(self.boxes)
+
+        def add_obstacle(self, k=None, size=0.10, role="L"):
+            b = (0.4, 0.45, size, size, 135.0)
+            self.boxes.append(b)
+            return b
+
+        def clear_obstacles(self):
+            self.boxes.clear()
+
+    sf = Session(cfg, ROOT / "config" / "scan.yaml", {"L": ("127.0.0.1", 1, 2), "H": ("127.0.0.1", 3, 4)},
+                 Clock(), data_dir=tmp_path, fake=True, fleet=StubFleet())
+    assert sf.state()["stage"]["obstacles"] == []
+    sf.set_obstacle(True)
+    assert len(sf.state()["stage"]["obstacles"]) == 1
+    sf.set_obstacle(False)
+    assert sf.state()["stage"]["obstacles"] == []
 
 
 def test_http_view_only(tmp_path):

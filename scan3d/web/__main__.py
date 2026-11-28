@@ -38,7 +38,8 @@ def main(argv=None):
     else:
         clock = Clock(args.time_scale or 1.0)
         addrs = {r: robot_addr(cfg, r) for r in roles}
-    session = Session(cfg, cfg_path, addrs, clock, data_dir=args.data_dir, roles=roles, fake=fleet is not None)
+    session = Session(cfg, cfg_path, addrs, clock, data_dir=args.data_dir, roles=roles, fake=fleet is not None,
+                      fleet=fleet)
     roots = [session.data_dir] + [r for r in results.default_roots(cfg)[1:]]
     app = server.App(roots, session=session, floor_cut=float(cfg["scene"]["floor_cut"]))
     httpd = server.serve(app, args.host, args.port)
