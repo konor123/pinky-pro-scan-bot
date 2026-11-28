@@ -76,3 +76,21 @@ def test_spawn_urdf_dry_run(tmp_path):
                        capture_output=True, text=True, check=True)
     assert "file://" in p.stdout and "mesh.stl" in p.stdout
     assert "ros_gz_sim create -world scan3d_room -name spawn_test" in p.stdout
+
+
+def test_recon_keeps_outputs_when_urdf_fails(tmp_path, monkeypatch):
+    """URDF 내보내기가 실패해도 다시 합친 결과(mesh.ply, report.txt)는 쓴다."""
+    import open3d as o3d
+
+    from scan3d import urdf as urdf_mod
+    from scan3d.pair import recon
+
+    def boom(*a, **k):
+        raise OSError("disk")
+    monkeypatch.setattr(urdf_mod, "export_urdf", boom)
+    mesh = o3d.geometry.TriangleMesh.create_box(0.1, 0.1, 0.1)
+    result = recon.Result(mesh, o3d.geometry.PointCloud(), (100.0, 100.0, 100.0), {}, None, 1.0)
+    monkeypatch.setattr(recon, "_report_lines", lambda *a: ["dims_mm: w 100 d 100 h 100"])
+    recon.write_dir(tmp_path / "out_x", result, {}, [])
+    assert (tmp_path / "out_x" / "mesh.ply").is_file() and (tmp_path / "out_x" / "report.txt").is_file()
+    assert not (tmp_path / "out_x" / "object.urdf").exists()

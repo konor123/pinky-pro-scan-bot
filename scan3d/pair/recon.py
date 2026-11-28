@@ -182,6 +182,14 @@ def _fmt(v, spec):
     return "-" if v is None else format(v, spec)
 
 
+def _export_urdf(mesh, out, name):
+    """`mesh.stl`·`object.urdf`를 쓴다. 덧붙이는 산출물이라 실패해도 스캔 결과(메시·보고서)는 그대로 쓴다."""
+    try:
+        urdf.export_urdf(mesh, out, name=name)
+    except Exception as e:  # noqa: BLE001
+        print(f"URDF 내보내기 실패(메시는 그대로): {type(e).__name__}: {e}", file=sys.stderr, flush=True)
+
+
 def write_outputs(scan_dir, result, report):
     """`out/mesh.ply`, `out/mesh.stl`, `out/object.urdf`, `out/cloud.ply`, `out/report.txt`, 역할별 `outcomes.json`."""
     scan_dir = Path(scan_dir)
@@ -189,7 +197,7 @@ def write_outputs(scan_dir, result, report):
     out.mkdir(exist_ok=True)
     if len(result.mesh.triangles) > 0:
         o3d.io.write_triangle_mesh(str(out / "mesh.ply"), result.mesh)
-        urdf.export_urdf(result.mesh, out, name=scan_dir.name)
+        _export_urdf(result.mesh, out, scan_dir.name)
     if len(result.cloud.points) > 0:
         o3d.io.write_point_cloud(str(out / "cloud.ply"), result.cloud)
     report = report or {}
@@ -264,7 +272,7 @@ def write_dir(out, result, cfg, role_dirs, extra_lines=()):
         else:
             (out / name).unlink(missing_ok=True)
     if len(result.mesh.triangles) > 0:
-        urdf.export_urdf(result.mesh, out, name=out.parent.name)
+        _export_urdf(result.mesh, out, out.parent.name)
     else:
         (out / "mesh.stl").unlink(missing_ok=True)
         (out / "object.urdf").unlink(missing_ok=True)
