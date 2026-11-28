@@ -195,6 +195,8 @@ def make_handler(app):
                     s.alarms.ack(aid)
                 elif path == "/api/focus/start":
                     s.start_focus(body.get("markers"), body.get("regions"))
+                elif path == "/api/closeup/start":
+                    s.start_closeup(body.get("markers"))
                 elif path == "/api/sim/obstacle":
                     view = body.get("view")
                     if view is not None and (not isinstance(view, int) or isinstance(view, bool)):

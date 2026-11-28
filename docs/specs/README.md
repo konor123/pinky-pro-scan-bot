@@ -41,6 +41,7 @@
 | 12 | `robot_agent.md` | `ros/scan3d_robot/` | 4.2 ~ 4.4, 7 | `ros/scan3d_robot/test/test_agent.py` | protocol |
 | 13 | `webui.md` | `scan3d/web/`, `tools/webui.sh`, `tools/view_web.py` | 4.4, 4.5 | `tests/test_webui.py`, `tests/test_view_web.py` | station, coordinator, unit, dataset, recon, fake_agent |
 | 14 | `mountfit.md` | `scan3d/robot/mountfit.py`, `scan3d/robot/unit.py` | 3.3, 4.3 | `tests/test_mountfit.py` | drive, sim2d, fake_agent |
+| 15 | `closeup.md` | `scan3d/web/closeup.py`, `scan3d/web/session.py` | CLOSEUP-PLAN 3장 | `tests/test_webui.py` | focus, drive, unit, fake_agent |
 | — | Gazebo 시험(TODOs 2장) | `ros/scan3d_sim/`, `scripts/sim_scan.sh`, `tools/make_sim_assets.py`, `config/scan_sim.yaml` | 4.2 | `ros/scan3d_sim/test/test_sim_camera.py`, `tests/test_sim.py` | robot_agent, protocol, synth, drive |
 | — | 현장 도구(TODOs 3·4장) | `tools/snapshot_test.py`, `show_pose.py`, `drive_check.py`, `lidar_view.py`, `scan.sh`, `upload.sh` | — | `tests/test_tools.py`(가짜 에이전트에 붙여 실행) | station, align, tagpose, drive |
 

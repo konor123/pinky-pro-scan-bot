@@ -15,7 +15,7 @@ from scan3d.clock import Clock
 from scan3d.config import ROOT
 from scan3d.robot import drive
 from scan3d.sim.fake_agent import BOX, FakeFleet
-from scan3d.web import alarms, coverage, focus, holes, preview, recipe, server
+from scan3d.web import alarms, closeup, coverage, focus, holes, preview, recipe, server
 from scan3d.robot.unit import StartError
 from scan3d.web.session import Busy, Job, NotReady, Session
 
@@ -336,6 +336,35 @@ def test_robot_stack_buttons(tmp_path):
 
 def test_focus_wrap():
     assert focus._wrap(350.0) == -10.0 and focus._wrap(-190.0) == 170.0 and focus._wrap(10.0) == 10.0
+
+
+def test_closeup_geometry():
+    """근접 촬영 자리: 카메라가 지점에서 standoff 떨어져 정면으로 보고, 표식 자세를 로봇이 움직인 만큼 옮긴다."""
+    cfg = load_cfg()
+    for role in ("L", "H"):
+        mount = dict(cfg["robots"][role]["mount"], x=0.02, y=0.07, yaw_deg=86) if role == "H" else cfg["robots"][role]["mount"]
+        point = [0.07, 0.02, 0.08]
+        pose, cam = closeup.shot_pose(point, 20.0, 0.25, mount)
+        assert math.hypot(cam[0] - point[0], cam[1] - point[1]) == pytest.approx(0.25)
+        assert drive.cam_xy(pose, mount) == pytest.approx(cam)
+        T = drive.camera_pose(pose, mount)                                   # 그 자세의 실제 카메라
+        u, v = focus.project(point, T, np.array([[640.0, 0, 640], [0, 640.0, 360], [0, 0, 1]]))
+        assert u == pytest.approx(640, abs=1e-6)                             # 지점이 사진 가로 가운데
+        # 원 위 자세 E의 표식 자세를 로봇 이동만큼 옮기면 그 자리의 카메라 자세와 같다
+        pose_e = drive.view_pose(25.0, 0.62, mount, yaw=drive.arc_yaw(25.0, 0.62, mount))
+        assert closeup.moved(drive.camera_pose(pose_e, mount), pose_e, pose) == pytest.approx(T, abs=1e-9)
+    st = closeup.settings(cfg)
+    assert st["standoff"] == 0.25 and closeup.settings({"closeup": {"standoff": 0.1}})["standoff"] == closeup.STANDOFF_MIN
+    mount = cfg["robots"]["L"]["mount"]
+    pose_e = drive.view_pose(0.0, 0.62, mount, yaw=drive.arc_yaw(0.0, 0.62, mount))
+    K = np.array([[646.0, 0, 640], [0, 646.0, 360], [0, 0, 1]])
+    T_e = drive.camera_pose(pose_e, mount)
+    s, pose, _ = closeup.choose_standoff([0.09, 0.0, 0.08], 0.0, mount, T_e, pose_e, K, (1280, 720), st, 0.615)
+    assert s == pytest.approx(0.25) and math.hypot(pose[0] - 0.09, pose[1]) >= st["clear_obj"]
+    s, why, _ = closeup.choose_standoff([0.40, 0.0, 0.08], 0.0, mount, T_e, pose_e, K, (1280, 720), st, 0.615)
+    assert s is None and "자리가 없음" in why                                # 지점이 원에 너무 가깝다
+    p = closeup.plan([{"point": [0.09, 0.0, 0.05], "normal": [1, 0, 0]}, {"point": [0.0, 0.05, 0.19]}], cfg, ["L", "H"])
+    assert [x["role"] for x in p] == ["L", "H"] and p[0]["phi"] == pytest.approx(0.0)
 
 
 class _StubDriver:
@@ -739,6 +768,51 @@ def test_focus_run(site):
     after = {r: math.degrees(math.atan2(*_cam_true(cfg, fleet, r)[1::-1])) for r in ("L", "H")}
     assert abs(((after["L"] - (here["L"] - 130.0)) + 180) % 360 - 180) < 5      # L은 마지막 각(점 +10°)
     assert abs((after["H"] - after["L"]) % 360 - (here["H"] - here["L"]) % 360) < 5
+
+
+@pytest.mark.slow
+def test_closeup_run(site):
+    """스캔 뒤 옆면 낮은 점 하나: L이 원 위에서 다가가 찍고 원 위로 돌아온다. 메시는 그대로."""
+    cfg, fleet, session = site
+    assert session.last_scan_dir is not None
+    R = cfg["scene"]["R"]
+    before = {r: _cam_true(cfg, fleet, r) for r in ("L", "H")}
+    mesh_time = (session.last_scan_dir / "out" / "mesh.ply").stat().st_mtime
+    phi = math.degrees(math.atan2(before["L"][1], before["L"][0])) + 30.0
+    n = math.radians(phi)
+    point = [BOX[0] / 2 * 0.9 * math.cos(n), BOX[1] / 2 * 0.9 * math.sin(n), 0.06]
+    marker = {"point": point, "normal": [math.cos(n), math.sin(n), 0.0]}
+    mark = len(fleet.move_log)
+    job = session.start_closeup([marker])
+    with pytest.raises(Busy):
+        session.start_closeup([marker])
+    closest = [9.0]
+
+    def watch():
+        x, y, _ = _cam_true(cfg, fleet, "L")
+        closest[0] = min(closest[0], math.hypot(x - point[0], y - point[1]))
+        return job.state != "running"
+    wait(watch, 900, "근접 촬영 끝")
+    assert job.state == "done", job.message
+    (c,) = job.result["crops"]
+    assert c["role"] == "L" and c["url"] and c["reason"] is None, c
+    assert 0.20 <= c["distance_m"] <= 0.40 and c["source"] in ("lidar", "odom")
+    assert 0 <= c["pixel"][0] < 1280 and 0 <= c["pixel"][1] < 720
+    assert session.focus_image(0)[:2] == b"\xff\xd8"
+    assert (session.last_scan_dir / "closeup").is_dir()
+    assert closest[0] <= 0.33, closest                                # 실제로 다가갔다(원 위에서는 0.5 m 안팎)
+    texts = [m[1] for m in fleet.move_log[mark:] if m[0] == "L"]
+    assert any(t.startswith("turn") for t in texts) and any("forward" in t for t in texts)
+    after = {r: _cam_true(cfg, fleet, r) for r in ("L", "H")}
+    for r in ("L", "H"):                                              # 두 로봇 모두 원 위
+        assert abs(math.hypot(after[r][0], after[r][1]) - R) <= 0.04, after
+    gap = lambda a: (math.degrees(math.atan2(a["H"][1], a["H"][0]) - math.atan2(a["L"][1], a["L"][0]))) % 360   # noqa: E731
+    assert abs(gap(after) - gap(before)) < 6
+    assert c["return_err"][0] <= 0.05, c                              # 돌아와서 잰 자세와 추정의 차
+    assert (session.last_scan_dir / "out" / "mesh.ply").stat().st_mtime == mesh_time
+    views = json.loads((session.last_scan_dir / "L" / "views.json").read_text(encoding="utf-8"))
+    assert all(v["k"] != c["k"] for v in views)                       # 가까운 사진은 메시 데이터에 넣지 않는다
+    assert session.state()["job"]["kind"] == "closeup"
 
 
 @pytest.mark.slow

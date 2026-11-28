@@ -382,8 +382,8 @@
 - [ ] 명세: `docs/specs/closeup.md`(`approach`, `mission`, 데이터 폴더)
 - [x] `mission` 1차: 원 위 이동 → 자세 다시 잡기 → 그 자리에서 찍어 자르기 — 웹 화면의 보강 촬영(`scan3d/web/focus.py`의 `FocusRun`)
 - [ ] `approach` 테스트 먼저, 구현: 자세 추정(odom + IMU), 앞 카메라 표식으로 방향 확인, 한 번에 전진한 뒤 정면 거리로 확인·보정, 돌아가기 → `scan3d/closeup/approach.py`, `tests/test_approach.py`
-- [ ] `mission` 2차: 보강 촬영에 근접 구간을 넣음(`closeup.approach: true`)
-- [ ] 웹 화면에 근접 촬영을 더함: 요청과 진행(`scan3d/web/server.py`·`session.py`), 모델 탭의 버튼과 근접 사진 → `tests/test_webui.py`
+- [x] `mission` 2차: 웹 화면의 `근접 촬영`(`scan3d/web/closeup.py`, `docs/specs/closeup.md`). 방향은 odom, 전진 확인은 정면 LiDAR 거리로만 한다(로봇 쪽 변경 없음). IMU·초음파·앞 카메라는 아직 쓰지 않는다. 가짜 로봇으로만 확인했고 실물은 10-8
+- [x] 웹 화면에 근접 촬영을 더함: `POST /api/closeup/start`, 보강 묶음의 `근접 촬영` 버튼과 근접 사진 → `tests/test_webui.py`의 `test_closeup_geometry`·`test_closeup_run`
 - [ ] C1: `tools/webui.sh --fake`에서 옆면의 낮은 점, 옆면의 높은 점, 윗면 점, 가려진 점을 차례로 골라 네 건이 끝남(낮은 점은 L, 높은 점과 윗면은 H)
 
 완료: `pytest -q` 전부 통과, C1 통과

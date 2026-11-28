@@ -11,7 +11,11 @@
   const PHASE = {
     hello: "연결 확인", start: "출발 자세", enter: "원 진입", views: "촬영", recon: "재구성",
     done: "완료", transit: "이동", fix: "자세 보정", capture: "촬영", plan: "계획",
+    approach: "접근", return: "복귀",
   };
+  const KIND = { scan: "스캔", focus: "보강", closeup: "근접" };
+  const KIND_TAG = { scan: "SCAN", focus: "FOCUS", closeup: "CLOSEUP" };
+  const SOURCE = { lidar: "LiDAR", odom: "odom" };
 
   const ui = {
     mode: null, st: null, entries: [], current: null, mtime: null, tab: "stage", hasMesh: false,
@@ -108,7 +112,7 @@
       if (blocked.length) { lamp = "hold blink"; text = `장애물 대기 · ${blocked.join(",")}`; }
       else if (job.paused) { lamp = "hold blink"; text = "일시정지"; }
       else if (job.recon) { lamp = "info blink"; text = "재구성"; }
-      else { lamp = "run blink"; text = `${job.kind === "scan" ? "스캔" : "보강"} · ${PHASE[ph] || ph || ""}`; }
+      else { lamp = "run blink"; text = `${KIND[job.kind] || job.kind} · ${PHASE[ph] || ph || ""}`; }
     } else if (st.alarms && st.alarms.active_alarm) { lamp = "stop blink"; text = "알람"; }
     else if (job && job.state === "failed") { lamp = "stop"; text = "알람"; }
     else if (job && job.state === "cancelled") { lamp = "hold"; text = "중지됨"; }
@@ -117,7 +121,7 @@
     $("sysLamp").className = `lamp ${lamp}`;
     $("sysState").textContent = text;
     $("sysMode").textContent = st.mode !== "control" ? "보기 전용" : st.fake ? "SIM" : "LIVE";
-    $("sysJob").textContent = st.mode !== "control" ? "-" : job && job.scan_id ? `${job.kind === "scan" ? "SCAN" : "FOCUS"} ${job.scan_id}`
+    $("sysJob").textContent = st.mode !== "control" ? "-" : job && job.scan_id ? `${KIND_TAG[job.kind] || "JOB"} ${job.scan_id}`
       : st.last_scan ? `SCAN ${st.last_scan.scan_id}` : "-";
     $("sysElapsed").textContent = job ? hms(job.elapsed_s) : "-";
     if (st.recipe) $("sysRecipe").textContent = st.recipe.current.label;
@@ -179,12 +183,12 @@
     let rows = "";
     if (job.kind === "scan" && pr.robots) {
       for (const r of ROLES) if (pr.robots[r]) rows += prow(r, pr.robots[r].view, pr.robots[r].n, done);
-    } else if (job.kind === "focus") {
+    } else if (job.kind === "focus" || job.kind === "closeup") {
       rows += prow("대상", done ? pr.n_targets : Math.max(0, (pr.target || 1) - 1), pr.n_targets || 0, done);
       rows += `<div class="pline">사진 ${pr.shots || 0}장</div>`;
     }
     const s = { running: job.paused ? "일시정지" : (PHASE[pr.phase] || pr.phase || "-"), done: "완료", failed: "알람", cancelled: "중지됨" }[job.state];
-    rows += `<div class="pline">${job.kind === "scan" ? "스캔" : "보강"} · ${esc(s)}</div>`;
+    rows += `<div class="pline">${KIND[job.kind] || esc(job.kind)} · ${esc(s)}</div>`;
     if (job.message) rows += `<div class="pline" title="${esc(job.message)}">${esc(job.message.slice(0, 80))}</div>`;
     $("proc").innerHTML = `<div class="proc">${rows}</div>`;
   }
@@ -557,7 +561,11 @@
     if (!st.last_scan) reasons.push("현재 세션 스캔 없음");
     else if (ui.current && scanOf(ui.current) !== scanOf(st.last_scan.mesh_id)) reasons.push("현재 세션 스캔 아님");
     if (busy(st)) reasons.push("작업 중");
-    $("btnFocus").disabled = !ui.targets.length || reasons.length > 0 || ui.inflight.has("/api/focus/start");
+    const blocked = !ui.targets.length || reasons.length > 0;
+    $("btnFocus").disabled = blocked || ui.inflight.has("/api/focus/start");
+    $("btnCloseup").disabled = blocked || ui.inflight.has("/api/closeup/start");
+    const so = st.limits && st.limits.closeup_standoff;
+    $("btnCloseup").title = `고른 지점에 로봇이 다가가서 찍는다${so ? `(지점에서 약 ${fmt(so * 100, 0)} cm)` : ""}`;
     $("focusReasons").textContent = ui.targets.length ? reasons.join(" · ") : "";
   }
   $("btnFocus").addEventListener("click", () => {
@@ -565,30 +573,45 @@
     const regions = ui.targets.filter((t) => t.kind === "region").map((t) => ({ points: t.points, normals: t.normals }));
     post("/api/focus/start", { markers, regions });
   });
+  // 근접 촬영: 대상마다 점 하나(영역은 대표점과 그 자리의 법선)
+  $("btnCloseup").addEventListener("click", () => {
+    const markers = ui.targets.map((t) => {
+      if (t.kind === "point") return { point: t.point, normal: t.normal || null };
+      const i = t.points ? Math.floor(t.points.length / 2) : -1;
+      return { point: t.point, normal: (t.normals && t.normals[i]) || null };
+    });
+    post("/api/closeup/start", { markers });
+  });
 
-  function renderCrops(crops) {
+  function renderCrops(crops, kind) {
     const box = $("crops"), panel = $("cropPanel");
     if (!crops || !crops.length) { box.innerHTML = ""; box.dataset.key = ""; panel.hidden = true; return; }
     panel.hidden = false;
+    $("cropTitle").textContent = kind === "closeup" ? "근접 사진" : "보강 사진";
     $("cropCount").textContent = crops.filter((c) => c.url).length;
-    const key = JSON.stringify(crops.map((c) => [c.url, c.reason]));
+    const key = JSON.stringify([kind, crops.map((c) => [c.url, c.reason, c.source])]);
     if (box.dataset.key === key) return;
     box.dataset.key = key;
     box.innerHTML = crops.map((c, i) => c.url
       ? `<figure><a href="${esc(c.url)}" target="_blank" rel="noopener"><img alt="${i + 1}" src="${esc(c.url)}"></a>
-         <figcaption>#${c.target + 1} ${c.role} φ${fmt(c.phi, 0, "°")} ${fmt(c.distance_m, 2, "m")}</figcaption></figure>`
+         <figcaption>#${c.target + 1} ${c.role} φ${fmt(c.phi, 0, "°")} ${fmt(c.distance_m, 2, "m")}${c.source ? ` · ${esc(SOURCE[c.source] || c.source)}` : ""}</figcaption></figure>`
       : `<figure><figcaption>#${c.target + 1} ${c.role}: ${esc(c.reason)}</figcaption></figure>`).join("");
   }
   function renderJobEnd(st) {
     const job = st.job;
     if (!job) return;
     const pr = job.progress || {};
-    renderCrops(job.kind === "focus" ? (job.state === "done" && job.result ? job.result.crops : pr.crops) : null);
+    const shots = job.kind === "focus" || job.kind === "closeup";
+    renderCrops(shots ? (job.state === "done" && job.result && job.result.crops ? job.result.crops : pr.crops) : null, job.kind);
     const key = `${job.kind}:${job.scan_id}:${job.state}`;
     if (key !== ui.lastJobKey) {
       const was = ui.lastJobKey;
       ui.lastJobKey = key;
-      if (was && job.state === "done" && job.result && job.result.mesh_id) {
+      if (was && job.state === "done" && job.kind === "closeup") {   // 메시는 그대로: 대상만 비우고 모델 탭에 머문다
+        ui.targets = [];
+        applyOverlay(); drawMarkers(); renderTargets();
+        setTab("model");
+      } else if (was && job.state === "done" && job.result && job.result.mesh_id) {
         if (job.kind === "focus") { ui.targets = []; renderTargets(); }
         refreshList().then(() => { selectEntry(job.result.mesh_id); setTab("model"); });
       }

@@ -74,3 +74,11 @@ webui:                           # 웹 화면(python -m scan3d.web, docs/specs/w
   focus_offsets_deg: [-10, 0, 10]   # 보강 촬영 각(마커를 보는 각 기준)
   transit_max_deg: 90            # 보강 촬영: 원호 문장을 아는 로봇이 원호 하나로 가는 최대 각(15면 15°씩 끊어 감)
   crop_px: [480, 360]            # 보강 사진에서 마커 둘레를 자르는 크기
+
+closeup:                         # 근접 촬영(웹 화면, docs/specs/closeup.md)
+  standoff: 0.25                 # 카메라–고른 지점 수평 거리(0.20보다 작게 두지 않는다)
+  clear_obj: 0.18                # 로봇 기준점과 고른 지점 사이 최소 거리(제자리에서 돌 때 쓸리는 반경 + 여유)
+  front_sensor: lidar            # 전진을 확인할 정면 거리: lidar(줄어든 양으로 한 번 보정) 또는 none(odom만)
+  front_half_deg: 10             # 정면 거리로 보는 부채꼴 반폭
+  front_tol: 0.08                # 줄어든 양이 보낸 전진과 이보다 다르면 그 값은 쓰지 않는다
+  fix_tol: 0.02                  # 이보다 덜 갔거나 더 갔으면 한 번 보정한다

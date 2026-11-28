@@ -23,7 +23,7 @@ from ..robot import align, drive, mountfit, tagpose
 from ..robot import link as robot_link
 from ..robot.unit import RobotScan, StartError
 from . import alarms as alarm_mod
-from . import focus, preview
+from . import closeup, focus, preview
 from . import recipe as recipe_mod
 
 RECONNECT_S = 10.0       # 작업이 없을 때 끊긴 로봇에 다시 연결해 보는 주기
@@ -696,21 +696,82 @@ class Session:
                     w.close()
                 self._finish(job, links, state, message)
 
+    # ---- 근접 촬영 ----
+    def start_closeup(self, markers=None):
+        """고른 지점마다 로봇 한 대가 원 위에서 다가가 찍고 돌아온다(docs/specs/closeup.md)."""
+        if not isinstance(markers, list) or not markers:
+            raise focus.PlanError("markers가 한 개 이상 있어야 함")
+        if self.last_scan_dir is None:
+            raise NotReady("이 서버에서 끝낸 스캔이 없음(스캔 뒤 로봇과 물체를 옮기지 않은 채로 한다)")
+        roles = [r for r, s in self.slots.items() if s.connected()]
+        cfg = recipe_mod.apply(self.base_cfg, self.recipes[self.last_scan_recipe])
+        plans = closeup.plan(markers, cfg, roles)
+        job = self._begin("closeup")
+        job.scan_id, job.scan_dir = self.last_scan_dir.name, self.last_scan_dir
+        job.recipe = self.last_scan_recipe
+        job.progress.update(step="plan", plans=[{"role": p["role"], "point": p["point"], "phi": p["phi"], "shots": 1}
+                                                for p in plans])
+        self._spawn(job, self._run_closeup, plans, cfg)
+        return job
+
+    def _run_closeup(self, job, plans, cfg):
+        links, writers, units, state, message = {}, {}, {}, "failed", ""
+        ev_lock = threading.Lock()
+
+        def emitter(role):
+            def emit(typ, **kw):
+                self._on_event(role, typ, kw)
+                line = json.dumps({"pc_t": self.clock.now(), "role": role, "type": typ, "closeup": True, **kw},
+                                  ensure_ascii=False, separators=(",", ":"))
+                with ev_lock, open(job.scan_dir / "events.jsonl", "a", encoding="utf-8") as f:
+                    f.write(line + "\n")
+            return emit
+
+        with self.camera:
+            try:
+                links = self._links()
+                for r, lk in links.items():
+                    writers[r] = dataset.RawWriter(job.scan_dir / r)
+                    lk.raw = writers[r]
+                    units[r] = RobotScan(r, lk, cfg, self.board, emitter(r),
+                                         on_capture=lambda role, use, k, fr, po, hdr: self._on_capture(
+                                             role, use, k, fr, po, hdr, cfg))
+                    units[r].hello()
+                job.units = units
+                run = closeup.CloseupRun(cfg, units, job.scan_dir, plans,
+                                         hold=lambda role=None: self._hold(job, role),
+                                         cancelled=self.cancel.is_set, progress=job.progress, log=self.log)
+                res = run.run()
+                job.result = {"crops": [self._crop_json(job, i, c) for i, c in enumerate(res["crops"])]}
+                with ev_lock, open(job.scan_dir / "events.jsonl", "a", encoding="utf-8") as f:
+                    for c in res["crops"]:
+                        f.write(json.dumps({"pc_t": self.clock.now(), "role": c["role"], "type": "closeup", **c},
+                                           ensure_ascii=False, separators=(",", ":")) + "\n")
+                state, message = "done", f"근접 사진 {sum(1 for c in res['crops'] if c.get('file'))}장"
+            except BaseException as e:  # noqa: BLE001
+                for lk in links.values():               # 움직이던 로봇을 세운다
+                    lk.abort()
+                state, message = self._outcome(job, e)
+            finally:
+                for w in writers.values():
+                    w.close()
+                self._finish(job, links, state, message)
+
     @staticmethod
     def _crop_json(job, i, c):
         url = f"/api/focus/{i}.jpg?k={c['k']}&s={job.scan_id}" if c.get("file") else None
         return {**{k: v for k, v in c.items() if k != "file"}, "url": url}
 
     def focus_image(self, i):
-        """마지막 보강 촬영 작업의 i번째 자른 사진 바이트 또는 None."""
+        """마지막 보강·근접 촬영 작업의 i번째 자른 사진 바이트 또는 None."""
         with self.lock:
             job = self.job
-        if job is None or job.kind != "focus":
+        if job is None or job.kind not in ("focus", "closeup"):
             return None
         crops = job.progress.get("crops") or []
         if not (0 <= i < len(crops)) or not crops[i].get("file"):
             return None
-        path = job.scan_dir / "focus" / crops[i]["file"]
+        path = job.scan_dir / job.kind / crops[i]["file"]
         return path.read_bytes() if path.is_file() else None
 
     # ---- 실시간 스테이지(3D 시각화) ----
@@ -891,7 +952,8 @@ class Session:
                "job": None, "last_scan": None, "log": log,
                "limits": {"d_min": d["d_min"], "d_max": d["d_max"], "gap_tol_deg": d["pair_gap_tol_deg"],
                           "n_views": self.cfg["scene"]["n_views"], "split_z": fs["split_z"],
-                          "up_deg": fs["up_deg"], "start_clear": d["start_clear"], "stop_dist": d["stop_dist"]},
+                          "up_deg": fs["up_deg"], "start_clear": d["start_clear"], "stop_dist": d["stop_dist"],
+                          "closeup_standoff": closeup.settings(self.cfg)["standoff"]},
                "recipe": {"current": recipe_mod.public(self.recipe_name, self.recipes[self.recipe_name]),
                           "list": [recipe_mod.public(n, r) for n, r in self.recipes.items()]},
                "alarms": self.alarms.snapshot(), "judge": self.last_judge,
